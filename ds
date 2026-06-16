@@ -8,7 +8,7 @@ DEEPSUCK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Load API keys
 set -a; source ~/.deepsuck/.env 2>/dev/null; set +a
 
-ROOM_KEY="${DEEPSUCK_ROOM_KEY:-$(head -c32 /dev/urandom | xxd -p)}"
+ROOM_KEY="${DEEPSUCK_ROOM_KEY:-$(cat "$DEEPSUCK_DIR/.room_key" 2>/dev/null || head -c32 /dev/urandom | xxd -p)}"
 
 # Start gateway if not running
 if ! curl -s "$GATEWAY" >/dev/null 2>&1; then

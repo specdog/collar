@@ -4,8 +4,35 @@
 import json, hmac, hashlib, os, subprocess, shutil, tempfile, signal
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-ROOM_KEY = os.environ.get("DEEPSUCK_ROOM_KEY") or os.urandom(32).hex()
+ROOM_KEY_FILE = os.path.join(os.path.dirname(__file__), ".room_key")
+
+def get_room_key():
+    env_key = os.environ.get("DEEPSUCK_ROOM_KEY", "")
+    if env_key:
+        return env_key
+    if os.path.exists(ROOM_KEY_FILE):
+        return open(ROOM_KEY_FILE).read().strip()
+    key = os.urandom(32).hex()
+    with open(ROOM_KEY_FILE, "w") as f:
+        f.write(key)
+    return key
+
+ROOM_KEY = get_room_key()
 WORK_DIR = os.path.join(tempfile.gettempdir(), "deepsuck-nodes")
+
+# Load API keys from .env
+def load_env():
+    env_file = os.path.join(os.path.dirname(__file__), "..", ".deepsuck", ".env")
+    if not os.path.exists(env_file):
+        env_file = os.path.join(os.path.expanduser("~"), ".deepsuck", ".env")
+    if os.path.exists(env_file):
+        for line in open(env_file):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ[k.strip()] = v.strip().strip('"').strip("'")
+
+load_env()
 
 class Gateway(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -32,7 +59,7 @@ class Gateway(BaseHTTPRequestHandler):
                 input=json.dumps(payload),
                 capture_output=True, text=True, timeout=30,
                 cwd=node_dir,
-                env={**os.environ, "DEEPSUCK_WORKDIR": node_dir}
+                env={**os.environ, "DEEPSUCK_WORKDIR": node_dir, "DEEPSEEK_API_KEY": os.environ.get("DEEPSEEK_API_KEY", "")}
             )
             self.log_message("node exited: %d", result.returncode)
             output = result.stdout.strip()

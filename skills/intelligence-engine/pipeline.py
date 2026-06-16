@@ -52,7 +52,7 @@ def load_ground_truth(question):
         r = subprocess.run(["python3", dr, "--query", question[:200]],
             capture_output=True, text=True, timeout=5)
         if r.returncode == 0 and r.stdout.strip():
-            parts.append(r.stdout.strip()[:6000])
+            parts.append(r.stdout.strip())
     except: pass
     
     # Codebase
@@ -68,7 +68,7 @@ def load_ground_truth(question):
                     lines.append(f"  {f['path']}")
                     for l in f['snippet'].split('\n')[:20]:
                         lines.append(f"  {l}")
-                parts.append("\n".join(lines)[:5000])
+                parts.append("\n".join(lines))
     except: pass
     
     # Facts
@@ -123,7 +123,7 @@ def self_refine(text, ground_truth=""):
     c = call(CRITIQUE_SYS, f"OUTPUT TO CRITIQUE:\n{text[:8000]}\n\nList all errors:")
     if c.startswith("ERROR"): return text  # fallback to original
     
-    prompt = f"ORIGINAL:\n{text[:6000]}\n\nCRITIQUE:\n{c[:6000]}\n\nGROUND TRUTH:\n{ground_truth[:4000]}\n\nFixed version (only cite from ground truth):"
+    prompt = f"ORIGINAL:\n{text[:6000]}\n\nCRITIQUE:\n{c[:6000]}\n\nGROUND TRUTH:\n{ground_truth[:5000]}\n\nFixed version (only cite from ground truth):"
     r = call(REFINE_SYS, prompt)
     if r.startswith("ERROR"): return text
     
@@ -137,7 +137,7 @@ def run(question, fast=False):
     gt = load_ground_truth(question)
     
     # Phase 2: Build enriched question
-    enriched = f"GROUND TRUTH:\n{gt[:4000]}\n\nQUESTION: {question}"
+    enriched = f"GROUND TRUTH:\n{gt[:5000]}\n\nQUESTION: {question}"
     
     # Phase 3: Generate (multi-perspective or single pass)
     if fast:
@@ -148,8 +148,9 @@ def run(question, fast=False):
     if answer.startswith("ERROR"):
         return {"error": answer, "pipeline": "failed"}
     
-    # Phase 4: Self-refine
-    refined = self_refine(answer, gt)
+    # Phase 4: Self-refine — use just the DAG portion (most relevant ground truth)
+    dag_gt = gt.split('CODEBASE')[0].split('VERIFIED FACTS')[0] if gt else ""
+    refined = self_refine(answer, dag_gt[:5000])
     
     return {
         "pipeline": "unified",

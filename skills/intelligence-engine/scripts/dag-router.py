@@ -60,7 +60,12 @@ def search_entities(entities, query):
     return result if result else entities
 
 def build_ground_truth_string(entities, query=None, limit=50):
-    if query: entities = search_entities(entities, query)
+    if query:
+        matched = search_entities(entities, query)
+        # Put matched entities first, then append remaining
+        matched_names = {e['name'] for e in matched}
+        rest = [e for e in entities if e['name'] not in matched_names]
+        entities = matched + rest
     lines = []
     dags_seen = set()
     for e in entities[:limit]: dags_seen.add(e.get("dag","?"))

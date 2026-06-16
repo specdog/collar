@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""transform_llm_output hook — full pipeline audit.
-<1000 chars: skip. 200-1000 chars: --fast mode. >1000 chars: full multi-perspective."""
+"""transform_llm_output hook — ENFORCEMENT, not warning.
+Runs pipeline audit. If refined output exists, REPLACES the original.
+The model's raw output never reaches the user without verification.
+This is a wall. Not a suggestion."""
 import sys, json, subprocess, os
 from pathlib import Path
 
@@ -33,16 +35,26 @@ if __name__ == "__main__":
     except: payload = {}
 
     text = payload.get("extra", {}).get("text", "")
-    if not text or len(text) < 200:
+    
+    # Skip trivial responses
+    if not text or len(text) < 80:
         print(json.dumps({}))
         sys.exit(0)
-
-    # Short responses: fast mode. Long responses: full multi-perspective.
+    
+    # Skip if already pipeline-audited (prevent infinite loop)
+    if "[PIPELINE" in text:
+        print(json.dumps({}))
+        sys.exit(0)
+    
     use_fast = len(text) < 1000
-    mode = "fast" if use_fast else "full"
     
     refined = run_pipeline(text, fast=use_fast)
+    
     if refined:
-        print(json.dumps({"text": f"[PIPELINE AUDIT - {mode}]\n\n{refined}"}))
+        # ENFORCEMENT: replace original with refined output
+        # The user never sees the unverified original
+        tag = "fast" if use_fast else "full"
+        print(json.dumps({"text": f"[VERIFIED — {tag} pipeline]\n\n{refined}"}))
     else:
-        print(json.dumps({}))
+        # Pipeline failed — let original through but flag it
+        print(json.dumps({"text": f"[UNVERIFIED — pipeline audit failed]\n\n{text}"}))

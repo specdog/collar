@@ -34,8 +34,12 @@ git config --global credential.helper 2>/dev/null || echo "no git credential hel
 
 **Decision tree:**
 1. If `gh auth status` shows authenticated → you're good, use `gh` for everything
-2. If `gh` is installed but not authenticated → use "gh auth" method below
+2. If `gh` is installed but not authenticated → offer token auth first (fastest, one command). Only use device flow if the user explicitly wants browser login. See `references/device-flow-pitfalls.md` for the recipe. **If 2+ device flow attempts fail (SIGINT, timeout, no output) → stop trying. Switch to token auth unconditionally.** Continuing to retry the device flow after it's proven broken frustrates the user.
 3. If `gh` is not installed → use "git-only" method below (no sudo needed)
+
+### Important: gh repo clone needs gh auth
+
+`gh repo clone USER/REPO` is NOT a git wrapper — it requires `gh auth login` even if SSH keys are set up and `git clone git@github.com:USER/REPO.git` works. If the user says "clone this repo" and `gh repo clone` fails with auth errors, try `git clone git@github.com:USER/REPO.git` instead (if SSH key is registered), or fall back to token auth for gh.
 
 ---
 
@@ -82,12 +86,14 @@ After entering credentials once, they're saved and reused for all future operati
 git config --global credential.helper 'cache --timeout=28800'
 ```
 
-**Alternative: set the token directly in the remote URL (per-repo)**
+**Alternative: set the token directly in the remote URL (per-repo) — AVOID THIS**
 
 ```bash
 # Embed token in the remote URL (avoids credential prompts entirely)
 git remote set-url origin https://<username>:<token>@github.com/<owner>/<repo>.git
 ```
+
+**WARNING: This is a footgun.** The token is visible in `git remote -v` output and gets picked up by tools that read the remote URL — notably `npm init` which writes it into `package.json`, and other scaffolding tools. Use `gh auth setup-git` or the credential helper instead. Only reach for this as a troubleshooting escape hatch, and always revert it afterward:
 
 **Step 3: Configure git identity**
 
@@ -156,20 +162,13 @@ git config --global user.email "their-email@example.com"
 
 ---
 
-## Method 2: gh CLI Authentication
+## Method 2: gh CLI Authentication (Token First)
 
 If `gh` is installed, it handles both API access and git credentials in one step.
 
-### Interactive Browser Login (Desktop)
+**Prefer token-based auth.** The device flow is fragile in terminal environments — it blocks waiting for browser auth and timing out loses the token. Token auth is one command, instant, and never fails. Only use the device/browser flow if the user explicitly rejects the token approach.
 
-```bash
-gh auth login
-# Select: GitHub.com
-# Select: HTTPS
-# Authenticate via browser
-```
-
-### Token-Based Login (Headless / SSH Servers)
+### Token-Based Login (Recommended)
 
 ```bash
 echo "<THEIR_TOKEN>" | gh auth login --with-token
@@ -178,11 +177,32 @@ echo "<THEIR_TOKEN>" | gh auth login --with-token
 gh auth setup-git
 ```
 
+### Device Flow (Fallback — use only if user insists on browser)
+
+See `references/device-flow-pitfalls.md` for the full recipe. Quick summary:
+
+```bash
+# 1. Get the code without blocking
+echo "" | gh auth login --hostname github.com --git-protocol https 2>&1
+# Prints code and URL, then times out — that's fine, you have the code
+
+# 2. Open the URL for the user
+open "https://github.com/login/device"
+
+# 3. Background the actual auth with a generous timeout
+terminal(
+  command="gh auth login --hostname github.com --git-protocol https",
+  background=true, notify_on_complete=true, timeout=600
+)
+```
+
 ### Verify
 
 ```bash
 gh auth status
 ```
+
+**Important: If the user says they're authenticated, TRUST THEM.** Do not run `gh auth status` repeatedly to double-check. If an operation fails with an auth error, mention it and offer to fix it — but repeated status checks after the user confirmed they're authed looks like you don't believe them and causes frustration. Just try the operation they asked for.
 
 ---
 
@@ -245,3 +265,6 @@ fi
 | Credentials not persisting | Check `git config --global credential.helper` — must be `store` or `cache` |
 | Multiple GitHub accounts | Use SSH with different keys per host alias in `~/.ssh/config`, or per-repo credential URLs |
 | `gh: command not found` + no sudo | Use git-only Method 1 above — no installation needed |
+| `gh auth login` gets SIGINT (exit 130) in foreground | Hermes sandbox sends SIGINT to interactive-auth processes. Use `terminal(background=true)` — see `references/device-flow-pitfalls.md`. Or use token auth: `echo "TOKEN" \| gh auth login --with-token` |
+| Browser doesn't open for gh auth | Set `$BROWSER` — on macOS: `export BROWSER="open -a Safari"`. Or use token auth instead. |
+| `gh repo clone` fails after user auth'd in browser | Browser login ≠ gh CLI login. gh needs its own auth via `gh auth login`. User being logged into github.com in Safari doesn't mean gh is authenticated. **If the user says "I already authed" and `gh auth status` shows nothing, don't argue — just explain the difference and offer token auth as the instant fix.** Running `gh auth status` repeatedly after the user says they're authed looks like you don't believe them.

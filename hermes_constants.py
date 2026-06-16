@@ -70,7 +70,7 @@ def get_hermes_home() -> Path:
     if override:
         return Path(override)
 
-    val = os.environ.get("HERMES_HOME", "").strip()
+    val = os.environ.get("DEEPSUCK_HOME", "").strip() or os.environ.get("HERMES_HOME", "").strip()
     if val:
         return Path(val)
 

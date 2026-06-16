@@ -501,6 +501,12 @@ for g in json.load(sys.stdin):
     print(f\"  {g['id']}  {g['description'] or '(no desc)':40}  {files}\")"
 ```
 
+## Pitfalls
+
+### Browser vs CLI
+
+For reading/viewing/inspecting GitHub repos, always use `gh repo view owner/repo` or `git` — NEVER use browser tools. The user has `gh` CLI authenticated. Browser navigation is slower, heavier, and unnecessary for GitHub operations. Only use browser when you need to interact with a web UI (click buttons, fill forms) — not for reading READMEs, checking repo info, or viewing code.
+
 ## Quick Reference Table
 
 | Action | gh | git + curl |

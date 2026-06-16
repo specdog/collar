@@ -174,6 +174,97 @@ your conversation context.
 - Don't interact with the user's browser tabs that are clearly personal
   (email, banking, Messages) unless that's the actual task.
 
+## Web form filling patterns
+
+Sometimes you need to fill a web form in Safari (e.g., GitHub SSH key, login forms).
+The canonical sequence:
+
+1. **Capture** the page to find field indices:
+   ```
+   computer_use(action="capture", app="Safari")
+   ```
+   Look for `AXTextField` or `AXTextArea` elements.
+
+2. **Click the field** to focus it:
+   ```
+   computer_use(action="click", element=840)  # "Title" field
+   ```
+
+3. **Type the value**:
+   ```
+   computer_use(action="type", text="macbook")
+   ```
+
+4. **Tab to next field**:
+   ```
+   computer_use(action="key", keys="tab")
+   ```
+
+5. **Paste clipboard** (for long values like SSH keys):
+   ```
+   terminal(command="cat ~/.ssh/id_ed25519.pub | pbcopy")  # copy to clipboard
+   computer_use(action="key", keys="cmd+v")                  # paste in field
+   ```
+
+6. **Click the submit button**, then capture_after to verify.
+
+## Safari patterns
+
+Safari is tricky to drive via computer_use — WebKit doesn't expose rich AX
+trees, and tab/window switching with keyboard shortcuts is unreliable.
+Use these patterns instead:
+
+**Navigate to a URL** (preferred over typing into address bar):
+```bash
+# From terminal — always works, focuses existing tab or opens new one
+open -a Safari "https://github.com/logohere/dotfiles"
+```
+
+**List all tabs across all windows** (when you need to find a specific tab):
+```bash
+osascript -e '
+tell application "Safari"
+    repeat with w in windows
+        repeat with t in tabs of w
+            log name of t & " | " & URL of t
+        end repeat
+    end repeat
+end tell'
+```
+
+**Switch to a specific tab** by URL match:
+```bash
+osascript -e '
+tell application "Safari"
+    repeat with w in windows
+        repeat with t in tabs of w
+            if URL of t contains "logohere/dotfiles" then
+                set current tab of w to t
+                set index of w to 1
+            end if
+        end repeat
+    end repeat
+end tell'
+```
+
+**Do NOT rely on** `cmd+shift+]` (next tab) or `cmd+\`` (next window)
+for Safari — they often don't switch to the expected target. Use `open`
+or `osascript` instead.
+
+## Opening native apps
+
+```bash
+# Terminal — use `open` from the terminal tool:
+open -a Terminal
+
+# If the user says Terminal didn't appear, verify with:
+pgrep -l Terminal
+osascript -e 'tell application "System Events" to get name of every process whose name contains "Terminal"'
+
+# Use computer_use to bring it to front if needed:
+computer_use(action="focus_app", app="Terminal", raise_window=true)
+```
+
 ## Failure modes
 
 - **"cua-driver not installed"** — Run `hermes tools` and enable Computer
@@ -188,6 +279,13 @@ your conversation context.
 - **"blocked pattern in type text"** — You tried to `type` a shell command
   that matches the dangerous-pattern block list (`curl ... | bash`,
   `sudo rm -rf`, etc.). Break the command up or reconsider.
+- **AX bounds are all (0,0,0,0)** — Many elements (especially in Safari and
+  Electron apps) report zero bounds. This is normal. Element indices still
+  work — click by `element=N`, not by coordinate. Don't waste turns trying
+  to get non-zero bounds.
+- **Safari tab/window switching is unreliable** — `cmd+shift+]` and
+  `cmd+\`` often target the wrong tab or window. Use `open -a Safari URL`
+  or `osascript` to navigate programmatically (see Safari section above).
 
 ## When NOT to use `computer_use`
 
@@ -198,4 +296,8 @@ your conversation context.
   games, anything non-web).
 - File edits — use `read_file` / `write_file` / `patch`, not `type` into
   an editor window.
-- Shell commands — use `terminal`, not `type` into Terminal.app.
+- Shell commands — use `terminal`, not `type` into
+  Terminal.app. Exception: commands that need `sudo` (like Homebrew
+  install) — the terminal sandbox can't handle interactive password
+  prompts. Activate Terminal via `osascript -e 'tell application
+  "Terminal" to activate'`, then `type` the command and press `return`.

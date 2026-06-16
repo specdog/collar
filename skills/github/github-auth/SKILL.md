@@ -2,11 +2,11 @@
 name: github-auth
 description: "GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login."
 version: 1.1.0
-author: Hermes Agent
+author: Deepsuck Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  deepsuck:
     tags: [GitHub, Authentication, Git, gh-cli, SSH, Setup]
     related_skills: [github-pr-workflow, github-code-review, github-issues, github-repo-management]
 ---
@@ -56,7 +56,7 @@ This is the most portable method — works everywhere, no SSH config needed.
 Tell the user to go to: **https://github.com/settings/tokens**
 
 - Click "Generate new token (classic)"
-- Give it a name like "hermes-agent"
+- Give it a name like "deepsuck-agent"
 - Select scopes:
   - `repo` (full repository access — read, write, push, PRs)
   - `workflow` (trigger and manage GitHub Actions)
@@ -137,7 +137,7 @@ cat ~/.ssh/id_ed25519.pub
 Tell the user to add the public key at: **https://github.com/settings/keys**
 - Click "New SSH key"
 - Paste the public key content
-- Give it a title like "hermes-agent-<machine-name>"
+- Give it a title like "deepsuck-agent-<machine-name>"
 
 **Step 3: Test the connection**
 
@@ -240,8 +240,8 @@ if command -v gh &>/dev/null && gh auth status &>/dev/null; then
   echo "AUTH_METHOD=gh"
 elif [ -n "$GITHUB_TOKEN" ]; then
   echo "AUTH_METHOD=curl"
-elif _hermes_env="${HERMES_HOME:-$HOME/.hermes}/.env"; [ -f "$_hermes_env" ] && grep -q "^GITHUB_TOKEN=" "$_hermes_env"; then
-  export GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_hermes_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
+elif _deepsuck_env="${DEEPSUCK_HOME:-$HOME/.deepsuck}/.env"; [ -f "$_deepsuck_env" ] && grep -q "^GITHUB_TOKEN=" "$_deepsuck_env"; then
+  export GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_deepsuck_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
   echo "AUTH_METHOD=curl"
 elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
   export GITHUB_TOKEN=$(grep "github.com" ~/.git-credentials | head -1 | sed 's|https://[^:]*:\([^@]*\)@.*|\1|')
@@ -265,6 +265,6 @@ fi
 | Credentials not persisting | Check `git config --global credential.helper` — must be `store` or `cache` |
 | Multiple GitHub accounts | Use SSH with different keys per host alias in `~/.ssh/config`, or per-repo credential URLs |
 | `gh: command not found` + no sudo | Use git-only Method 1 above — no installation needed |
-| `gh auth login` gets SIGINT (exit 130) in foreground | Hermes sandbox sends SIGINT to interactive-auth processes. Use `terminal(background=true)` — see `references/device-flow-pitfalls.md`. Or use token auth: `echo "TOKEN" \| gh auth login --with-token` |
+| `gh auth login` gets SIGINT (exit 130) in foreground | Deepsuck sandbox sends SIGINT to interactive-auth processes. Use `terminal(background=true)` — see `references/device-flow-pitfalls.md`. Or use token auth: `echo "TOKEN" \| gh auth login --with-token` |
 | Browser doesn't open for gh auth | Set `$BROWSER` — on macOS: `export BROWSER="open -a Safari"`. Or use token auth instead. |
 | `gh repo clone` fails after user auth'd in browser | Browser login ≠ gh CLI login. gh needs its own auth via `gh auth login`. User being logged into github.com in Safari doesn't mean gh is authenticated. **If the user says "I already authed" and `gh auth status` shows nothing, don't argue — just explain the difference and offer token auth as the instant fix.** Running `gh auth status` repeatedly after the user says they're authed looks like you don't believe them.

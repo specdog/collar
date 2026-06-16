@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# ds — Deepsuck v2 CLI
+# Usage: ds "your prompt here"
+
+set -e
+GATEWAY="http://127.0.0.1:${DEEPSUCK_PORT:-9999}"
+DEEPSUCK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Load API keys
+set -a; source ~/.deepsuck/.env 2>/dev/null; set +a
+
+ROOM_KEY="${DEEPSUCK_ROOM_KEY:-$(head -c32 /dev/urandom | xxd -p)}"
+
+# Start gateway if not running
+if ! curl -s "$GATEWAY" >/dev/null 2>&1; then
+    DEEPSUCK_ROOM_KEY="$ROOM_KEY" DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" python3 "$DEEPSUCK_DIR/gateway.py" &
+    sleep 1
+fi
+
+# Build payload: sign it, send it
+PAYLOAD=$(python3 -c "
+import json, hmac, hashlib, os
+key = os.environ.get('DEEPSUCK_ROOM_KEY', '$ROOM_KEY')
+p = {'next': 'llm', 'result': '''${*}''', 'tools': []}
+p['signature'] = hmac.new(key.encode(), json.dumps(p, sort_keys=True).encode(), hashlib.sha256).hexdigest()
+print(json.dumps(p))
+")
+
+# Loop: send → get response → if tool_call, loop again
+for i in $(seq 1 5); do
+    RESP=$(curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$GATEWAY")
+    NEXT=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('next','done'))")
+    
+    if [ "$NEXT" = "done" ]; then
+        echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result',''))"
+        break
+    fi
+    
+    PAYLOAD="$RESP"
+done
+
+# Kill gateway on exit
+trap "kill %1 2>/dev/null" EXIT

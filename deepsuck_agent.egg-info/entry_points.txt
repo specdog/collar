@@ -1,0 +1,4 @@
+[console_scripts]
+deepsuck = deepsuck_cli.main:main
+deepsuck-acp = acp_adapter.entry:main
+deepsuck-agent = run_agent:main

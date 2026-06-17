@@ -242,5 +242,5 @@ Cost: 7 API calls total (~$0.0035 at deepseek prices).
 
 - `references/frontier-techniques.md` — Full lineage: what was stolen from each frontier model, with mechanism details
 - `references/real-pipeline-architecture.md` — **v3.0 learning**: Cosplay vs real architecture. Self-Refine and Multi-Perspective Debate proven with live API calls. DAG-grounded refinement prevents hallucination. Corrupted Blood quarantine boundary.
-- `references/hook-wire-protocol.md` — Deepsuck shell hook wire protocol reference
+- `references/hook-wire-protocol.md` — Collar shell hook wire protocol reference
 - `references/research-papers.md` — Full citations, mechanisms, and benchmarks for all techniques

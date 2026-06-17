@@ -2,7 +2,7 @@
 name: apple-notes
 description: "Manage Apple Notes via memo CLI: create, search, edit."
 version: 1.0.0
-author: Deepsuck Agent
+author: Collar Agent
 license: MIT
 platforms: [macos]
 metadata:

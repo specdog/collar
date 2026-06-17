@@ -2,7 +2,7 @@
 name: github-auth
 description: "GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login."
 version: 1.1.0
-author: Deepsuck Agent
+author: Collar Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
@@ -265,6 +265,6 @@ fi
 | Credentials not persisting | Check `git config --global credential.helper` — must be `store` or `cache` |
 | Multiple GitHub accounts | Use SSH with different keys per host alias in `~/.ssh/config`, or per-repo credential URLs |
 | `gh: command not found` + no sudo | Use git-only Method 1 above — no installation needed |
-| `gh auth login` gets SIGINT (exit 130) in foreground | Deepsuck sandbox sends SIGINT to interactive-auth processes. Use `terminal(background=true)` — see `references/device-flow-pitfalls.md`. Or use token auth: `echo "TOKEN" \| gh auth login --with-token` |
+| `gh auth login` gets SIGINT (exit 130) in foreground | Collar sandbox sends SIGINT to interactive-auth processes. Use `terminal(background=true)` — see `references/device-flow-pitfalls.md`. Or use token auth: `echo "TOKEN" \| gh auth login --with-token` |
 | Browser doesn't open for gh auth | Set `$BROWSER` — on macOS: `export BROWSER="open -a Safari"`. Or use token auth instead. |
 | `gh repo clone` fails after user auth'd in browser | Browser login ≠ gh CLI login. gh needs its own auth via `gh auth login`. User being logged into github.com in Safari doesn't mean gh is authenticated. **If the user says "I already authed" and `gh auth status` shows nothing, don't argue — just explain the difference and offer token auth as the instant fix.** Running `gh auth status` repeatedly after the user says they're authed looks like you don't believe them.

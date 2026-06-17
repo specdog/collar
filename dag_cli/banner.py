@@ -642,17 +642,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     except Exception:
         _bskin = None
         _hero = DAG_CADUCEUS
-    left_lines = [
-        "",
-        f"[bold #D4AF37] ⣿⣿⣿ ⣿⣿⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]",
-        f"[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿ ⣿ [/]",
-        f"[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]",
-        f"[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿⣿  [/]",
-        f"[bold #D4AF37] ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿ ⣿ ⣿ ⣿ [/]",
-        "",
-        _hero,
-        "",
-    ]
+    left_lines = ["", _hero, ""]
     model_short = model.split("/")[-1] if "/" in model else model
     if model_short.endswith(".gguf"):
         model_short = model_short[:-5]
@@ -871,4 +861,11 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         padding=(0, 2),
     )
 
+    console.print(
+        f"\n[bold #D4AF37] ⣿⣿⣿ ⣿⣿⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]"
+        f"\n[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿ ⣿ [/]"
+        f"\n[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]"
+        f"\n[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿⣿  [/]"
+        f"\n[bold #D4AF37] ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿ ⣿ ⣿ ⣿ [/]"
+    )
     console.print(outer_panel)

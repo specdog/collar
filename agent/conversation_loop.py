@@ -1024,7 +1024,7 @@ def run_conversation(
                 except Exception:
                     pass
 
-                if env_var_enabled("DEEPSUCK_DUMP_REQUESTS"):
+                if env_var_enabled("DAG_DUMP_REQUESTS"):
                     agent._dump_api_request_debug(api_kwargs, reason="preflight")
 
                 # Always prefer the streaming path — even without stream

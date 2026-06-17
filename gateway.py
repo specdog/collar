@@ -7,7 +7,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 ROOM_KEY_FILE = os.path.join(os.path.dirname(__file__), ".room_key")
 
 def get_room_key():
-    env_key = os.environ.get("DEEPSUCK_ROOM_KEY", "")
+    env_key = os.environ.get("DAG_ROOM_KEY", "")
     if env_key:
         return env_key
     if os.path.exists(ROOM_KEY_FILE):
@@ -59,7 +59,7 @@ class Gateway(BaseHTTPRequestHandler):
                 input=json.dumps(payload),
                 capture_output=True, text=True, timeout=30,
                 cwd=node_dir,
-                env={**os.environ, "DEEPSUCK_WORKDIR": node_dir, "DEEPSEEK_API_KEY": os.environ.get("DEEPSEEK_API_KEY", "")}
+                env={**os.environ, "DAG_WORKDIR": node_dir, "DEEPSEEK_API_KEY": os.environ.get("DEEPSEEK_API_KEY", "")}
             )
             self.log_message("node exited: %d", result.returncode)
             output = result.stdout.strip()
@@ -92,6 +92,6 @@ class Gateway(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.makedirs(WORK_DIR, exist_ok=True)
-    port = int(os.environ.get("DEEPSUCK_PORT", "9999"))
+    port = int(os.environ.get("DAG_PORT", "9999"))
     print(f"Gateway: http://127.0.0.1:{port}  key={ROOM_KEY[:8]}...")
     HTTPServer(("127.0.0.1", port), Gateway).serve_forever()

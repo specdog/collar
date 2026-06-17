@@ -328,7 +328,7 @@ def _make_dag_provider_class() -> Optional[type]:
 
 
 # Cached at import time. Tested and used by :class:`MCPOAuthManager`.
-_DEEPSUCK_PROVIDER_CLS: Optional[type] = _make_dag_provider_class()
+_DAG_PROVIDER_CLS: Optional[type] = _make_dag_provider_class()
 
 
 # ---------------------------------------------------------------------------
@@ -399,7 +399,7 @@ class MCPOAuthManager:
 
         Returns None if the MCP SDK's OAuth support is unavailable.
         """
-        if _DEEPSUCK_PROVIDER_CLS is None:
+        if _DAG_PROVIDER_CLS is None:
             logger.warning(
                 "MCP OAuth '%s': SDK auth module unavailable", server_name,
             )
@@ -437,7 +437,7 @@ class MCPOAuthManager:
         client_metadata = _build_client_metadata(cfg)
         _maybe_preregister_client(storage, cfg, client_metadata)
 
-        return _DEEPSUCK_PROVIDER_CLS(
+        return _DAG_PROVIDER_CLS(
             server_name=server_name,
             server_url=entry.server_url,
             client_metadata=client_metadata,

@@ -66,10 +66,10 @@ _bundles_cache_mtime: Optional[float] = None
 def _bundles_dir() -> Path:
     """Return the canonical bundles directory under DAG_HOME.
 
-    Honors ``DEEPSUCK_BUNDLES_DIR`` for tests; falls back to
+    Honors ``DAG_BUNDLES_DIR`` for tests; falls back to
     ``<DAG_HOME>/skill-bundles``.
     """
-    override = os.environ.get("DEEPSUCK_BUNDLES_DIR")
+    override = os.environ.get("DAG_BUNDLES_DIR")
     if override:
         return Path(override).expanduser()
     return get_dag_home() / "skill-bundles"

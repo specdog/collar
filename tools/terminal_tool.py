@@ -298,7 +298,7 @@ def _handle_sudo_failure(output: str, env_type: str) -> str:
     
     Returns enhanced output if sudo failed in messaging context, else original.
     """
-    is_gateway = env_var_enabled("DEEPSUCK_GATEWAY_SESSION")
+    is_gateway = env_var_enabled("DAG_GATEWAY_SESSION")
     
     if not is_gateway:
         return output
@@ -327,7 +327,7 @@ def _prompt_for_sudo_password(timeout_seconds: int = 45) -> str:
     - Timeout expires (45s default)
     - Any error occurs
     
-    Only works in interactive mode (DEEPSUCK_INTERACTIVE=1).
+    Only works in interactive mode (DAG_INTERACTIVE=1).
     If a _sudo_password_callback is registered (by the CLI), delegates to it
     so the prompt integrates with prompt_toolkit's UI.  Otherwise reads
     directly from /dev/tty with echo disabled.
@@ -393,7 +393,7 @@ def _prompt_for_sudo_password(timeout_seconds: int = 45) -> str:
             result["done"] = True
     
     try:
-        os.environ["DEEPSUCK_SPINNER_PAUSE"] = "1"
+        os.environ["DAG_SPINNER_PAUSE"] = "1"
         time.sleep(0.2)
         
         print()
@@ -439,8 +439,8 @@ def _prompt_for_sudo_password(timeout_seconds: int = 45) -> str:
         sys.stdout.flush()
         return ""
     finally:
-        if "DEEPSUCK_SPINNER_PAUSE" in os.environ:
-            del os.environ["DEEPSUCK_SPINNER_PAUSE"]
+        if "DAG_SPINNER_PAUSE" in os.environ:
+            del os.environ["DAG_SPINNER_PAUSE"]
 
 def _safe_command_preview(command: Any, limit: int = 200) -> str:
     """Return a log-safe preview for possibly-invalid command values."""
@@ -778,7 +778,7 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
     methods for how they handle the non-None sudo_stdin case.
 
     If SUDO_PASSWORD is not set and an interactive UI is available
-    (DEEPSUCK_INTERACTIVE=1 or a registered sudo password callback):
+    (DAG_INTERACTIVE=1 or a registered sudo password callback):
       Prompts user for password with 45s timeout, caches for session.
 
     If SUDO_PASSWORD is not set and NOT interactive:
@@ -808,7 +808,7 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
 
     has_sudo_prompt_callback = _get_sudo_password_callback() is not None
     should_prompt_for_sudo = (
-        env_var_enabled("DEEPSUCK_INTERACTIVE") or has_sudo_prompt_callback
+        env_var_enabled("DAG_INTERACTIVE") or has_sudo_prompt_callback
     )
     if not has_configured_password and not sudo_password and should_prompt_for_sudo:
         sudo_password = _prompt_for_sudo_password(timeout_seconds=45)

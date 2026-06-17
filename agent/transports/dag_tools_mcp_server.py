@@ -207,8 +207,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
 
     # Quiet mode: keep Dag' own banners off stdout (which is the MCP wire).
-    os.environ.setdefault("DEEPSUCK_QUIET", "1")
-    os.environ.setdefault("DEEPSUCK_REDACT_SECRETS", "true")
+    os.environ.setdefault("DAG_QUIET", "1")
+    os.environ.setdefault("DAG_REDACT_SECRETS", "true")
 
     try:
         server = _build_server()

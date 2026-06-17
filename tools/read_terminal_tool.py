@@ -49,8 +49,8 @@ def read_terminal_tool(
 
 
 def check_read_terminal_requirements() -> bool:
-    """Desktop GUI only — DEEPSUCK_DESKTOP is set on the gateway the app spawns."""
-    return (os.getenv("DEEPSUCK_DESKTOP") or "").strip().lower() in ("1", "true", "yes")
+    """Desktop GUI only — DAG_DESKTOP is set on the gateway the app spawns."""
+    return (os.getenv("DAG_DESKTOP") or "").strip().lower() in ("1", "true", "yes")
 
 
 READ_TERMINAL_SCHEMA = {

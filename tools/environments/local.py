@@ -73,7 +73,7 @@ def _resolve_safe_cwd(cwd: str) -> str:
 
 
 # Dag-internal env vars that should NOT leak into terminal subprocesses.
-_DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX = "_DEEPSUCK_FORCE_"
+_DAG_PROVIDER_ENV_FORCE_PREFIX = "_DAG_FORCE_"
 
 # Dag-managed AWS *inference* credentials for ``auth_type="aws_sdk"``
 # providers (Bedrock).  Scoped DELIBERATELY NARROW: this lists only the
@@ -175,7 +175,7 @@ def _build_provider_env_blocklist() -> frozenset:
         "EMAIL_SMTP_HOST",
         "EMAIL_HOME_ADDRESS",
         "EMAIL_HOME_ADDRESS_NAME",
-        "DEEPSUCK_DASHBOARD_SESSION_TOKEN",
+        "DAG_DASHBOARD_SESSION_TOKEN",
         "GATEWAY_ALLOWED_USERS",
         "GH_TOKEN",
         "GITHUB_APP_ID",
@@ -188,7 +188,7 @@ def _build_provider_env_blocklist() -> frozenset:
     return frozenset(blocked)
 
 
-_DEEPSUCK_PROVIDER_ENV_BLOCKLIST = _build_provider_env_blocklist()
+_DAG_PROVIDER_ENV_BLOCKLIST = _build_provider_env_blocklist()
 
 
 def _inject_context_dag_home(env: dict) -> None:
@@ -213,16 +213,16 @@ def _sanitize_subprocess_env(base_env: dict | None, extra_env: dict | None = Non
     sanitized: dict[str, str] = {}
 
     for key, value in (base_env or {}).items():
-        if key.startswith(_DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX):
+        if key.startswith(_DAG_PROVIDER_ENV_FORCE_PREFIX):
             continue
-        if key not in _DEEPSUCK_PROVIDER_ENV_BLOCKLIST or _is_passthrough(key):
+        if key not in _DAG_PROVIDER_ENV_BLOCKLIST or _is_passthrough(key):
             sanitized[key] = value
 
     for key, value in (extra_env or {}).items():
-        if key.startswith(_DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX):
-            real_key = key[len(_DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX):]
+        if key.startswith(_DAG_PROVIDER_ENV_FORCE_PREFIX):
+            real_key = key[len(_DAG_PROVIDER_ENV_FORCE_PREFIX):]
             sanitized[real_key] = value
-        elif key not in _DEEPSUCK_PROVIDER_ENV_BLOCKLIST or _is_passthrough(key):
+        elif key not in _DAG_PROVIDER_ENV_BLOCKLIST or _is_passthrough(key):
             sanitized[key] = value
 
     _inject_context_dag_home(sanitized)
@@ -244,7 +244,7 @@ def _find_bash() -> str:
             or "/bin/sh"
         )
 
-    custom = os.environ.get("DEEPSUCK_GIT_BASH_PATH")
+    custom = os.environ.get("DAG_GIT_BASH_PATH")
     if custom and os.path.isfile(custom):
         return custom
 
@@ -282,7 +282,7 @@ def _find_bash() -> str:
     raise RuntimeError(
         "Git Bash not found. DAG Agent requires Git for Windows on Windows.\n"
         "Install it from: https://git-scm.com/download/win\n"
-        "Or set DEEPSUCK_GIT_BASH_PATH to your bash.exe location."
+        "Or set DAG_GIT_BASH_PATH to your bash.exe location."
     )
 
 
@@ -373,10 +373,10 @@ def _make_run_env(env: dict) -> dict:
     merged = dict(os.environ | env)
     run_env = {}
     for k, v in merged.items():
-        if k.startswith(_DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX):
-            real_key = k[len(_DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX):]
+        if k.startswith(_DAG_PROVIDER_ENV_FORCE_PREFIX):
+            real_key = k[len(_DAG_PROVIDER_ENV_FORCE_PREFIX):]
             run_env[real_key] = v
-        elif k not in _DEEPSUCK_PROVIDER_ENV_BLOCKLIST or _is_passthrough(k):
+        elif k not in _DAG_PROVIDER_ENV_BLOCKLIST or _is_passthrough(k):
             run_env[k] = v
     path_key = _path_env_key(run_env)
     if path_key is not None:

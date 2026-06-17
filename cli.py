@@ -3026,18 +3026,8 @@ def _build_compact_banner() -> str:
     line1 = line1[:content_width].ljust(content_width)
     line2 = version_line[:content_width].ljust(content_width)
 
-    # Include skin banner_hero above the box (e.g. spiked collar for dogbone)
-    hero = ""
-    try:
-        _hero = getattr(_skin, "banner_hero", None) if _skin else None
-        if _hero:
-            hero = f"{_hero}\n"
-    except Exception:
-        pass
-
     return (
-        f"\n{hero}"
-        f"[bold {border_color}]╔{bar}╗[/]\n"
+        f"\n[bold {border_color}]╔{bar}╗[/]\n"
         f"[bold {border_color}]║[/] [{title_color}]{line1}[/] [bold {border_color}]║[/]\n"
         f"[bold {border_color}]║[/] [dim {dim_color}]{line2}[/] [bold {border_color}]║[/]\n"
         f"[bold {border_color}]╚{bar}╝[/]\n"

@@ -6,7 +6,7 @@ author: Deepsuck Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  deepsuck:
+  dag:
     tags: [LOC, Code Analysis, pygount, Codebase, Metrics, Repository]
     related_skills: [github-repo-management]
 prerequisites:

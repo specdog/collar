@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deepsuck Gateway — routes payloads to nodes, kills old nodes, verifies signatures."""
+"""DAG Gateway — routes payloads to nodes, kills old nodes, verifies signatures."""
 
 import json, hmac, hashlib, os, subprocess, shutil, tempfile, signal
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -18,13 +18,13 @@ def get_room_key():
     return key
 
 ROOM_KEY = get_room_key()
-WORK_DIR = os.path.join(tempfile.gettempdir(), "deepsuck-nodes")
+WORK_DIR = os.path.join(tempfile.gettempdir(), "dag-nodes")
 
 # Load API keys from .env
 def load_env():
-    env_file = os.path.join(os.path.dirname(__file__), "..", ".deepsuck", ".env")
+    env_file = os.path.join(os.path.dirname(__file__), "..", ".dag", ".env")
     if not os.path.exists(env_file):
-        env_file = os.path.join(os.path.expanduser("~"), ".deepsuck", ".env")
+        env_file = os.path.join(os.path.expanduser("~"), ".dag", ".env")
     if os.path.exists(env_file):
         for line in open(env_file):
             line = line.strip()

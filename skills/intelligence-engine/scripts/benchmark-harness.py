@@ -11,7 +11,7 @@ Usage: python3 benchmark-harness.py --report          (show current benchmarks)
 import sys, json, os
 from datetime import datetime
 
-BENCHMARK_DIR = os.path.expanduser("~/.deepsuck/intel-reports/benchmarks")
+BENCHMARK_DIR = os.path.expanduser("~/.dag/intel-reports/benchmarks")
 os.makedirs(BENCHMARK_DIR, exist_ok=True)
 
 BENCHMARK_FILE = os.path.join(BENCHMARK_DIR, "technique-scores.json")

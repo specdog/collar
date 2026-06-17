@@ -9,7 +9,7 @@ The Nous provider lives in ``plugins/dashboard-auth-nous/`` and is the
 default. Third parties register their own providers via the plugin hook
 ``ctx.register_dashboard_auth_provider``.
 """
-from deepsuck_cli.dashboard_auth.base import (
+from dag_cli.dashboard_auth.base import (
     DashboardAuthProvider,
     Session,
     LoginStart,
@@ -19,7 +19,7 @@ from deepsuck_cli.dashboard_auth.base import (
     RefreshExpiredError,
     assert_protocol_compliance,
 )
-from deepsuck_cli.dashboard_auth.registry import (
+from dag_cli.dashboard_auth.registry import (
     register_provider,
     get_provider,
     list_providers,

@@ -83,8 +83,8 @@ class DaytonaEnvironment(BaseEnvironment):
             disk_gib = 10
         resources = Resources(cpu=cpu, memory=memory_gib, disk=disk_gib)
 
-        labels = {"deepsuck_task_id": task_id}
-        sandbox_name = f"deepsuck-{task_id}"
+        labels = {"dag_task_id": task_id}
+        sandbox_name = f"dag-{task_id}"
 
         if self._persistent:
             try:
@@ -142,7 +142,7 @@ class DaytonaEnvironment(BaseEnvironment):
         logger.info("Daytona: resolved home to %s, cwd to %s", self._remote_home, self.cwd)
 
         self._sync_manager = FileSyncManager(
-            get_files_fn=lambda: iter_sync_files(f"{self._remote_home}/.deepsuck"),
+            get_files_fn=lambda: iter_sync_files(f"{self._remote_home}/.dag"),
             upload_fn=self._daytona_upload,
             delete_fn=self._daytona_delete,
             bulk_upload_fn=self._daytona_bulk_upload,
@@ -180,11 +180,11 @@ class DaytonaEnvironment(BaseEnvironment):
         self._sandbox.fs.upload_files(uploads)
 
     def _daytona_bulk_download(self, dest: Path) -> None:
-        """Download remote .deepsuck/ as a tar archive."""
-        rel_base = f"{self._remote_home}/.deepsuck".lstrip("/")
+        """Download remote .dag/ as a tar archive."""
+        rel_base = f"{self._remote_home}/.dag".lstrip("/")
         # PID-suffixed remote temp path avoids collisions if sync_back fires
         # concurrently for the same sandbox (e.g. retry after partial failure).
-        remote_tar = f"/tmp/.deepsuck_sync.{os.getpid()}.tar"
+        remote_tar = f"/tmp/.dag_sync.{os.getpid()}.tar"
         self._sandbox.process.exec(
             f"tar cf {shlex.quote(remote_tar)} -C / {shlex.quote(rel_base)}"
         )

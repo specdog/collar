@@ -25,7 +25,7 @@ except ImportError:
     web = None  # type: ignore[assignment]
     AIOHTTP_AVAILABLE = False
 
-from deepsuck_cli.proxy.adapters.base import UpstreamAdapter, UpstreamCredential
+from dag_cli.proxy.adapters.base import UpstreamAdapter, UpstreamCredential
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +85,8 @@ def create_app(adapter: UpstreamAdapter) -> "web.Application":
     """Build the aiohttp application bound to a specific upstream adapter."""
     if not AIOHTTP_AVAILABLE:
         raise RuntimeError(
-            "aiohttp is required for `deepsuck proxy`. Install with: "
-            "pip install 'deepsuck-agent[messaging]' or `pip install aiohttp`."
+            "aiohttp is required for `dag proxy`. Install with: "
+            "pip install 'dag-agent[messaging]' or `pip install aiohttp`."
         )
 
     app = web.Application()
@@ -252,8 +252,8 @@ async def run_server(
     """
     if not AIOHTTP_AVAILABLE:
         raise RuntimeError(
-            "aiohttp is required for `deepsuck proxy`. Install with: "
-            "pip install 'deepsuck-agent[messaging]' or `pip install aiohttp`."
+            "aiohttp is required for `dag proxy`. Install with: "
+            "pip install 'dag-agent[messaging]' or `pip install aiohttp`."
         )
 
     app = create_app(adapter)

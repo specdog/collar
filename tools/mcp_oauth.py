@@ -11,7 +11,7 @@ which handles discovery, dynamic client registration, PKCE, token exchange,
 refresh, and step-up authorization automatically.
 
 This module provides the glue:
-    - ``DeepsuckTokenStorage``: persists tokens/client-info to disk so they
+    - ``DagTokenStorage``: persists tokens/client-info to disk so they
       survive across process restarts.
     - Callback server: ephemeral localhost HTTP server to capture the OAuth
       redirect with the authorization code.
@@ -29,7 +29,7 @@ Configuration in config.yaml::
           client_secret: "secret"               # confidential clients only
           scope: "read write"                   # default: server-provided
           redirect_port: 0                      # 0 = auto-pick free port
-          client_name: "My Custom Client"       # default: "Deepsuck Agent"
+          client_name: "My Custom Client"       # default: "DAG Agent"
 """
 
 import asyncio
@@ -48,7 +48,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
-from deepsuck_constants import secure_parent_dir
+from dag_constants import secure_parent_dir
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ _SKIP_TOKENS = frozenset({"skip", "cancel", "s", "n", "no", "q", "quit"})
 # _wait_for_callback maps this to OAuthNonInteractiveError ("user_skipped")
 # so the MCP setup path treats it as a non-fatal "continue without this
 # server" rather than a hard failure.
-_USER_SKIPPED_SENTINEL = "__deepsuck_user_skipped__"
+_USER_SKIPPED_SENTINEL = "__dag_user_skipped__"
 
 
 # ---------------------------------------------------------------------------
@@ -112,14 +112,14 @@ _USER_SKIPPED_SENTINEL = "__deepsuck_user_skipped__"
 def _get_token_dir() -> Path:
     """Return the directory for MCP OAuth token files.
 
-    Uses DEEPSUCK_HOME so each profile gets its own OAuth tokens.
-    Layout: ``DEEPSUCK_HOME/mcp-tokens/``
+    Uses DAG_HOME so each profile gets its own OAuth tokens.
+    Layout: ``DAG_HOME/mcp-tokens/``
     """
     try:
-        from deepsuck_constants import get_deepsuck_home
-        base = Path(get_deepsuck_home())
+        from dag_constants import get_dag_home
+        base = Path(get_dag_home())
     except ImportError:
-        base = Path(os.environ.get("DEEPSUCK_HOME", str(Path.home() / ".deepsuck")))
+        base = Path(os.environ.get("DAG_HOME", str(Path.home() / ".dag")))
     return base / "mcp-tokens"
 
 
@@ -211,18 +211,18 @@ def _write_json(path: Path, data: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# DeepsuckTokenStorage -- persistent token/client-info on disk
+# DagTokenStorage -- persistent token/client-info on disk
 # ---------------------------------------------------------------------------
 
 
-class DeepsuckTokenStorage:
+class DagTokenStorage:
     """Persist OAuth tokens and client registration to JSON files.
 
     File layout::
 
-        DEEPSUCK_HOME/mcp-tokens/<server_name>.json         -- tokens
-        DEEPSUCK_HOME/mcp-tokens/<server_name>.client.json   -- client info
-        DEEPSUCK_HOME/mcp-tokens/<server_name>.meta.json     -- oauth server metadata
+        DAG_HOME/mcp-tokens/<server_name>.json         -- tokens
+        DAG_HOME/mcp-tokens/<server_name>.client.json   -- client info
+        DAG_HOME/mcp-tokens/<server_name>.meta.json     -- oauth server metadata
     """
 
     def __init__(self, server_name: str):
@@ -243,7 +243,7 @@ class DeepsuckTokenStorage:
         data = _read_json(self._tokens_path())
         if data is None:
             return None
-        # Deepsuck records an absolute wall-clock ``expires_at`` alongside the
+        # Dag records an absolute wall-clock ``expires_at`` alongside the
         # SDK's serialized token (see ``set_tokens``). On read we rewrite
         # ``expires_in`` to the remaining seconds so the SDK's downstream
         # ``update_token_expiry`` computes the correct absolute time and
@@ -376,7 +376,7 @@ def _make_callback_handler() -> tuple[type, dict]:
 
             body = (
                 "<html><body><h2>Authorization Successful</h2>"
-                "<p>You can close this tab and return to Deepsuck.</p></body></html>"
+                "<p>You can close this tab and return to Dag.</p></body></html>"
             ) if code else (
                 "<html><body><h2>Authorization Failed</h2>"
                 f"<p>Error: {error or 'unknown'}</p></body></html>"
@@ -431,7 +431,7 @@ async def _redirect_handler(authorization_url: str) -> None:
             f"         ssh -N -L {_oauth_port}:127.0.0.1:{_oauth_port} <user>@<this-host>\n"
             f"       then open the URL above and let it redirect normally.\n"
             f"\n"
-            f"  See: https://deepsuck-agent.nousresearch.com/docs/guides/oauth-over-ssh\n",
+            f"  See: https://dag-agent.nousresearch.com/docs/guides/oauth-over-ssh\n",
             file=sys.stderr,
         )
 
@@ -573,7 +573,7 @@ def _paste_callback_reader(result: dict) -> None:
             return
         result["error"] = _USER_SKIPPED_SENTINEL
         print(
-            "  OAuth skipped. Run `deepsuck mcp login <server>` later to "
+            "  OAuth skipped. Run `dag mcp login <server>` later to "
             "authenticate, or set ``enabled: false`` on that server in "
             "config.yaml to disable persistently.",
             file=sys.stderr,
@@ -626,7 +626,7 @@ def _paste_callback_reader(result: dict) -> None:
 
 def remove_oauth_tokens(server_name: str) -> None:
     """Delete stored OAuth tokens and client info for a server."""
-    storage = DeepsuckTokenStorage(server_name)
+    storage = DagTokenStorage(server_name)
     storage.remove()
     logger.info("OAuth tokens removed for '%s'", server_name)
 
@@ -672,7 +672,7 @@ def _build_client_metadata(cfg: dict) -> "OAuthClientMetadata":
         raise ValueError(
             "_configure_callback_port() must be called before _build_client_metadata()"
         )
-    client_name = cfg.get("client_name", "Deepsuck Agent")
+    client_name = cfg.get("client_name", "DAG Agent")
     scope = cfg.get("scope")
     redirect_uri = f"http://127.0.0.1:{port}/callback"
 
@@ -692,7 +692,7 @@ def _build_client_metadata(cfg: dict) -> "OAuthClientMetadata":
 
 
 def _maybe_preregister_client(
-    storage: "DeepsuckTokenStorage",
+    storage: "DAGTokenStorage",
     cfg: dict,
     client_metadata: "OAuthClientMetadata",
 ) -> None:
@@ -751,14 +751,14 @@ def build_oauth_auth(
         return None
 
     cfg = dict(oauth_config or {})  # copy — we mutate _resolved_port
-    storage = DeepsuckTokenStorage(server_name)
+    storage = DagTokenStorage(server_name)
 
     if not _is_interactive() and not storage.has_cached_tokens():
         raise OAuthNonInteractiveError(
             "MCP OAuth for "
             f"'{server_name}': non-interactive environment and no cached tokens "
             "found. The OAuth flow requires browser authorization. Run "
-            f"`deepsuck mcp login {server_name}` interactively first to complete "
+            f"`dag mcp login {server_name}` interactively first to complete "
             "initial authorization, then cached tokens will be reused."
         )
 

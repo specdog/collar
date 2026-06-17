@@ -1,4 +1,4 @@
-"""Shell completion script generation for deepsuck CLI.
+"""Shell completion script generation for dag CLI.
 
 Walks the live argparse parser tree to generate accurate, always-up-to-date
 completion scripts — no hardcoded subcommand lists, no extra dependencies.
@@ -72,7 +72,7 @@ def generate_bash(parser: argparse.ArgumentParser) -> str:
                 f"                    return\n"
                 f"                    ;;\n"
                 f"                {profile_actions.replace(' ', '|')})\n"
-                f"                    COMPREPLY=($(compgen -W \"$(_deepsuck_profiles)\" -- \"$cur\"))\n"
+                f"                    COMPREPLY=($(compgen -W \"$(_dag_profiles)\" -- \"$cur\"))\n"
                 f"                    return\n"
                 f"                    ;;\n"
                 f"            esac\n"
@@ -97,12 +97,12 @@ def generate_bash(parser: argparse.ArgumentParser) -> str:
 
     cases_str = "\n".join(cases)
 
-    return f"""# Deepsuck Agent bash completion
+    return f"""# DAG Agent bash completion
 # Add to ~/.bashrc:
-#   eval "$(deepsuck completion bash)"
+#   eval "$(dag completion bash)"
 
-_deepsuck_profiles() {{
-    local profiles_dir="$HOME/.deepsuck/profiles"
+_dag_profiles() {{
+    local profiles_dir="$HOME/.dag/profiles"
     local profiles="default"
     if [ -d "$profiles_dir" ]; then
         for f in "$profiles_dir"/*/; do
@@ -112,7 +112,7 @@ _deepsuck_profiles() {{
     echo "$profiles"
 }}
 
-_deepsuck_completion() {{
+_dag_completion() {{
     local cur prev
     COMPREPLY=()
     cur="${{COMP_WORDS[COMP_CWORD]}}"
@@ -120,7 +120,7 @@ _deepsuck_completion() {{
 
     # Complete profile names after -p / --profile
     if [[ "$prev" == "-p" || "$prev" == "--profile" ]]; then
-        COMPREPLY=($(compgen -W "$(_deepsuck_profiles)" -- "$cur"))
+        COMPREPLY=($(compgen -W "$(_dag_profiles)" -- "$cur"))
         return
     fi
 
@@ -135,7 +135,7 @@ _deepsuck_completion() {{
     fi
 }}
 
-complete -F _deepsuck_completion deepsuck
+complete -F _dag_completion dag
 """
 
 
@@ -169,7 +169,7 @@ def generate_zsh(parser: argparse.ArgumentParser) -> str:
                 f"                profile)\n"
                 f"                    case ${{line[2]}} in\n"
                 f"                        use|delete|show|alias|rename|export)\n"
-                f"                            _deepsuck_profiles\n"
+                f"                            _dag_profiles\n"
                 f"                            ;;\n"
                 f"                        *)\n"
                 f"                            local -a profile_cmds\n"
@@ -199,28 +199,28 @@ def generate_zsh(parser: argparse.ArgumentParser) -> str:
             )
     sub_cases_str = "\n".join(sub_cases)
 
-    return f"""#compdef deepsuck
-# Deepsuck Agent zsh completion
+    return f"""#compdef dag
+# DAG Agent zsh completion
 # Add to ~/.zshrc:
-#   eval "$(deepsuck completion zsh)"
+#   eval "$(dag completion zsh)"
 
-_deepsuck_profiles() {{
+_dag_profiles() {{
     local -a profiles
     profiles=(default)
-    if [[ -d "$HOME/.deepsuck/profiles" ]]; then
-        profiles+=($HOME/.deepsuck/profiles/*(N/:t))
+    if [[ -d "$HOME/.dag/profiles" ]]; then
+        profiles+=($HOME/.dag/profiles/*(N/:t))
     fi
     _describe 'profile' profiles
 }}
 
-_deepsuck() {{
+_dag() {{
     local context state line
     typeset -A opt_args
 
     _arguments -C \\
         '(-)'{{-h,--help}}'[Show help and exit]' \\
         '(-)'{{-V,--version}}'[Show version and exit]' \\
-        '(-)'{{-p,--profile}}'[Profile name]:profile:_deepsuck_profiles' \\
+        '(-)'{{-p,--profile}}'[Profile name]:profile:_dag_profiles' \\
         '1:command:->commands' \\
         '*::arg:->args'
 
@@ -230,7 +230,7 @@ _deepsuck() {{
             subcmds=(
 {top_cmds_str}
             )
-            _describe 'deepsuck command' subcmds
+            _describe 'dag command' subcmds
             ;;
         args)
             case ${{line[1]}} in
@@ -240,7 +240,7 @@ _deepsuck() {{
     esac
 }}
 
-compdef _deepsuck deepsuck
+compdef _dag dag
 """
 
 
@@ -254,26 +254,26 @@ def generate_fish(parser: argparse.ArgumentParser) -> str:
     top_cmds_str = " ".join(top_cmds)
 
     lines: list[str] = [
-        "# Deepsuck Agent fish completion",
+        "# DAG Agent fish completion",
         "# Add to your config:",
-        "#   deepsuck completion fish | source",
+        "#   dag completion fish | source",
         "",
         "# Helper: list available profiles",
-        "function __deepsuck_profiles",
+        "function __dag_profiles",
         "    echo default",
-        "    if test -d $HOME/.deepsuck/profiles",
-        "        for d in $HOME/.deepsuck/profiles/*/",
+        "    if test -d $HOME/.dag/profiles",
+        "        for d in $HOME/.dag/profiles/*/",
         "            basename $d",
         "        end",
         "    end",
         "end",
         "",
         "# Disable file completion by default",
-        "complete -c deepsuck -f",
+        "complete -c dag -f",
         "",
         "# Complete profile names after -p / --profile",
-        "complete -c deepsuck -f -s p -l profile"
-        " -d 'Profile name' -xa '(__deepsuck_profiles)'",
+        "complete -c dag -f -s p -l profile"
+        " -d 'Profile name' -xa '(__dag_profiles)'",
         "",
         "# Top-level subcommands",
     ]
@@ -282,7 +282,7 @@ def generate_fish(parser: argparse.ArgumentParser) -> str:
         info = tree["subcommands"][cmd]
         help_text = _clean(info.get("help", ""))
         lines.append(
-            f"complete -c deepsuck -f "
+            f"complete -c dag -f "
             f"-n 'not __fish_seen_subcommand_from {top_cmds_str}' "
             f"-a {cmd} -d '{help_text}'"
         )
@@ -301,7 +301,7 @@ def generate_fish(parser: argparse.ArgumentParser) -> str:
             sinfo = info["subcommands"][sc]
             sh = _clean(sinfo.get("help", ""))
             lines.append(
-                f"complete -c deepsuck -f "
+                f"complete -c dag -f "
                 f"-n '__fish_seen_subcommand_from {cmd}' "
                 f"-a {sc} -d '{sh}'"
             )
@@ -309,10 +309,10 @@ def generate_fish(parser: argparse.ArgumentParser) -> str:
         if cmd == "profile":
             for action in sorted(profile_name_actions):
                 lines.append(
-                    f"complete -c deepsuck -f "
+                    f"complete -c dag -f "
                     f"-n '__fish_seen_subcommand_from {action}; "
                     f"and __fish_seen_subcommand_from profile' "
-                    f"-a '(__deepsuck_profiles)' -d 'Profile name'"
+                    f"-a '(__dag_profiles)' -d 'Profile name'"
                 )
 
     lines.append("")

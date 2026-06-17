@@ -7,9 +7,9 @@ This module provides scheduled task execution, allowing the agent to:
 - Execute tasks in isolated sessions (no prior context)
 
 Cron jobs are executed automatically by the gateway daemon:
-    deepsuck gateway install    # Install as a user service
-    sudo deepsuck gateway install --system  # Linux servers: boot-time system service
-    deepsuck gateway            # Or run in foreground
+    dag gateway install    # Install as a user service
+    sudo dag gateway install --system  # Linux servers: boot-time system service
+    dag gateway            # Or run in foreground
 
 The gateway ticks the scheduler every 60 seconds. A file lock prevents
 duplicate execution if multiple processes overlap.

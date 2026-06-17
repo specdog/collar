@@ -20,7 +20,7 @@
 | knowledge-pipeline | YES | Live fetch from ArXiv, Semantic Scholar, GitHub |
 | 10 technique executors | NO | Prompt templates — model simulates reasoning |
 
-## The Live Pipeline (logohere/deepsuck remote)
+## The Live Pipeline (logohere/dag remote)
 
 ```
 pre_llm_call hook       → dag-router (multi-DAG) + fact-store recall → inject into context

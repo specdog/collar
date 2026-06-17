@@ -1,7 +1,7 @@
 """
-Gateway subcommand for deepsuck CLI.
+Gateway subcommand for dag CLI.
 
-Handles: deepsuck gateway [run|start|stop|restart|status|install|uninstall|setup]
+Handles: dag gateway [run|start|stop|restart|status|install|uninstall|setup]
 """
 
 import asyncio
@@ -23,18 +23,18 @@ from gateway.restart import (
     GATEWAY_SERVICE_RESTART_EXIT_CODE,
     parse_restart_drain_timeout,
 )
-from deepsuck_cli.config import (
+from dag_cli.config import (
     get_env_value,
-    get_deepsuck_home,
+    get_dag_home,
     is_managed,
     managed_error,
     read_raw_config,
     save_env_value,
 )
 
-# display_deepsuck_home is imported lazily at call sites to avoid ImportError
-# when deepsuck_constants is cached from a pre-update version during `deepsuck update`.
-from deepsuck_cli.setup import (
+# display_dag_home is imported lazily at call sites to avoid ImportError
+# when dag_constants is cached from a pre-update version during `dag update`.
+from dag_cli.setup import (
     print_header,
     print_info,
     print_success,
@@ -44,7 +44,7 @@ from deepsuck_cli.setup import (
     prompt_choice,
     prompt_yes_no,
 )
-from deepsuck_cli.colors import Colors, color
+from dag_cli.colors import Colors, color
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ def _get_service_pids() -> set:
                     scope_args
                     + [
                         "list-units",
-                        "deepsuck-gateway*",
+                        "dag-gateway*",
                         "--plain",
                         "--no-legend",
                         "--no-pager",
@@ -158,7 +158,7 @@ def _get_parent_pid(pid: int) -> int | None:
     older implementation shelled out to ``ps -o ppid= -p <pid>``, which
     silently fails on Windows (no ``ps``) so the ancestor walk terminated
     at self — the caller's dedup / exclude logic then couldn't distinguish
-    "deepsuck CLI that invoked this scan" from "real gateway process".
+    "dag CLI that invoked this scan" from "real gateway process".
     """
     if pid <= 1:
         return None
@@ -281,7 +281,7 @@ def _get_ancestor_pids() -> set[int]:
 
     Walks from the current PID up to PID 1 (init) so that process-table scans
     never match the calling CLI process or any of its parents.  This prevents
-    ``deepsuck gateway status`` from falsely counting the ``deepsuck`` CLI that
+    ``dag gateway status`` from falsely counting the ``dag`` CLI that
     invoked it as a running gateway instance (see #13242).
     """
     ancestors: set[int] = set()
@@ -314,28 +314,28 @@ def _scan_gateway_pids(exclude_pids: set[int], all_profiles: bool = False) -> li
     discover gateways outside the current profile.
     """
     # Exclude the entire ancestor chain so the CLI process that invoked this
-    # scan (e.g. ``deepsuck gateway status``) is never mistaken for a running
+    # scan (e.g. ``dag gateway status``) is never mistaken for a running
     # gateway.  See #13242.
     exclude_pids = exclude_pids | _get_ancestor_pids()
     pids: list[int] = []
     patterns = [
-        "deepsuck_cli.main gateway",
-        "deepsuck_cli.main --profile",
-        "deepsuck_cli.main -p",
-        "deepsuck_cli/main.py gateway",
-        "deepsuck_cli/main.py --profile",
-        "deepsuck_cli/main.py -p",
-        "deepsuck gateway",
+        "dag_cli.main gateway",
+        "dag_cli.main --profile",
+        "dag_cli.main -p",
+        "dag_cli/main.py gateway",
+        "dag_cli/main.py --profile",
+        "dag_cli/main.py -p",
+        "dag gateway",
         # Windows: only match invocations that actually carry the ``gateway``
         # subcommand or the gateway-dedicated console-script shim. Bare
-        # ``deepsuck.exe --profile`` / ``deepsuck.exe -p`` would also match
-        # ``deepsuck.exe --profile foo dashboard`` and other CLI subcommands,
+        # ``dag.exe --profile`` / ``dag.exe -p`` would also match
+        # ``dag.exe --profile foo dashboard`` and other CLI subcommands,
         # producing false-positive gateway PIDs (Copilot review).
-        "deepsuck.exe gateway",
-        "deepsuck-gateway.exe",
+        "dag.exe gateway",
+        "dag-gateway.exe",
         "gateway/run.py",
     ]
-    current_home = str(get_deepsuck_home().resolve())
+    current_home = str(get_dag_home().resolve())
     current_home_lc = current_home.lower()
     current_profile_arg = _profile_arg(current_home)
     current_profile_name = (
@@ -349,19 +349,19 @@ def _scan_gateway_pids(exclude_pids: set[int], all_profiles: bool = False) -> li
             return (
                 f"--profile {current_profile_name_lc}" in command_lc
                 or f"-p {current_profile_name_lc}" in command_lc
-                or f"deepsuck_home={current_home_lc}" in command_lc
+                or f"dag_home={current_home_lc}" in command_lc
             )
 
         # Default-profile case: no profile flag in argv. Accept as long as
-        # the command doesn't advertise *some other* profile. DEEPSUCK_HOME
+        # the command doesn't advertise *some other* profile. DAG_HOME
         # may be passed via env (not visible in wmic/CIM command line) so
         # its absence is NOT disqualifying — only a non-matching explicit
-        # DEEPSUCK_HOME= in argv is.
+        # DAG_HOME= in argv is.
         if "--profile " in command_lc or " -p " in command_lc:
             return False
         if (
-            "deepsuck_home=" in command_lc
-            and f"deepsuck_home={current_home_lc}" not in command_lc
+            "dag_home=" in command_lc
+            and f"dag_home={current_home_lc}" not in command_lc
         ):
             return False
         return True
@@ -563,10 +563,10 @@ def find_gateway_pids(
         exclude_pids: PIDs to exclude from the result (e.g. service-managed
             PIDs that should not be killed during a stale-process sweep).
         all_profiles: When ``True``, return gateway PIDs across **all**
-            profiles (the pre-7923 global behaviour).  ``deepsuck update``
+            profiles (the pre-7923 global behaviour).  ``dag update``
             needs this because a code update affects every profile.
             When ``False`` (default), only PIDs belonging to the current
-            Deepsuck profile are returned.
+            Dag profile are returned.
     """
     _exclude = set(exclude_pids or set())
     pids: list[int] = []
@@ -587,12 +587,12 @@ def find_gateway_pids(
 def find_profile_gateway_processes(
     exclude_pids: set | None = None,
 ) -> list[ProfileGatewayProcess]:
-    """Return running gateway PIDs mapped to Deepsuck profiles via PID files."""
+    """Return running gateway PIDs mapped to Dag profiles via PID files."""
     _exclude = set(exclude_pids or set())
     processes: list[ProfileGatewayProcess] = []
     try:
         from gateway.status import get_running_pid
-        from deepsuck_cli.profiles import list_profiles
+        from dag_cli.profiles import list_profiles
     except Exception:
         return processes
 
@@ -612,7 +612,7 @@ def find_profile_gateway_processes(
 
 
 def _gateway_run_args_for_profile(profile: str) -> list[str]:
-    args = [get_python_path(), "-m", "deepsuck_cli.main"]
+    args = [get_python_path(), "-m", "dag_cli.main"]
     if profile != "default":
         args.extend(["--profile", profile])
     args.extend(["gateway", "run", "--replace"])
@@ -634,14 +634,14 @@ def launch_detached_profile_gateway_restart(profile: str, old_pid: int) -> bool:
     #
     # Windows — ``start_new_session`` is silently accepted but does NOT
     # detach.  The watcher stays attached to the CLI's console and dies
-    # when the user closes the terminal, leaving ``deepsuck update`` users
-    # with no running gateway until they re-invoke ``deepsuck gateway``
+    # when the user closes the terminal, leaving ``dag update`` users
+    # with no running gateway until they re-invoke ``dag gateway``
     # manually.  The Win32 equivalent is the ``CREATE_NEW_PROCESS_GROUP |
     # DETACHED_PROCESS | CREATE_NO_WINDOW`` creationflags bundle.
     #
     # ``windows_detach_popen_kwargs()`` returns the right kwargs for the
     # host platform and is a no-op on POSIX (just ``start_new_session=True``).
-    from deepsuck_cli._subprocess_compat import (
+    from dag_cli._subprocess_compat import (
         windows_detach_flags_without_breakaway,
         windows_detach_popen_kwargs,
     )
@@ -800,25 +800,25 @@ def _read_systemd_unit_environment(system: bool = False) -> dict[str, str]:
     return parsed
 
 
-def _sync_deepsuck_home_from_systemd_unit(system: bool) -> None:
-    """When acting on a system-scope unit, adopt its ``DEEPSUCK_HOME``.
+def _sync_dag_home_from_systemd_unit(system: bool) -> None:
+    """When acting on a system-scope unit, adopt its ``DAG_HOME``.
 
-    Under ``sudo``, ``DEEPSUCK_HOME`` is stripped and ``HOME=/root``, so
-    :func:`get_deepsuck_home` falls back to ``/root/.deepsuck`` — the wrong
-    profile. The unit file pins ``DEEPSUCK_HOME`` for the actual gateway
+    Under ``sudo``, ``DAG_HOME`` is stripped and ``HOME=/root``, so
+    :func:`get_dag_home` falls back to ``/root/.dag`` — the wrong
+    profile. The unit file pins ``DAG_HOME`` for the actual gateway
     process, so we mirror that into our own environment to make
     ``read_runtime_status`` / ``get_running_pid`` read the correct files.
     """
     if not system:
         return
     env = _read_systemd_unit_environment(system=True)
-    unit_home = env.get("DEEPSUCK_HOME", "").strip()
+    unit_home = env.get("DAG_HOME", "").strip()
     if not unit_home:
         return
-    current = os.environ.get("DEEPSUCK_HOME", "").strip()
+    current = os.environ.get("DAG_HOME", "").strip()
     if current == unit_home:
         return
-    os.environ["DEEPSUCK_HOME"] = unit_home
+    os.environ["DAG_HOME"] = unit_home
 
 
 def _read_systemd_unit_properties(
@@ -958,7 +958,7 @@ def _wait_for_systemd_service_restart(
 
     print(
         f"⚠ {scope_label} service did not become active within {int(timeout)}s.\n"
-        f"  Check status: {'sudo ' if system else ''}deepsuck gateway status\n"
+        f"  Check status: {'sudo ' if system else ''}dag gateway status\n"
         f"  Check logs:   journalctl {'--user ' if not system else ''}-u {svc} -l --since '2 min ago'"
     )
     return False
@@ -1000,7 +1000,7 @@ def _print_systemd_start_limit_wait(system: bool = False) -> None:
     print(f"⏳ {scope_label} service is temporarily rate-limited by systemd.")
     print("  systemd is refusing another immediate start after repeated exits.")
     print(
-        f"  Wait for the start-limit window to expire, then run: {'sudo ' if system else ''}deepsuck gateway restart{scope_flag}"
+        f"  Wait for the start-limit window to expire, then run: {'sudo ' if system else ''}dag gateway restart{scope_flag}"
     )
     print(f"  Or clear the failed state manually: {systemctl_prefix}reset-failed {svc}")
     print(f"  Check logs: {journal_prefix}-u {svc} -l --since '5 min ago'")
@@ -1088,14 +1088,14 @@ def get_gateway_runtime_snapshot(system: bool = False) -> GatewayRuntimeSnapshot
             gateway_pids=gateway_pids,
         )
 
-    from deepsuck_constants import is_container
+    from dag_constants import is_container
 
     if is_linux() and is_container():
         # Phase 4: report s6 supervision when running under our /init.
         # Other container runtimes (or containers built before Phase 2)
         # still get the original "docker (foreground)" label.
         try:
-            from deepsuck_cli.service_manager import detect_service_manager, get_service_manager
+            from dag_cli.service_manager import detect_service_manager, get_service_manager
             if detect_service_manager() == "s6":
                 profile = _profile_suffix() or "default"
                 service_name = f"gateway-{profile}"
@@ -1174,19 +1174,19 @@ def _print_gateway_process_mismatch(snapshot: GatewayRuntimeSnapshot) -> None:
         "⚠ Gateway process is running for this profile, but the service is not active"
     )
     print(f"  PID(s): {_format_gateway_pids(snapshot.gateway_pids, limit=None)}")
-    print("  This is usually a manual foreground/tmux/nohup run, so `deepsuck gateway`")
+    print("  This is usually a manual foreground/tmux/nohup run, so `dag gateway`")
     print("  can refuse to start another copy until this process stops.")
 
 
 def _print_other_profiles_gateway_status() -> None:
     """Print a summary of gateway status across all profiles.
 
-    Shown at the bottom of ``deepsuck gateway status`` output so users with
+    Shown at the bottom of ``dag gateway status`` output so users with
     multiple profiles can tell at a glance which gateways are running and
     avoid confusing another profile's process with the current one.
     """
     try:
-        from deepsuck_cli.profiles import get_active_profile_name
+        from dag_cli.profiles import get_active_profile_name
 
         current = get_active_profile_name()
         other_processes = [
@@ -1211,7 +1211,7 @@ def _gateway_list() -> None:
     check each profile individually.
     """
     try:
-        from deepsuck_cli.profiles import list_profiles, get_active_profile_name
+        from dag_cli.profiles import list_profiles, get_active_profile_name
     except Exception:
         print("Unable to list profiles.")
         return
@@ -1275,7 +1275,7 @@ def kill_gateway_processes(
 
 
 def stop_profile_gateway() -> bool:
-    """Stop only the gateway for the current profile (DEEPSUCK_HOME-scoped).
+    """Stop only the gateway for the current profile (DAG_HOME-scoped).
 
     Uses the PID file written by start_gateway(), so it only kills the
     gateway belonging to this profile — not gateways from other profiles.
@@ -1324,7 +1324,7 @@ def is_linux() -> bool:
     return sys.platform.startswith("linux")
 
 
-from deepsuck_constants import is_container, is_termux, is_wsl
+from dag_constants import is_container, is_termux, is_wsl
 
 
 def _wsl_systemd_operational() -> bool:
@@ -1356,7 +1356,7 @@ def _systemd_operational(system: bool = False) -> bool:
 def _container_systemd_operational() -> bool:
     """Return True when a container exposes working user or system systemd.
 
-    This is NOT our Deepsuck Docker image — that one runs s6-overlay as
+    This is NOT our Dag Docker image — that one runs s6-overlay as
     PID 1 (since Phase 2 of the s6-overlay supervision plan) and is
     detected via ``service_manager.detect_service_manager() == "s6"``.
     This function handles the "container managed by something else"
@@ -1395,7 +1395,7 @@ def is_windows() -> bool:
 def _windows_gateway_should_absorb_console_controls() -> bool:
     """Return True for detached Windows gateway runs that should ignore Ctrl+C.
 
-    Foreground ``deepsuck gateway run`` must remain interruptible from
+    Foreground ``dag gateway run`` must remain interruptible from
     PowerShell/CMD. Detached service-style launches opt in via
     ``DEEPSUCK_GATEWAY_DETACHED=1``; older wrappers without the env marker are
     treated as detached when no interactive stdin is attached.
@@ -1417,23 +1417,23 @@ def _windows_gateway_should_absorb_console_controls() -> bool:
 # Service Configuration
 # =============================================================================
 
-_SERVICE_BASE = "deepsuck-gateway"
-SERVICE_DESCRIPTION = "Deepsuck Agent Gateway - Messaging Platform Integration"
+_SERVICE_BASE = "dag-gateway"
+SERVICE_DESCRIPTION = "DAG Agent Gateway - Messaging Platform Integration"
 
 
 def _profile_suffix() -> str:
-    """Derive a service-name suffix from the current DEEPSUCK_HOME.
+    """Derive a service-name suffix from the current DAG_HOME.
 
     Returns ``""`` for the default root, the profile name for
     ``<root>/profiles/<name>``, or a short hash for any other path.
-    Works correctly in Docker (DEEPSUCK_HOME=/opt/data) and standard deployments.
+    Works correctly in Docker (DAG_HOME=/opt/data) and standard deployments.
     """
     import hashlib
     import re
-    from deepsuck_constants import get_default_deepsuck_root
+    from dag_constants import get_default_dag_root
 
-    home = get_deepsuck_home().resolve()
-    default = get_default_deepsuck_root().resolve()
+    home = get_dag_home().resolve()
+    default = get_default_dag_root().resolve()
     if home == default:
         return ""
     # Detect <root>/profiles/<name> pattern → use the profile name
@@ -1445,30 +1445,30 @@ def _profile_suffix() -> str:
             return parts[0]
     except ValueError:
         pass
-    # Fallback: short hash for arbitrary DEEPSUCK_HOME paths
+    # Fallback: short hash for arbitrary DAG_HOME paths
     return hashlib.sha256(str(home).encode()).hexdigest()[:8]
 
 
-def _profile_arg(deepsuck_home: str | None = None, default_root: str | Path | None = None) -> str:
-    """Return ``--profile <name>`` only when DEEPSUCK_HOME is a named profile.
+def _profile_arg(dag_home: str | None = None, default_root: str | Path | None = None) -> str:
+    """Return ``--profile <name>`` only when DAG_HOME is a named profile.
 
-    For ``~/.deepsuck/profiles/<name>``, returns ``"--profile <name>"``.
+    For ``~/.dag/profiles/<name>``, returns ``"--profile <name>"``.
     For the default profile or hash-based custom paths, returns the empty string.
 
     Args:
-        deepsuck_home: Optional explicit DEEPSUCK_HOME path. Defaults to the current
-            ``get_deepsuck_home()`` value. Should be passed when generating a
+        dag_home: Optional explicit DAG_HOME path. Defaults to the current
+            ``get_dag_home()`` value. Should be passed when generating a
             service definition for a different user (e.g. system service).
-        default_root: Optional Deepsuck root to compare against. Used when
+        default_root: Optional Dag root to compare against. Used when
             generating a system service for another user from a sudo/root
-            process, where ``Path.home()`` and ``get_default_deepsuck_root()``
+            process, where ``Path.home()`` and ``get_default_dag_root()``
             refer to root but the target profile lives under the service user.
     """
     import re
-    from deepsuck_constants import get_default_deepsuck_root
+    from dag_constants import get_default_dag_root
 
-    home = Path(deepsuck_home or str(get_deepsuck_home())).resolve()
-    default = Path(default_root).resolve() if default_root else get_default_deepsuck_root().resolve()
+    home = Path(dag_home or str(get_dag_home())).resolve()
+    default = Path(default_root).resolve() if default_root else get_default_dag_root().resolve()
     if home == default:
         return ""
     profiles_root = (default / "profiles").resolve()
@@ -1482,22 +1482,22 @@ def _profile_arg(deepsuck_home: str | None = None, default_root: str | Path | No
     return ""
 
 
-def _profile_arg_for_target_user(deepsuck_home: str, target_home_dir: str) -> str:
+def _profile_arg_for_target_user(dag_home: str, target_home_dir: str) -> str:
     """Return the profile arg for a system service running as another user."""
-    target_root = Path(target_home_dir) / ".deepsuck"
+    target_root = Path(target_home_dir) / ".dag"
     try:
-        Path(deepsuck_home).resolve().relative_to(target_root.resolve())
-        return _profile_arg(deepsuck_home, default_root=target_root)
+        Path(dag_home).resolve().relative_to(target_root.resolve())
+        return _profile_arg(dag_home, default_root=target_root)
     except ValueError:
-        return _profile_arg(deepsuck_home)
+        return _profile_arg(dag_home)
 
 
 def get_service_name() -> str:
-    """Derive a systemd service name scoped to this DEEPSUCK_HOME.
+    """Derive a systemd service name scoped to this DAG_HOME.
 
-    Default ``~/.deepsuck`` returns ``deepsuck-gateway`` (backward compatible).
-    Profile ``~/.deepsuck/profiles/coder`` returns ``deepsuck-gateway-coder``.
-    Any other DEEPSUCK_HOME appends a short hash for uniqueness.
+    Default ``~/.dag`` returns ``dag-gateway`` (backward compatible).
+    Profile ``~/.dag/profiles/coder`` returns ``dag-gateway-coder``.
+    Any other DAG_HOME appends a short hash for uniqueness.
     """
     suffix = _profile_suffix()
     if not suffix:
@@ -1708,7 +1708,7 @@ def _raise_user_systemd_unavailable(
         "\n"
         "  Alternative: run the gateway in the foreground (stays up until\n"
         "  you exit / close the terminal):\n"
-        "    deepsuck gateway run"
+        "    dag gateway run"
     )
     raise UserSystemdUnavailableError(msg)
 
@@ -1759,20 +1759,20 @@ def has_conflicting_systemd_units() -> bool:
     return len(get_installed_systemd_scopes()) > 1
 
 
-# Legacy service names from older Deepsuck installs that predate the
-# deepsuck-gateway rename. Kept as an explicit allowlist (NOT a glob) so
-# profile units (deepsuck-gateway-*.service) and unrelated third-party
-# "deepsuck" units are never matched.
-_LEGACY_SERVICE_NAMES: tuple[str, ...] = ("deepsuck.service",)
+# Legacy service names from older Dag installs that predate the
+# dag-gateway rename. Kept as an explicit allowlist (NOT a glob) so
+# profile units (dag-gateway-*.service) and unrelated third-party
+# "dag" units are never matched.
+_LEGACY_SERVICE_NAMES: tuple[str, ...] = ("dag.service",)
 
 # ExecStart content markers that identify a unit as running our gateway.
 # A legacy unit is only flagged when its file contains one of these.
 _LEGACY_UNIT_EXECSTART_MARKERS: tuple[str, ...] = (
-    "deepsuck_cli.main gateway",
-    "deepsuck_cli/main.py gateway",
+    "dag_cli.main gateway",
+    "dag_cli/main.py gateway",
     "gateway/run.py",
-    " deepsuck gateway ",
-    "/deepsuck gateway ",
+    " dag gateway ",
+    "/dag gateway ",
 )
 
 
@@ -1788,23 +1788,23 @@ def _legacy_unit_search_paths() -> list[tuple[bool, Path]]:
     ]
 
 
-def _find_legacy_deepsuck_units() -> list[tuple[str, Path, bool]]:
-    """Return ``[(unit_name, unit_path, is_system)]`` for legacy Deepsuck gateway units.
+def _find_legacy_dag_units() -> list[tuple[str, Path, bool]]:
+    """Return ``[(unit_name, unit_path, is_system)]`` for legacy Dag gateway units.
 
-    Detects unit files installed by older Deepsuck versions that used a
-    different service name (e.g. ``deepsuck.service`` before the rename to
-    ``deepsuck-gateway.service``). When both a legacy unit and the current
-    ``deepsuck-gateway.service`` are active, they fight over the same bot
+    Detects unit files installed by older Dag versions that used a
+    different service name (e.g. ``dag.service`` before the rename to
+    ``dag-gateway.service``). When both a legacy unit and the current
+    ``dag-gateway.service`` are active, they fight over the same bot
     token — the PR #5646 signal-recovery change turns this into a 30-second
     SIGTERM flap loop.
 
     Safety guards:
 
     * Explicit allowlist of legacy names (no globbing). Profile units such
-      as ``deepsuck-gateway-coder.service`` and unrelated third-party
-      ``deepsuck-*`` services are never matched.
+      as ``dag-gateway-coder.service`` and unrelated third-party
+      ``dag-*`` services are never matched.
     * ExecStart content check — only flag units that invoke our gateway
-      entrypoint. A user-created ``deepsuck.service`` running an unrelated
+      entrypoint. A user-created ``dag.service`` running an unrelated
       binary is left untouched.
     * Results are returned purely for caller inspection; this function
       never mutates or removes anything.
@@ -1826,37 +1826,37 @@ def _find_legacy_deepsuck_units() -> list[tuple[str, Path, bool]]:
     return results
 
 
-def has_legacy_deepsuck_units() -> bool:
-    """Return True when any legacy Deepsuck gateway unit files exist."""
-    return bool(_find_legacy_deepsuck_units())
+def has_legacy_dag_units() -> bool:
+    """Return True when any legacy Dag gateway unit files exist."""
+    return bool(_find_legacy_dag_units())
 
 
 def print_legacy_unit_warning() -> None:
-    """Warn about legacy Deepsuck gateway unit files if any are installed.
+    """Warn about legacy Dag gateway unit files if any are installed.
 
     Idempotent: prints nothing when no legacy units are detected. Safe to
     call from any status/install/setup path.
     """
-    legacy = _find_legacy_deepsuck_units()
+    legacy = _find_legacy_dag_units()
     if not legacy:
         return
-    print_warning("Legacy Deepsuck gateway unit(s) detected from an older install:")
+    print_warning("Legacy Dag gateway unit(s) detected from an older install:")
     for name, path, is_system in legacy:
         scope = "system" if is_system else "user"
         print_info(f"    {path}  ({scope} scope)")
-    print_info("  These run alongside the current deepsuck-gateway service and")
+    print_info("  These run alongside the current dag-gateway service and")
     print_info("  cause SIGTERM flap loops — both try to use the same bot token.")
     print_info("  Remove them with:")
-    print_info("    deepsuck gateway migrate-legacy")
+    print_info("    dag gateway migrate-legacy")
 
 
-def remove_legacy_deepsuck_units(
+def remove_legacy_dag_units(
     interactive: bool = True,
     dry_run: bool = False,
 ) -> tuple[int, list[Path]]:
-    """Stop, disable, and remove legacy Deepsuck gateway unit files.
+    """Stop, disable, and remove legacy Dag gateway unit files.
 
-    Iterates over whatever ``_find_legacy_deepsuck_units()`` returns — which is
+    Iterates over whatever ``_find_legacy_dag_units()`` returns — which is
     an explicit allowlist of legacy names (not a glob). Profile units and
     unrelated third-party services are never touched.
 
@@ -1870,16 +1870,16 @@ def remove_legacy_deepsuck_units(
         ``(removed_count, remaining_paths)`` — remaining includes units we
         couldn't remove (typically system-scope when not running as root).
     """
-    legacy = _find_legacy_deepsuck_units()
+    legacy = _find_legacy_dag_units()
     if not legacy:
-        print("No legacy Deepsuck gateway units found.")
+        print("No legacy Dag gateway units found.")
         return 0, []
 
     user_units = [(n, p) for n, p, is_sys in legacy if not is_sys]
     system_units = [(n, p) for n, p, is_sys in legacy if is_sys]
 
     print()
-    print("Legacy Deepsuck gateway unit(s) found:")
+    print("Legacy Dag gateway unit(s) found:")
     for name, path, is_system in legacy:
         scope = "system" if is_system else "user"
         print(f"  {path}  ({scope} scope)")
@@ -1890,7 +1890,7 @@ def remove_legacy_deepsuck_units(
         return 0, [p for _, p, _ in legacy]
 
     if interactive and not prompt_yes_no("Remove these legacy units?", True):
-        print("Skipped. Run again with: deepsuck gateway migrate-legacy")
+        print("Skipped. Run again with: dag gateway migrate-legacy")
         return 0, [p for _, p, _ in legacy]
 
     removed = 0
@@ -1919,7 +1919,7 @@ def remove_legacy_deepsuck_units(
         if os.geteuid() != 0:  # windows-footgun: ok — Linux systemd removal path, guarded by `if system == "Linux"` / systemd-only branch
             print()
             print_warning("System-scope legacy units require root to remove.")
-            print_info("  Re-run with: sudo deepsuck gateway migrate-legacy")
+            print_info("  Re-run with: sudo dag gateway migrate-legacy")
             for _, path in system_units:
                 remaining.append(path)
         else:
@@ -1966,8 +1966,8 @@ def print_systemd_scope_conflict_warning() -> None:
         "  Default gateway commands target the user service unless you pass --system."
     )
     print_info("  Keep one of these:")
-    print_info("    deepsuck gateway uninstall")
-    print_info("    sudo deepsuck gateway uninstall --system")
+    print_info("    dag gateway uninstall")
+    print_info("    sudo dag gateway uninstall --system")
 
 
 def _require_root_for_system_service(action: str) -> None:
@@ -2053,17 +2053,17 @@ def install_linux_gateway_from_setup(force: bool = False, enable_on_startup: boo
         run_as_user = _default_system_service_user()
         if os.geteuid() != 0:  # windows-footgun: ok — Linux systemd install wizard, never invoked on Windows
             print_warning(
-                "  System service install requires sudo, so Deepsuck can't create it from this user session."
+                "  System service install requires sudo, so Dag can't create it from this user session."
             )
             if run_as_user:
                 print_info(
-                    f"  After setup, run: sudo deepsuck gateway install --system --run-as-user {run_as_user}"
+                    f"  After setup, run: sudo dag gateway install --system --run-as-user {run_as_user}"
                 )
             else:
                 print_info(
-                    "  After setup, run: sudo deepsuck gateway install --system --run-as-user <your-user>"
+                    "  After setup, run: sudo dag gateway install --system --run-as-user <your-user>"
                 )
-            print_info("  Then start it with: sudo deepsuck gateway start --system")
+            print_info("  Then start it with: sudo dag gateway start --system")
             return scope, False
 
         if not run_as_user:
@@ -2150,7 +2150,7 @@ def print_systemd_linger_guidance() -> None:
 def _launchd_user_home() -> Path:
     """Return the real macOS user home for launchd artifacts.
 
-    Profile-mode Deepsuck often sets ``HOME`` to a profile-scoped directory, but
+    Profile-mode Dag often sets ``HOME`` to a profile-scoped directory, but
     launchd user agents still live under the actual account home.
     """
     import pwd
@@ -2161,11 +2161,11 @@ def _launchd_user_home() -> Path:
 def get_launchd_plist_path() -> Path:
     """Return the launchd plist path, scoped per profile.
 
-    Default ``~/.deepsuck`` → ``ai.deepsuck.gateway.plist`` (backward compatible).
-    Profile ``~/.deepsuck/profiles/coder`` → ``ai.deepsuck.gateway-coder.plist``.
+    Default ``~/.dag`` → ``ai.dag.gateway.plist`` (backward compatible).
+    Profile ``~/.dag/profiles/coder`` → ``ai.dag.gateway-coder.plist``.
     """
     suffix = _profile_suffix()
-    name = f"ai.deepsuck.gateway-{suffix}" if suffix else "ai.deepsuck.gateway"
+    name = f"ai.dag.gateway-{suffix}" if suffix else "ai.dag.gateway"
     return _launchd_user_home() / "Library" / "LaunchAgents" / f"{name}.plist"
 
 
@@ -2276,8 +2276,8 @@ def _remap_path_for_user(path: str, target_home_dir: str) -> str:
     If *path* lives under ``Path.home()`` the corresponding prefix is swapped
     to *target_home_dir*; otherwise the path is returned unchanged.
 
-      /root/.deepsuck/deepsuck-agent  -> /home/alice/.deepsuck/deepsuck-agent
-      /opt/deepsuck                 -> /opt/deepsuck  (kept as-is)
+      /root/.dag/dag-agent  -> /home/alice/.dag/dag-agent
+      /opt/dag                 -> /opt/dag  (kept as-is)
 
     Note: this function intentionally does NOT resolve symlinks. A venv's
     ``bin/python`` is typically a symlink to the base interpreter (e.g. a
@@ -2296,30 +2296,30 @@ def _remap_path_for_user(path: str, target_home_dir: str) -> str:
         return str(p)
 
 
-def _deepsuck_home_for_target_user(target_home_dir: str) -> str:
-    """Remap the current DEEPSUCK_HOME to the equivalent under a target user's home.
+def _dag_home_for_target_user(target_home_dir: str) -> str:
+    """Remap the current DAG_HOME to the equivalent under a target user's home.
 
-    When installing a system service via sudo, get_deepsuck_home() resolves to
+    When installing a system service via sudo, get_dag_home() resolves to
     root's home.  This translates it to the target user's equivalent path:
-      /root/.deepsuck                    → /home/alice/.deepsuck
-      /root/.deepsuck/profiles/coder     → /home/alice/.deepsuck/profiles/coder
-      /opt/custom-deepsuck               → /opt/custom-deepsuck  (kept as-is)
+      /root/.dag                    → /home/alice/.dag
+      /root/.dag/profiles/coder     → /home/alice/.dag/profiles/coder
+      /opt/custom-dag               → /opt/custom-dag  (kept as-is)
     """
-    current_deepsuck = get_deepsuck_home().resolve()
-    current_default = (Path.home() / ".deepsuck").resolve()
-    target_default = Path(target_home_dir) / ".deepsuck"
+    current_dag = get_dag_home().resolve()
+    current_default = (Path.home() / ".dag").resolve()
+    target_default = Path(target_home_dir) / ".dag"
 
-    # Default ~/.deepsuck → remap to target user's default
-    if current_deepsuck == current_default:
+    # Default ~/.dag → remap to target user's default
+    if current_dag == current_default:
         return str(target_default)
 
-    # Profile or subdir of ~/.deepsuck → preserve the relative structure
+    # Profile or subdir of ~/.dag → preserve the relative structure
     try:
-        relative = current_deepsuck.relative_to(current_default)
+        relative = current_dag.relative_to(current_default)
         return str(target_default / relative)
     except ValueError:
-        # Completely custom path (not under ~/.deepsuck) — keep as-is
-        return str(current_deepsuck)
+        # Completely custom path (not under ~/.dag) — keep as-is
+        return str(current_dag)
 
 
 def _build_service_path_dirs(project_root: Path | None = None) -> list[str]:
@@ -2345,13 +2345,13 @@ def _build_service_path_dirs(project_root: Path | None = None) -> list[str]:
     if _is_dir(node_bin):
         candidates.append(str(node_bin))
 
-    deepsuck_home = get_deepsuck_home()
-    deepsuck_node = deepsuck_home / "node" / "bin"
-    if _is_dir(deepsuck_node):
-        candidates.append(str(deepsuck_node))
-    deepsuck_nm = deepsuck_home / "node_modules" / ".bin"
-    if _is_dir(deepsuck_nm):
-        candidates.append(str(deepsuck_nm))
+    dag_home = get_dag_home()
+    dag_node = dag_home / "node" / "bin"
+    if _is_dir(dag_node):
+        candidates.append(str(dag_node))
+    dag_nm = dag_home / "node_modules" / ".bin"
+    if _is_dir(dag_nm):
+        candidates.append(str(dag_nm))
 
     return candidates
 
@@ -2360,23 +2360,23 @@ def _stable_service_working_dir() -> str:
     """Return a WorkingDirectory that will not disappear out from under systemd.
 
     The gateway does NOT need its cwd to be the source checkout — ``ExecStart``
-    uses an absolute python interpreter and ``-m deepsuck_cli.main``, so module
+    uses an absolute python interpreter and ``-m dag_cli.main``, so module
     resolution does not depend on cwd. Pinning ``WorkingDirectory`` to
     ``PROJECT_ROOT`` (``Path(__file__).parent.parent``) is actively harmful:
     when the unit is generated from a transient checkout — a ``.worktrees/``
-    dir, or a clone that ``deepsuck update`` later relocates/removes — the path
+    dir, or a clone that ``dag update`` later relocates/removes — the path
     rots. systemd then fails the start at the CHDIR step (``status=200/CHDIR``,
     "Changing to the requested working directory failed") *before* Python
     loads, so the on-boot ``refresh_systemd_unit_if_needed()`` self-heal never
     runs and ``Restart=always`` crash-loops forever on a dead directory.
 
-    ``DEEPSUCK_HOME`` is the stable anchor: it is where config/state/logs live,
+    ``DAG_HOME`` is the stable anchor: it is where config/state/logs live,
     it never moves, and it is guaranteed to exist whenever the gateway is
-    meaningfully installed. Fall back to ``PROJECT_ROOT`` only if DEEPSUCK_HOME
+    meaningfully installed. Fall back to ``PROJECT_ROOT`` only if DAG_HOME
     cannot be resolved (it always can in practice).
     """
     try:
-        home = get_deepsuck_home()
+        home = get_dag_home()
         if home and Path(home).is_dir():
             return str(Path(home).resolve())
     except Exception:
@@ -2416,16 +2416,16 @@ def generate_systemd_unit(system: bool = False, run_as_user: str | None = None) 
 
     if system:
         username, group_name, home_dir = _system_service_identity(run_as_user)
-        deepsuck_home = _deepsuck_home_for_target_user(home_dir)
-        profile_arg = _profile_arg_for_target_user(deepsuck_home, home_dir)
+        dag_home = _dag_home_for_target_user(home_dir)
+        profile_arg = _profile_arg_for_target_user(dag_home, home_dir)
         # Remap all paths that may resolve under the calling user's home
         # (e.g. /root/) to the target user's home so the service can
         # actually access them.
         python_path = _remap_path_for_user(python_path, home_dir)
-        # Anchor cwd to the target user's DEEPSUCK_HOME (stable, always exists)
+        # Anchor cwd to the target user's DAG_HOME (stable, always exists)
         # rather than a remapped source-checkout path that can rot. See
         # _stable_service_working_dir() for the full rationale.
-        working_dir = str(deepsuck_home) if deepsuck_home else _remap_path_for_user(working_dir, home_dir)
+        working_dir = str(dag_home) if dag_home else _remap_path_for_user(working_dir, home_dir)
         venv_dir = _remap_path_for_user(venv_dir, home_dir)
         path_entries = [_remap_path_for_user(p, home_dir) for p in path_entries]
         path_entries.extend(_build_user_local_paths(Path(home_dir), path_entries))
@@ -2442,14 +2442,14 @@ StartLimitIntervalSec=0
 Type=simple
 User={username}
 Group={group_name}
-ExecStart={python_path} -m deepsuck_cli.main{f" {profile_arg}" if profile_arg else ""} gateway run
+ExecStart={python_path} -m dag_cli.main{f" {profile_arg}" if profile_arg else ""} gateway run
 WorkingDirectory={working_dir}
 Environment="HOME={home_dir}"
 Environment="USER={username}"
 Environment="LOGNAME={username}"
 Environment="PATH={sane_path}"
 Environment="VIRTUAL_ENV={venv_dir}"
-Environment="DEEPSUCK_HOME={deepsuck_home}"
+Environment="DAG_HOME={dag_home}"
 Restart=always
 RestartSec=5
 RestartForceExitStatus={GATEWAY_SERVICE_RESTART_EXIT_CODE}
@@ -2464,8 +2464,8 @@ StandardError=journal
 WantedBy=multi-user.target
 """
 
-    deepsuck_home = str(get_deepsuck_home().resolve())
-    profile_arg = _profile_arg(deepsuck_home)
+    dag_home = str(get_dag_home().resolve())
+    profile_arg = _profile_arg(dag_home)
     path_entries.extend(_build_user_local_paths(Path.home(), path_entries))
     path_entries.extend(_build_wsl_interop_paths(path_entries))
     path_entries.extend(common_bin_paths)
@@ -2478,11 +2478,11 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart={python_path} -m deepsuck_cli.main{f" {profile_arg}" if profile_arg else ""} gateway run
+ExecStart={python_path} -m dag_cli.main{f" {profile_arg}" if profile_arg else ""} gateway run
 WorkingDirectory={working_dir}
 Environment="PATH={sane_path}"
 Environment="VIRTUAL_ENV={venv_dir}"
-Environment="DEEPSUCK_HOME={deepsuck_home}"
+Environment="DAG_HOME={dag_home}"
 Restart=always
 RestartSec=5
 RestartForceExitStatus={GATEWAY_SERVICE_RESTART_EXIT_CODE}
@@ -2565,29 +2565,29 @@ def systemd_unit_is_current(system: bool = False) -> bool:
 
 
 def _temp_home_in_service_definition(definition: str) -> str | None:
-    """Return the temp-dir DEEPSUCK_HOME baked into a service definition, or None.
+    """Return the temp-dir DAG_HOME baked into a service definition, or None.
 
-    A generated systemd unit / launchd plist carries the resolved DEEPSUCK_HOME
+    A generated systemd unit / launchd plist carries the resolved DAG_HOME
     in its environment block. If that path lives under the system temp dir,
     the definition was almost certainly generated by a test/E2E harness that
-    exported a throwaway ``DEEPSUCK_HOME=/tmp/...`` — writing it to the real
+    exported a throwaway ``DAG_HOME=/tmp/...`` — writing it to the real
     service file silently breaks the user's gateway on the next (re)start:
     the gateway comes back "active (running)" but pointed at an empty temp
     home ("No messaging platforms enabled"), deaf to every platform.
-    Seen live 2026-06-11: an E2E guard probe ran ``deepsuck gateway restart``
-    with ``DEEPSUCK_HOME=/tmp/deepsuck-e2e-<pr>`` exported; the restart path's
+    Seen live 2026-06-11: an E2E guard probe ran ``dag gateway restart``
+    with ``DAG_HOME=/tmp/dag-e2e-<pr>`` exported; the restart path's
     unit refresh baked the temp path into the production unit and the
     post-update restart produced a zombie gateway for 7+ hours.
 
-    Matches both systemd ``Environment="DEEPSUCK_HOME=..."`` lines and launchd
-    ``<key>DEEPSUCK_HOME</key><string>...</string>`` pairs.
+    Matches both systemd ``Environment="DAG_HOME=..."`` lines and launchd
+    ``<key>DAG_HOME</key><string>...</string>`` pairs.
     """
     import re
     import tempfile
 
-    candidates = re.findall(r'DEEPSUCK_HOME=([^"\n]+)', definition)
+    candidates = re.findall(r'DAG_HOME=([^"\n]+)', definition)
     candidates += re.findall(
-        r"<key>DEEPSUCK_HOME</key>\s*<string>(.*?)</string>", definition, flags=re.S
+        r"<key>DAG_HOME</key>\s*<string>(.*?)</string>", definition, flags=re.S
     )
     temp_roots = {
         Path(tempfile.gettempdir()).resolve(),
@@ -2608,16 +2608,16 @@ def _temp_home_in_service_definition(definition: str) -> str | None:
 
 
 def _refuse_temp_home_service_write(definition: str, kind: str) -> bool:
-    """Refuse (with guidance) when a service definition carries a temp DEEPSUCK_HOME."""
+    """Refuse (with guidance) when a service definition carries a temp DAG_HOME."""
     temp_home = _temp_home_in_service_definition(definition)
     if temp_home is None:
         return False
     print(
-        f"✗ Refusing to write the gateway {kind}: DEEPSUCK_HOME resolves to a "
+        f"✗ Refusing to write the gateway {kind}: DAG_HOME resolves to a "
         f"temporary directory ({temp_home})."
     )
     print(
-        "  This usually means a test/E2E environment exported DEEPSUCK_HOME. "
+        "  This usually means a test/E2E environment exported DAG_HOME. "
         "Unset it (or run from a clean shell) and retry."
     )
     return True
@@ -2634,10 +2634,10 @@ def refresh_systemd_unit_if_needed(system: bool = False) -> bool:
 
     # ── Test-environment safety belt ─────────────────────────────────────
     # The user-scope unit path resolves under ``Path.home()``, which is NOT
-    # sandboxed by the test conftest (only DEEPSUCK_HOME is). If a test
-    # exercises ``run_gateway()`` with a pytest-tmp DEEPSUCK_HOME, the freshly
-    # generated unit bakes that ``/tmp/pytest-of-.../deepsuck_test`` path into
-    # ``Environment="DEEPSUCK_HOME=..."``. Writing that to the developer's
+    # sandboxed by the test conftest (only DAG_HOME is). If a test
+    # exercises ``run_gateway()`` with a pytest-tmp DAG_HOME, the freshly
+    # generated unit bakes that ``/tmp/pytest-of-.../dag_test`` path into
+    # ``Environment="DAG_HOME=..."``. Writing that to the developer's
     # real user systemd unit file silently breaks their gateway on the next
     # reboot (systemd loads the polluted env, the gateway looks at an empty
     # tmp dir, and Telegram/Discord/etc. all show as "not configured").
@@ -2648,13 +2648,13 @@ def refresh_systemd_unit_if_needed(system: bool = False) -> bool:
     # still works.
     if not system and (
         "/pytest-of-" in new_unit
-        or '/deepsuck_test"' in new_unit
-        or "/deepsuck_test/" in new_unit
+        or '/dag_test"' in new_unit
+        or "/dag_test/" in new_unit
     ):
         return False
 
     # Structural variant of the same belt: refuse to bake ANY temp-dir
-    # DEEPSUCK_HOME into the unit (manual E2E homes like /tmp/deepsuck-e2e-NNN
+    # DAG_HOME into the unit (manual E2E homes like /tmp/dag-e2e-NNN
     # don't carry the pytest markers above but poison the unit identically).
     if _refuse_temp_home_service_write(new_unit, "systemd unit"):
         return False
@@ -2662,7 +2662,7 @@ def refresh_systemd_unit_if_needed(system: bool = False) -> bool:
     unit_path.write_text(new_unit, encoding="utf-8")
     _run_systemctl(["daemon-reload"], system=system, check=True, timeout=30)
     print(
-        f"↻ Updated gateway {_service_scope_label(system)} service definition to match the current Deepsuck install"
+        f"↻ Updated gateway {_service_scope_label(system)} service definition to match the current Dag install"
     )
     return True
 
@@ -2768,9 +2768,9 @@ def _print_system_scope_remediation(action: str) -> None:
     else:
         print_info(f"         sudo systemctl {action} {svc}")
     print_info("    2. Switch to a per-user service (recommended for personal use):")
-    print_info("         sudo deepsuck gateway uninstall --system")
-    print_info("         deepsuck gateway install")
-    print_info("         deepsuck gateway start")
+    print_info("         sudo dag gateway uninstall --system")
+    print_info("         dag gateway install")
+    print_info("         dag gateway start")
 
 
 def _get_restart_drain_timeout() -> float:
@@ -2796,17 +2796,17 @@ def systemd_install(
     if system:
         _require_root_for_system_service("install")
 
-    # Offer to remove legacy units (deepsuck.service from pre-rename installs)
-    # before installing the new deepsuck-gateway.service. If both remain, they
+    # Offer to remove legacy units (dag.service from pre-rename installs)
+    # before installing the new dag-gateway.service. If both remain, they
     # flap-fight for the Telegram bot token on every gateway startup.
     # Only removes units matching _LEGACY_SERVICE_NAMES + our ExecStart
     # signature — profile units are never touched.
-    if has_legacy_deepsuck_units():
+    if has_legacy_dag_units():
         print()
         print_legacy_unit_warning()
         print()
         if prompt_yes_no("Remove the legacy unit(s) before installing?", True):
-            remove_legacy_deepsuck_units(interactive=False)
+            remove_legacy_dag_units(interactive=False)
             print()
 
     unit_path = get_systemd_unit_path(system=system)
@@ -2843,10 +2843,10 @@ def systemd_install(
     print()
     print("Next steps:")
     print(
-        f"  {'sudo ' if system else ''}deepsuck gateway start{scope_flag}              # Start the service"
+        f"  {'sudo ' if system else ''}dag gateway start{scope_flag}              # Start the service"
     )
     print(
-        f"  {'sudo ' if system else ''}deepsuck gateway status{scope_flag}             # Check status"
+        f"  {'sudo ' if system else ''}dag gateway status{scope_flag}             # Check status"
     )
     print(
         f"  {'journalctl' if system else 'journalctl --user'} -u {get_service_name()} -f  # View logs"
@@ -2888,7 +2888,7 @@ def _require_service_installed(action: str, system: bool = False) -> None:
     if not unit_path.exists():
         scope_flag = " --system" if system else ""
         print(f"✗ Gateway service is not installed")
-        print(f"  Run: {'sudo ' if system else ''}deepsuck gateway install{scope_flag}")
+        print(f"  Run: {'sudo ' if system else ''}dag gateway install{scope_flag}")
         sys.exit(1)
 
 
@@ -2912,7 +2912,7 @@ def systemd_stop(system: bool = False):
     if system:
         _require_root_for_system_service("stop")
     _require_service_installed("stop", system=system)
-    _sync_deepsuck_home_from_systemd_unit(system=system)
+    _sync_dag_home_from_systemd_unit(system=system)
     try:
         from gateway.status import get_running_pid, write_planned_stop_marker
 
@@ -2929,7 +2929,7 @@ def systemd_stop(system: bool = False):
         label = _service_scope_label(system)
         print(
             f"Gateway {label} service is still stopping after 90s; "
-            "check `deepsuck gateway status` or logs for final shutdown state."
+            "check `dag gateway status` or logs for final shutdown state."
         )
         return
     print(f"✓ {_service_scope_label(system).capitalize()} service stopped")
@@ -2943,7 +2943,7 @@ def systemd_restart(system: bool = False):
         _preflight_user_systemd()
     _require_service_installed("restart", system=system)
     refresh_systemd_unit_if_needed(system=system)
-    _sync_deepsuck_home_from_systemd_unit(system=system)
+    _sync_dag_home_from_systemd_unit(system=system)
     from gateway.status import get_running_pid
 
     pid = get_running_pid() or _systemd_main_pid(system=system)
@@ -2998,7 +2998,7 @@ def systemd_restart(system: bool = False):
             label = _service_scope_label(system)
             print(
                 f"Gateway {label} service is still restarting after 90s; "
-                "check `deepsuck gateway status` or logs for final state."
+                "check `dag gateway status` or logs for final state."
             )
             return
         _wait_for_systemd_service_restart(system=system, previous_pid=pid)
@@ -3028,7 +3028,7 @@ def systemd_restart(system: bool = False):
         label = _service_scope_label(system)
         print(
             f"Gateway {label} service is still restarting after 90s; "
-            "check `deepsuck gateway status` or logs for final state."
+            "check `dag gateway status` or logs for final state."
         )
         return
     _wait_for_systemd_service_restart(system=system, previous_pid=pid)
@@ -3041,23 +3041,23 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
 
     if not unit_path.exists():
         print("✗ Gateway service is not installed")
-        print(f"  Run: {'sudo ' if system else ''}deepsuck gateway install{scope_flag}")
+        print(f"  Run: {'sudo ' if system else ''}dag gateway install{scope_flag}")
         return
 
-    _sync_deepsuck_home_from_systemd_unit(system=system)
+    _sync_dag_home_from_systemd_unit(system=system)
 
     if has_conflicting_systemd_units():
         print_systemd_scope_conflict_warning()
         print()
 
-    if has_legacy_deepsuck_units():
+    if has_legacy_dag_units():
         print_legacy_unit_warning()
         print()
 
     if not systemd_unit_is_current(system=system):
         print("⚠ Installed gateway service definition is outdated")
         print(
-            f"  Run: {'sudo ' if system else ''}deepsuck gateway restart{scope_flag}  # auto-refreshes the unit"
+            f"  Run: {'sudo ' if system else ''}dag gateway restart{scope_flag}  # auto-refreshes the unit"
         )
         print()
 
@@ -3090,7 +3090,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
         print(
             f"✗ {_service_scope_label(system).capitalize()} gateway service is stopped"
         )
-        print(f"  Run: {'sudo ' if system else ''}deepsuck gateway start{scope_flag}")
+        print(f"  Run: {'sudo ' if system else ''}dag gateway start{scope_flag}")
 
     configured_user = _read_systemd_user_from_unit(unit_path) if system else None
     if configured_user:
@@ -3113,7 +3113,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
     elif _systemd_unit_is_start_limited(unit_props):
         print("  ⏳ Restart pending: systemd is temporarily rate-limiting starts")
         print(
-            f"  Run after the start-limit window expires: {'sudo ' if system else ''}deepsuck gateway restart{scope_flag}"
+            f"  Run after the start-limit window expires: {'sudo ' if system else ''}dag gateway restart{scope_flag}"
         )
         print(
             f"  Or clear it manually: systemctl {'--user ' if not system else ''}reset-failed {get_service_name()}"
@@ -3123,7 +3123,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
     ):
         print("  ⚠ Planned restart is stuck in systemd failed state (exit 75)")
         print(
-            f"  Run: systemctl {'--user ' if not system else ''}reset-failed {get_service_name()} && {'sudo ' if system else ''}deepsuck gateway start{scope_flag}"
+            f"  Run: systemctl {'--user ' if not system else ''}reset-failed {get_service_name()} && {'sudo ' if system else ''}dag gateway start{scope_flag}"
         )
     elif active_state == "failed" and result_code:
         print(f"  ⚠ Systemd unit result: {result_code}")
@@ -3163,11 +3163,11 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
 def get_launchd_label() -> str:
     """Return the launchd service label, scoped per profile."""
     suffix = _profile_suffix()
-    return f"ai.deepsuck.gateway-{suffix}" if suffix else "ai.deepsuck.gateway"
+    return f"ai.dag.gateway-{suffix}" if suffix else "ai.dag.gateway"
 
 
 # Cached launchd domain result — probing is cheap but should only run once per
-# process invocation (each ``deepsuck gateway start/stop/status`` call).
+# process invocation (each ``dag gateway start/stop/status`` call).
 _resolved_launchd_domain: str | None = None
 
 
@@ -3247,7 +3247,7 @@ _LAUNCHD_JOB_UNLOADED_EXIT_CODES = frozenset({3, 113, 125})
 # When even a fresh bootstrap can't manage the domain, launchctl returns 5
 # ("Input/output error") or a persistent 125. On those hosts launchd cannot
 # supervise the gateway at all, so we degrade to a detached background process
-# (the documented `nohup deepsuck gateway run` workaround). See #23387.
+# (the documented `nohup dag gateway run` workaround). See #23387.
 _LAUNCHCTL_DOMAIN_UNSUPPORTED_CODES = frozenset({5, 125})
 
 
@@ -3267,12 +3267,12 @@ def _launchctl_domain_unsupported(returncode: int) -> bool:
 
 
 def _gateway_run_command() -> list[str]:
-    """Build the `python -m deepsuck_cli.main [--profile X] gateway run --replace` argv.
+    """Build the `python -m dag_cli.main [--profile X] gateway run --replace` argv.
 
-    Profile-aware: honors the active DEEPSUCK_HOME via `_profile_arg()` so the
+    Profile-aware: honors the active DAG_HOME via `_profile_arg()` so the
     detached fallback launches into the same profile as the CLI invocation.
     """
-    cmd = [get_python_path(), "-m", "deepsuck_cli.main"]
+    cmd = [get_python_path(), "-m", "dag_cli.main"]
     profile_arg = _profile_arg()
     if profile_arg:
         cmd.extend(profile_arg.split())
@@ -3284,14 +3284,14 @@ def _spawn_detached_gateway() -> bool:
     """Launch the gateway as a detached background process (launchd fallback).
 
     Used when launchctl can no longer bootstrap/kickstart the gateway on
-    macOS 26+ (issue #23387). Mirrors the `nohup deepsuck gateway run --replace`
+    macOS 26+ (issue #23387). Mirrors the `nohup dag gateway run --replace`
     workaround but keeps it CLI-managed: stdout/stderr go to the profile's
     gateway logs and the PID is tracked via the gateway.pid file that
     `run_gateway` writes, so stop/status/restart keep working.
     """
-    from deepsuck_cli._subprocess_compat import windows_detach_popen_kwargs
+    from dag_cli._subprocess_compat import windows_detach_popen_kwargs
 
-    log_dir = get_deepsuck_home() / "logs"
+    log_dir = get_dag_home() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     out_path = log_dir / "gateway.log"
     err_path = log_dir / "gateway.error.log"
@@ -3321,18 +3321,18 @@ def _launchd_fallback_to_detached(reason: str, *, exit_on_failure: bool = True) 
     launched, prints the manual workaround and (by default) exits non-zero so
     the failure surfaces instead of silently doing nothing.
     """
-    from deepsuck_constants import display_deepsuck_home as _dhh
+    from dag_constants import display_dag_home as _dhh
 
     print(f"⚠ launchd cannot manage the gateway on this macOS version ({reason}).")
     if _spawn_detached_gateway():
         print("✓ Started gateway as a background process instead")
         print("  It will NOT auto-start at login or auto-restart on crash.")
         print(f"  Logs: {_dhh()}/logs/gateway.log")
-        print("  Stop it with: deepsuck gateway stop")
+        print("  Stop it with: dag gateway stop")
         return True
     print_error("Failed to start the gateway as a background process.")
     print(
-        f"  Try manually: nohup deepsuck gateway run --replace "
+        f"  Try manually: nohup dag gateway run --replace "
         f"> {_dhh()}/logs/gateway.log 2>&1 &"
     )
     if exit_on_failure:
@@ -3346,11 +3346,11 @@ def generate_launchd_plist() -> str:
     # _stable_service_working_dir() for the rationale (same rot risk applies
     # to launchd's WorkingDirectory as to systemd's).
     working_dir = _stable_service_working_dir()
-    deepsuck_home = str(get_deepsuck_home().resolve())
-    log_dir = get_deepsuck_home() / "logs"
+    dag_home = str(get_dag_home().resolve())
+    log_dir = get_dag_home() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     label = get_launchd_label()
-    profile_arg = _profile_arg(deepsuck_home)
+    profile_arg = _profile_arg(dag_home)
     # Build a sane PATH for the launchd plist.  launchd provides only a
     # minimal default (/usr/bin:/bin:/usr/sbin:/sbin) which misses Homebrew,
     # nvm, cargo, etc.  We prepend venv/bin and node_modules/.bin (matching
@@ -3376,7 +3376,7 @@ def generate_launchd_plist() -> str:
     prog_args = [
         f"<string>{python_path}</string>",
         "<string>-m</string>",
-        "<string>deepsuck_cli.main</string>",
+        "<string>dag_cli.main</string>",
     ]
     if profile_arg:
         for part in profile_arg.split():
@@ -3411,8 +3411,8 @@ def generate_launchd_plist() -> str:
         <string>{sane_path}</string>
         <key>VIRTUAL_ENV</key>
         <string>{venv_dir}</string>
-        <key>DEEPSUCK_HOME</key>
-        <string>{deepsuck_home}</string>
+        <key>DAG_HOME</key>
+        <string>{dag_home}</string>
     </dict>
 
     <key>LimitLoadToSessionType</key>
@@ -3479,7 +3479,7 @@ def refresh_launchd_plist_if_needed() -> bool:
         timeout=30,
     )
     print(
-        "↻ Updated gateway launchd service definition to match the current Deepsuck install"
+        "↻ Updated gateway launchd service definition to match the current Dag install"
     )
     return True
 
@@ -3520,8 +3520,8 @@ def launchd_install(force: bool = False):
     print("✓ Service installed and loaded!")
     print()
     print("Next steps:")
-    print("  deepsuck gateway status             # Check status")
-    from deepsuck_constants import display_deepsuck_home as _dhh
+    print("  dag gateway status             # Check status")
+    from dag_constants import display_dag_home as _dhh
 
     print(f"  tail -f {_dhh()}/logs/gateway.log  # View logs")
 
@@ -3620,7 +3620,7 @@ def launchd_stop():
     # bootout unloads the service definition so KeepAlive doesn't respawn
     # the process.  A plain `kill SIGTERM` only signals the process — launchd
     # immediately restarts it because KeepAlive is unconditionally true.
-    # `deepsuck gateway start` re-bootstraps when it detects the job is unloaded.
+    # `dag gateway start` re-bootstraps when it detects the job is unloaded.
     try:
         subprocess.run(["launchctl", "bootout", target], check=True, timeout=90)
     except subprocess.CalledProcessError as e:
@@ -3644,7 +3644,7 @@ def _wait_for_gateway_exit(
 
     Uses the PID from the gateway.pid file — not launchd labels — so this
     works correctly when multiple gateway instances run under separate
-    DEEPSUCK_HOME directories.
+    DAG_HOME directories.
 
     Args:
         timeout: Total seconds to wait before giving up.
@@ -3758,10 +3758,10 @@ def launchd_status(deep: bool = False):
 
     print(f"Launchd plist: {plist_path}")
     if launchd_plist_is_current():
-        print("✓ Service definition matches the current Deepsuck install")
+        print("✓ Service definition matches the current Dag install")
     else:
-        print("⚠ Service definition is stale relative to the current Deepsuck install")
-        print("  Run: deepsuck gateway start")
+        print("⚠ Service definition is stale relative to the current Dag install")
+        print("  Run: dag gateway start")
 
     if loaded:
         print("✓ Gateway service is loaded")
@@ -3769,10 +3769,10 @@ def launchd_status(deep: bool = False):
     else:
         print("✗ Gateway service is not loaded")
         print("  Service definition exists locally but launchd has not loaded it.")
-        print("  Run: deepsuck gateway start")
+        print("  Run: dag gateway start")
 
     if deep:
-        log_file = get_deepsuck_home() / "logs" / "gateway.log"
+        log_file = get_dag_home() / "logs" / "gateway.log"
         if log_file.exists():
             print()
             print("Recent logs:")
@@ -3790,7 +3790,7 @@ def _truthy_env(value: str | None) -> bool:
 
 def _is_official_docker_checkout() -> bool:
     return (
-        str(PROJECT_ROOT) == "/opt/deepsuck"
+        str(PROJECT_ROOT) == "/opt/dag"
         and (PROJECT_ROOT / "docker" / "entrypoint.sh").is_file()
     )
 
@@ -3821,7 +3821,7 @@ def _running_under_gateway_supervisor() -> bool:
 def _guard_supervised_gateway_conflict(force: bool = False) -> None:
     """Refuse a foreground gateway when a service manager already supervises one.
 
-    Running ``deepsuck gateway run [--replace]`` (or the manual-restart fallback)
+    Running ``dag gateway run [--replace]`` (or the manual-restart fallback)
     from a shell on a systemd/launchd host spawns a second, long-lived
     dispatcher that escapes the service cgroup, survives
     ``systemctl restart``, and becomes a silent concurrent writer on the shared
@@ -3849,7 +3849,7 @@ def _guard_supervised_gateway_conflict(force: bool = False) -> None:
         "  instead:"
     )
     print()
-    print("    deepsuck gateway restart")
+    print("    dag gateway restart")
     print()
     print(
         "  Pass --force to start a foreground gateway anyway (not recommended\n"
@@ -3864,10 +3864,10 @@ def _guard_existing_gateway_process_conflict(replace: bool = False) -> None:
     ``gateway.run`` performs the authoritative PID/lock check, but importing it
     is expensive: it pulls in model_tools/plugin discovery first. On small
     instances, a supervisor or dashboard loop repeatedly running bare
-    ``deepsuck gateway run`` can burn memory/CPU just to fail with "already
+    ``dag gateway run`` can burn memory/CPU just to fail with "already
     running" after plugin discovery. This cheap PID-file preflight preserves the
     same user-facing contract while avoiding that startup work without scanning
-    unrelated gateway processes from other DEEPSUCK_HOME roots.
+    unrelated gateway processes from other DAG_HOME roots.
     """
     if replace or _running_under_gateway_supervisor():
         return
@@ -3884,9 +3884,9 @@ def _guard_existing_gateway_process_conflict(replace: bool = False) -> None:
     print_error(
         f"Another gateway instance is already running (PID {pid})."
     )
-    print("  Use 'deepsuck gateway restart' to replace it,")
-    print("  or 'deepsuck gateway stop' first.")
-    print("  Or use 'deepsuck gateway run --replace' to auto-replace.")
+    print("  Use 'dag gateway restart' to replace it,")
+    print("  or 'dag gateway stop' first.")
+    print("  Or use 'dag gateway run --replace' to auto-replace.")
     sys.exit(1)
 
 
@@ -3900,16 +3900,16 @@ def _guard_official_docker_root_gateway() -> None:
         return
 
     print_error(
-        "Refusing to run the Deepsuck gateway as root inside the official Docker image."
+        "Refusing to run the Dag gateway as root inside the official Docker image."
     )
     print(
-        "  The image entrypoint normally drops privileges to the 'deepsuck' user. "
+        "  The image entrypoint normally drops privileges to the 'dag' user. "
         "If you override entrypoint in Docker Compose, include "
-        "/opt/deepsuck/docker/entrypoint.sh before the Deepsuck command."
+        "/opt/dag/docker/entrypoint.sh before the Dag command."
     )
     print(
         "  Running the gateway as root can leave root-owned files in "
-        "$DEEPSUCK_HOME and break later non-root dashboard/gateway runs."
+        "$DAG_HOME and break later non-root dashboard/gateway runs."
     )
     print(
         "  Set DEEPSUCK_ALLOW_ROOT_GATEWAY=1 only if you intentionally accept this risk."
@@ -3935,7 +3935,7 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False, fo
     sys.path.insert(0, str(PROJECT_ROOT))
 
     # Detached Windows gateway runs must ignore console-control broadcasts
-    # from sibling CLI processes, but foreground `deepsuck gateway run` still
+    # from sibling CLI processes, but foreground `dag gateway run` still
     # needs to obey the banner's "Press Ctrl+C to stop" contract.
     # Service-style launchers set DEEPSUCK_GATEWAY_DETACHED=1; older wrappers
     # without the marker are handled by the non-TTY fallback.
@@ -3977,10 +3977,10 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False, fo
     # Refresh the systemd unit definition on every boot so that restart
     # settings (RestartSec, StartLimitIntervalSec, etc.) stay current even
     # when the process was respawned via exit-code-75 (stale-code or
-    # /restart) rather than through `deepsuck gateway restart` which already
+    # /restart) rather than through `dag gateway restart` which already
     # calls refresh_systemd_unit_if_needed().  Without this, a code update
     # that ships new unit settings won't take effect until the next manual
-    # `deepsuck gateway start/restart` — leaving the gateway vulnerable to
+    # `dag gateway start/restart` — leaving the gateway vulnerable to
     # the exact failure mode the new settings were meant to prevent.
     if supports_systemd_services():
         try:
@@ -3991,7 +3991,7 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False, fo
     from gateway.run import start_gateway
 
     print("┌─────────────────────────────────────────────────────────┐")
-    print("│           ⚕ Deepsuck Gateway Starting...                 │")
+    print("│           ⚕ DAG Gateway Starting...                 │")
     print("├─────────────────────────────────────────────────────────┤")
     print("│  Messaging platforms + cron scheduler                    │")
     print("│  Press Ctrl+C to stop                                   │")
@@ -4020,7 +4020,7 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False, fo
         if os.environ.get("DEEPSUCK_GATEWAY_EXIT_DIAG", "1") != "1":
             return
         try:
-            from deepsuck_constants import get_deepsuck_home as _ghh
+            from dag_constants import get_dag_home as _ghh
 
             log_dir = _ghh() / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
@@ -4186,7 +4186,7 @@ _PLATFORMS = [
             "3. Get an access token: Element → Settings → Help & About → Access Token",
             "   Or via API: curl -X POST https://your-server/_matrix/client/v3/login \\",
             '     -d \'{"type":"m.login.password","user":"@bot:server","password":"..."}\'',
-            "4. Alternatively, provide user ID + password and Deepsuck will log in directly",
+            "4. Alternatively, provide user ID + password and Dag will log in directly",
             "5. For E2EE: set MATRIX_ENCRYPTION=true (requires pip install 'mautrix[encryption]')",
             "6. To find your user ID: it's @username:your-server (shown in Element profile)",
         ],
@@ -4207,7 +4207,7 @@ _PLATFORMS = [
                 "name": "MATRIX_USER_ID",
                 "prompt": "User ID (@bot:server — required for password login)",
                 "password": False,
-                "help": "Full Matrix user ID, e.g. @deepsuck:matrix.example.org",
+                "help": "Full Matrix user ID, e.g. @dag:matrix.example.org",
             },
             {
                 "name": "MATRIX_ALLOWED_USERS",
@@ -4232,7 +4232,7 @@ _PLATFORMS = [
         "setup_instructions": [
             "1. In Mattermost: Integrations → Bot Accounts → Add Bot Account",
             "   (System Console → Integrations → Bot Accounts must be enabled)",
-            "2. Give it a username (e.g. deepsuck) and copy the bot token",
+            "2. Give it a username (e.g. dag) and copy the bot token",
             "3. Works with any self-hosted Mattermost instance — enter your server URL",
             "4. To find your user ID: click your avatar (top-left) → Profile",
             "   Your user ID is displayed there — click it to copy.",
@@ -4263,7 +4263,7 @@ _PLATFORMS = [
                 "name": "MATTERMOST_HOME_CHANNEL",
                 "prompt": "Home channel ID (for cron/notification delivery, or empty to set later with /set-home)",
                 "password": False,
-                "help": "Channel ID where Deepsuck delivers cron results and notifications.",
+                "help": "Channel ID where Dag delivers cron results and notifications.",
             },
             {
                 "name": "MATTERMOST_REPLY_MODE",
@@ -4291,7 +4291,7 @@ _PLATFORMS = [
         "emoji": "📧",
         "token_var": "EMAIL_ADDRESS",
         "setup_instructions": [
-            "1. Use a dedicated email account for your Deepsuck agent",
+            "1. Use a dedicated email account for your Dag agent",
             "2. For Gmail: enable 2FA, then create an App Password at",
             "   https://myaccount.google.com/apppasswords",
             "3. For other providers: use your email password or app-specific password",
@@ -4302,7 +4302,7 @@ _PLATFORMS = [
                 "name": "EMAIL_ADDRESS",
                 "prompt": "Email address",
                 "password": False,
-                "help": "The email address Deepsuck will use (e.g., deepsuck@gmail.com).",
+                "help": "The email address Dag will use (e.g., dag@gmail.com).",
             },
             {
                 "name": "EMAIL_PASSWORD",
@@ -4573,9 +4573,9 @@ _PLATFORMS = [
             "2. Complete the BlueBubbles setup wizard — sign in with your Apple ID",
             "3. In BlueBubbles Settings → API, note the Server URL and password",
             "4. The server URL is typically http://<your-mac-ip>:1234",
-            "5. Deepsuck connects via the BlueBubbles REST API and receives",
+            "5. Dag connects via the BlueBubbles REST API and receives",
             "   incoming messages via a local webhook",
-            "6. To authorize users, use DM pairing: deepsuck pairing generate bluebubbles",
+            "6. To authorize users, use DM pairing: dag pairing generate bluebubbles",
             "   Share the code — the user sends it via iMessage to get approved",
         ],
         "vars": [
@@ -4654,7 +4654,7 @@ _PLATFORMS = [
             "1. Download the Yuanbao app from https://yuanbao.tencent.com/",
             "2. In the app, go to PAI → My Bot and create a new bot",
             "3. After the bot is created, copy the App ID and App Secret",
-            "4. Enter them below and Deepsuck will connect automatically over WebSocket",
+            "4. Enter them below and Dag will connect automatically over WebSocket",
         ],
         "vars": [
             {
@@ -4680,7 +4680,7 @@ def _all_platforms() -> list[dict]:
     Combines the built-in ``_PLATFORMS`` with plugin platforms registered via
     ``platform_registry``. Plugins are discovered on first call so bundled
     platforms (like IRC, which auto-load via ``kind: platform``) appear in
-    ``deepsuck setup gateway`` without needing the gateway to be running.
+    ``dag setup gateway`` without needing the gateway to be running.
     Built-ins keep their dict shape; plugin entries are adapted to the same
     shape with ``_registry_entry`` holding the source.
 
@@ -4690,16 +4690,16 @@ def _all_platforms() -> list[dict]:
         ``mautrix[encryption]`` -> ``python-olm``, which has no Windows
         wheel and needs ``make`` + libolm to build from sdist. There's
         no native Windows path that works, so we don't offer it in the
-        picker. Users who want Matrix on Windows can run deepsuck under
+        picker. Users who want Matrix on Windows can run dag under
         WSL.
     """
     # Populate the registry so plugin platforms are visible. Idempotent.
     # Bundled platform plugins (``kind: platform``) auto-load unconditionally,
     # so every shipped messaging channel appears in the setup menu by default.
-    # User-installed platform plugins under ~/.deepsuck/plugins/ still require
+    # User-installed platform plugins under ~/.dag/plugins/ still require
     # opt-in via ``plugins.enabled`` (untrusted code).
     try:
-        from deepsuck_cli.plugins import discover_plugins
+        from dag_cli.plugins import discover_plugins
 
         discover_plugins()
     except Exception as e:
@@ -4771,7 +4771,7 @@ def _platform_status(platform: dict) -> str:
     val = get_env_value(token_var)
     if token_var == "WHATSAPP_ENABLED":
         if val and val.lower() == "true":
-            session_file = get_deepsuck_home() / "whatsapp" / "session" / "creds.json"
+            session_file = get_dag_home() / "whatsapp" / "session" / "creds.json"
             if session_file.exists():
                 return "configured + paired"
             return "enabled, not paired"
@@ -4882,7 +4882,7 @@ def _setup_standard_platform(platform: dict):
         choice = prompt("  Choice [1/2]", default="1")
         if choice.strip() == "1":
             try:
-                from deepsuck_cli.telegram_managed_bot import (
+                from dag_cli.telegram_managed_bot import (
                     auto_setup_telegram_bot_result,
                     is_valid_telegram_bot_token,
                 )
@@ -4960,7 +4960,7 @@ def _setup_standard_platform(platform: dict):
                 print()
                 access_choices = [
                     "Enable open access (anyone can message the bot)",
-                    "Use DM pairing (unknown users request access, you approve with 'deepsuck pairing approve')",
+                    "Use DM pairing (unknown users request access, you approve with 'dag pairing approve')",
                     "Skip for now (bot will deny all users until configured)",
                 ]
                 access_idx = prompt_choice(
@@ -4974,11 +4974,11 @@ def _setup_standard_platform(platform: dict):
                         "  DM pairing mode — users will receive a code to request access."
                     )
                     print_info(
-                        "  Approve with: deepsuck pairing approve <platform> <code>"
+                        "  Approve with: dag pairing approve <platform> <code>"
                     )
                 else:
                     print_info(
-                        "  Skipped — configure later with 'deepsuck gateway setup'"
+                        "  Skipped — configure later with 'dag gateway setup'"
                     )
             continue
 
@@ -5010,7 +5010,7 @@ def _setup_standard_platform(platform: dict):
 
 def _setup_whatsapp():
     """Delegate to the existing WhatsApp setup flow."""
-    from deepsuck_cli.main import cmd_whatsapp
+    from dag_cli.main import cmd_whatsapp
     import argparse
 
     cmd_whatsapp(argparse.Namespace())
@@ -5018,7 +5018,7 @@ def _setup_whatsapp():
 
 def _setup_dingtalk():
     """Configure DingTalk — QR scan (recommended) or manual credential entry."""
-    from deepsuck_cli.setup import (
+    from dag_cli.setup import (
         prompt_choice,
         prompt_yes_no,
         print_success,
@@ -5052,7 +5052,7 @@ def _setup_dingtalk():
     if method == 0:
         # ── QR-code device-flow authorization ──
         try:
-            from deepsuck_cli.dingtalk_auth import dingtalk_qr_auth
+            from dag_cli.dingtalk_auth import dingtalk_qr_auth
         except ImportError as exc:
             print_warning(
                 f"  QR auth module failed to load ({exc}), falling back to manual input."
@@ -5166,7 +5166,7 @@ def _setup_wecom():
         print()
         access_choices = [
             "Enable open access (anyone can message the bot)",
-            "Use DM pairing (unknown users request access, you approve with 'deepsuck pairing approve')",
+            "Use DM pairing (unknown users request access, you approve with 'dag pairing approve')",
             "Disable direct messages",
             "Skip for now (bot will deny all users until configured)",
         ]
@@ -5182,12 +5182,12 @@ def _setup_wecom():
             print_success(
                 "  DM pairing mode — users will receive a code to request access."
             )
-            print_info("  Approve with: deepsuck pairing approve <platform> <code>")
+            print_info("  Approve with: dag pairing approve <platform> <code>")
         elif access_idx == 2:
             save_env_value("WECOM_DM_POLICY", "disabled")
             print_warning("  Direct messages disabled.")
         else:
-            print_info("  Skipped — configure later with 'deepsuck gateway setup'")
+            print_info("  Skipped — configure later with 'dag gateway setup'")
 
     # ── Home channel (optional) ──
     print()
@@ -5211,7 +5211,7 @@ def _is_service_installed() -> bool:
     elif is_macos():
         return get_launchd_plist_path().exists()
     elif is_windows():
-        from deepsuck_cli import gateway_windows
+        from dag_cli import gateway_windows
 
         return gateway_windows.is_installed()
     return False
@@ -5264,7 +5264,7 @@ def _is_service_running() -> bool:
         except subprocess.TimeoutExpired:
             return False
     elif is_windows():
-        from deepsuck_cli import gateway_windows
+        from dag_cli import gateway_windows
 
         if gateway_windows.is_installed():
             # "installed" doesn't necessarily mean "running" on Windows. The
@@ -5279,10 +5279,10 @@ def _setup_weixin():
     print()
     print(color("  ─── 💬 Weixin / WeChat Setup ───", Colors.CYAN))
     print()
-    print_info("  1. Deepsuck will open Tencent iLink QR login in this terminal.")
+    print_info("  1. Dag will open Tencent iLink QR login in this terminal.")
     print_info("  2. Use WeChat to scan and confirm the QR code.")
     print_info(
-        "  3. Deepsuck will store the returned account_id/token in ~/.deepsuck/.env."
+        "  3. Dag will store the returned account_id/token in ~/.dag/.env."
     )
     print_info(
         "  4. This adapter supports native text, image, video, and document delivery."
@@ -5305,7 +5305,7 @@ def _setup_weixin():
 
     if not check_weixin_requirements():
         print_error("  Missing dependencies: Weixin needs aiohttp and cryptography.")
-        print_info("  Install them, then rerun `deepsuck gateway setup`.")
+        print_info("  Install them, then rerun `dag gateway setup`.")
         return
 
     print()
@@ -5316,7 +5316,7 @@ def _setup_weixin():
     import asyncio
 
     try:
-        credentials = asyncio.run(qr_login(str(get_deepsuck_home())))
+        credentials = asyncio.run(qr_login(str(get_dag_home())))
     except KeyboardInterrupt:
         print()
         print_warning("  Weixin setup cancelled.")
@@ -5359,7 +5359,7 @@ def _setup_weixin():
         save_env_value("WEIXIN_ALLOWED_USERS", "")
         print_success("  DM pairing enabled.")
         print_info(
-            "  Unknown DM users can request access and you approve them with `deepsuck pairing approve`."
+            "  Unknown DM users can request access and you approve them with `dag pairing approve`."
         )
     elif access_idx == 1:
         save_env_value("WEIXIN_DM_POLICY", "open")
@@ -5588,7 +5588,7 @@ def _setup_feishu():
         save_env_value("FEISHU_ALLOWED_USERS", "")
         print_success("  DM pairing enabled.")
         print_info(
-            "  Unknown users can request access; approve with `deepsuck pairing approve`."
+            "  Unknown users can request access; approve with `dag pairing approve`."
         )
     elif access_idx == 1:
         save_env_value("FEISHU_ALLOW_ALL_USERS", "true")
@@ -5723,7 +5723,7 @@ def _setup_qqbot():
             save_env_value("QQ_ALLOWED_USERS", "")
         print_success("  DM pairing enabled.")
         print_info(
-            "  Unknown users can request access; approve with `deepsuck pairing approve`."
+            "  Unknown users can request access; approve with `dag pairing approve`."
         )
     elif access_idx == 1:
         save_env_value("QQ_ALLOW_ALL_USERS", "true")
@@ -5790,7 +5790,7 @@ def _setup_signal():
         print_info("    Docker: bbernhard/signal-cli-rest-api")
         print()
         print_info("  After installing, link your account and start the daemon:")
-        print_info('    signal-cli link -n "DeepsuckAgent"')
+        print_info('    signal-cli link -n "DAGAgent"')
         print_info("    signal-cli --account +YOURNUMBER daemon --http 127.0.0.1:8080")
         print()
 
@@ -5894,10 +5894,10 @@ def _setup_signal():
 def _builtin_setup_fn(key: str):
     """Resolve the interactive setup function for a built-in platform key.
 
-    Late-bound to avoid a circular import with ``deepsuck_cli.setup`` (which
+    Late-bound to avoid a circular import with ``dag_cli.setup`` (which
     imports from this module for the remaining bespoke flows).
     """
-    from deepsuck_cli import setup as _s
+    from dag_cli import setup as _s
 
     return {
         "telegram": _s._setup_telegram,
@@ -5931,7 +5931,7 @@ def _configure_platform(platform: dict) -> None:
       4. Env-var hint fallback for plugins that offer no setup helper.
 
     Bundled platform plugins (e.g. IRC) auto-load, so no plugin enable step
-    is needed here. User-installed platform plugins under ~/.deepsuck/plugins/
+    is needed here. User-installed platform plugins under ~/.dag/plugins/
     must already be in ``plugins.enabled`` before they appear in this menu.
     """
     entry = platform.get("_registry_entry")
@@ -5956,7 +5956,7 @@ def _configure_platform(platform: dict) -> None:
     print(color(f"  ─── {emoji} {label} Setup ───", Colors.CYAN))
     required = entry.required_env if entry else []
     if required:
-        print_info(f"  Set these env vars in ~/.deepsuck/.env: {', '.join(required)}")
+        print_info(f"  Set these env vars in ~/.dag/.env: {', '.join(required)}")
     else:
         print_info(
             f"  Configure {label} in config.yaml under gateway.platforms.{platform['key']}"
@@ -6016,7 +6016,7 @@ def gateway_setup():
         print_systemd_scope_conflict_warning()
         print()
 
-    if supports_systemd_services() and has_legacy_deepsuck_units():
+    if supports_systemd_services() and has_legacy_dag_units():
         print_legacy_unit_warning()
         print()
 
@@ -6099,12 +6099,12 @@ def gateway_setup():
                     elif is_macos():
                         launchd_restart()
                     elif is_windows():
-                        from deepsuck_cli import gateway_windows
+                        from dag_cli import gateway_windows
 
                         gateway_windows.restart()
                     else:
                         stop_profile_gateway()
-                        print_info("Start manually: deepsuck gateway")
+                        print_info("Start manually: dag gateway")
                 except UserSystemdUnavailableError as e:
                     print_error("  Restart failed — user systemd not reachable:")
                     for line in str(e).splitlines():
@@ -6124,7 +6124,7 @@ def gateway_setup():
                     elif is_macos():
                         launchd_start()
                     elif is_windows():
-                        from deepsuck_cli import gateway_windows
+                        from dag_cli import gateway_windows
 
                         gateway_windows.start()
                 except UserSystemdUnavailableError as e:
@@ -6164,7 +6164,7 @@ def gateway_setup():
                             launchd_install(force=False)
                             did_install = True
                         else:
-                            from deepsuck_cli import gateway_windows
+                            from dag_cli import gateway_windows
 
                             gateway_windows.install(force=False)
                             did_install = True
@@ -6176,7 +6176,7 @@ def gateway_setup():
                                 elif is_macos():
                                     launchd_start()
                                 elif is_windows():
-                                    from deepsuck_cli import gateway_windows
+                                    from dag_cli import gateway_windows
                                     gateway_windows.start()
                             except UserSystemdUnavailableError as e:
                                 print_error(
@@ -6188,38 +6188,38 @@ def gateway_setup():
                                 print_error(f"  Start failed: {e}")
                     except subprocess.CalledProcessError as e:
                         print_error(f"  Install failed: {e}")
-                        print_info("  You can try manually: deepsuck gateway install")
+                        print_info("  You can try manually: dag gateway install")
                 else:
                     print_info("  Skipped start and auto-start setup.")
-                    print_info("  You can install later: deepsuck gateway install")
+                    print_info("  You can install later: dag gateway install")
                     if supports_systemd_services():
                         print_info(
-                            "  Or as a boot-time service: sudo deepsuck gateway install --system"
+                            "  Or as a boot-time service: sudo dag gateway install --system"
                         )
-                    print_info("  Or run in foreground:  deepsuck gateway run")
+                    print_info("  Or run in foreground:  dag gateway run")
             elif is_wsl():
                 print_info("  WSL detected but systemd is not running.")
-                print_info("  Run in foreground: deepsuck gateway run")
+                print_info("  Run in foreground: dag gateway run")
                 print_info(
-                    "  For persistence:   tmux new -s deepsuck 'deepsuck gateway run'"
+                    "  For persistence:   tmux new -s dag 'dag gateway run'"
                 )
                 print_info(
                     "  To enable systemd: add systemd=true to /etc/wsl.conf, then 'wsl --shutdown'"
                 )
             elif is_termux():
-                from deepsuck_constants import display_deepsuck_home as _dhh
+                from dag_constants import display_dag_home as _dhh
 
                 print_info("  Termux does not use systemd/launchd services.")
-                print_info("  Run in foreground: deepsuck gateway run")
+                print_info("  Run in foreground: dag gateway run")
                 print_info(
-                    f"  Or start it manually in the background (best effort): nohup deepsuck gateway run >{_dhh()}/logs/gateway.log 2>&1 &"
+                    f"  Or start it manually in the background (best effort): nohup dag gateway run >{_dhh()}/logs/gateway.log 2>&1 &"
                 )
             else:
                 print_info("  Service install not supported on this platform.")
-                print_info("  Run in foreground: deepsuck gateway run")
+                print_info("  Run in foreground: dag gateway run")
     else:
         print()
-        print_info("No platforms configured. Run 'deepsuck gateway setup' when ready.")
+        print_info("No platforms configured. Run 'dag gateway setup' when ready.")
 
     print()
 
@@ -6241,10 +6241,10 @@ def _dispatch_via_service_manager_if_s6(
     The s6 service slot was created either by the Phase 4 profile-create
     hook or by the container-boot reconciler (cont-init.d/02-…). If it
     doesn't exist or s6 returns an error, the named errors from
-    :mod:`deepsuck_cli.service_manager` are caught and surfaced as
+    :mod:`dag_cli.service_manager` are caught and surfaced as
     actionable CLI messages (no raw ``CalledProcessError`` traceback).
     """
-    from deepsuck_cli.service_manager import (
+    from dag_cli.service_manager import (
         GatewayNotRegisteredError,
         S6CommandError,
         detect_service_manager,
@@ -6255,7 +6255,7 @@ def _dispatch_via_service_manager_if_s6(
         return False
     if profile is None:
         # _profile_suffix() returns the bare profile name for
-        # DEEPSUCK_HOME=<root>/profiles/<name>, "" for the default root,
+        # DAG_HOME=<root>/profiles/<name>, "" for the default root,
         # or a hash for unrelated paths. Map "" → "default" so the
         # default-profile gateway is reachable as gateway-default.
         profile = _profile_suffix() or "default"
@@ -6286,7 +6286,7 @@ def _dispatch_all_via_service_manager_if_s6(action: str) -> bool:
     Returns True iff dispatched (caller should ``return``); False
     otherwise — caller continues with the host-side code path.
 
-    Without this, ``deepsuck gateway stop --all`` and ``... restart --all``
+    Without this, ``dag gateway stop --all`` and ``... restart --all``
     fall through to ``kill_gateway_processes(all_profiles=True)``, which
     just ``pkill``s every gateway process. s6-supervise observes the
     crash and restarts each one ~1s later — so ``--all`` ends up
@@ -6299,7 +6299,7 @@ def _dispatch_all_via_service_manager_if_s6(action: str) -> bool:
     ``action`` is one of ``stop`` / ``restart`` (``start --all`` isn't
     a supported CLI surface).
     """
-    from deepsuck_cli.service_manager import (
+    from dag_cli.service_manager import (
         detect_service_manager,
         get_service_manager,
     )
@@ -6343,7 +6343,7 @@ def gateway_command(args):
             print(f"  {line}")
         sys.exit(1)
     except SystemScopeRequiresRootError as e:
-        # The direct ``deepsuck gateway install|uninstall|start|stop|restart``
+        # The direct ``dag gateway install|uninstall|start|stop|restart``
         # path lands here when the user typed a system-scope action without
         # sudo. Same exit code as before — just gives the wizard a way to
         # intercept the same condition with friendlier guidance before the
@@ -6370,10 +6370,10 @@ def _maybe_redirect_run_to_s6_supervision(args) -> bool:
 
       1. ``_dispatch_via_service_manager_if_s6`` returns False unless
          we're in a container with s6 as PID 1. Host runs of
-         ``deepsuck gateway run`` are unaffected.
+         ``dag gateway run`` are unaffected.
       2. ``DEEPSUCK_S6_SUPERVISED_CHILD`` is exported by
          ``S6ServiceManager._render_run_script`` for the supervised
-         process itself — i.e. when s6-supervise execs ``deepsuck gateway
+         process itself — i.e. when s6-supervise execs ``dag gateway
          run --replace`` as a longrun, this guard short-circuits the
          redirect so the supervised gateway actually runs in
          foreground (otherwise we'd recurse: run → start → run → start
@@ -6398,7 +6398,7 @@ def _maybe_redirect_run_to_s6_supervision(args) -> bool:
     # Loud breadcrumb: explain the upgrade and how to opt out. Print to
     # stderr so it doesn't pollute stdout-parsing scripts. The
     # supervised gateway's own logs are routed by s6-log to both
-    # `docker logs` and ${DEEPSUCK_HOME}/logs/gateways/<profile>/current,
+    # `docker logs` and ${DAG_HOME}/logs/gateways/<profile>/current,
     # so the user sees a clear sequence: this banner first, then the
     # gateway's own stdout/stderr from the supervisor.
     print(
@@ -6418,8 +6418,8 @@ def _maybe_redirect_run_to_s6_supervision(args) -> bool:
     # `docker stop` sends SIGTERM, at which point /init runs stage 3
     # shutdown (which tears down the supervised gateway cleanly).
     #
-    # Prefer `sleep infinity` (matches the static main-deepsuck service's
-    # pattern in docker/s6-rc.d/main-deepsuck/run, and frees the Python
+    # Prefer `sleep infinity` (matches the static main-dag service's
+    # pattern in docker/s6-rc.d/main-dag/run, and frees the Python
     # interpreter — the heartbeat is a tiny `sleep` process, not a
     # resident interpreter). But `os.execvp` does a PATH lookup for the
     # `sleep` binary and historically crashed the whole container with
@@ -6495,7 +6495,7 @@ def _gateway_command_inner(args):
         run_as_user = getattr(args, "run_as_user", None)
         if is_termux():
             print("Gateway service installation is not supported on Termux.")
-            print("Run manually: deepsuck gateway")
+            print("Run manually: dag gateway")
             sys.exit(1)
         if supports_systemd_services():
             if is_wsl():
@@ -6503,10 +6503,10 @@ def _gateway_command_inner(args):
                     "WSL detected — systemd services may not survive WSL restarts."
                 )
                 print_info(
-                    "  Consider running in foreground instead: deepsuck gateway run"
+                    "  Consider running in foreground instead: dag gateway run"
                 )
                 print_info(
-                    "  Or use tmux/screen for persistence: tmux new -s deepsuck 'deepsuck gateway run'"
+                    "  Or use tmux/screen for persistence: tmux new -s dag 'dag gateway run'"
                 )
                 print()
             start_now = prompt_yes_no("Start the gateway now after installing the service?", True)
@@ -6522,7 +6522,7 @@ def _gateway_command_inner(args):
         elif is_macos():
             launchd_install(force)
         elif is_windows():
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
 
             gateway_windows.install(
                 force=force,
@@ -6538,26 +6538,26 @@ def _gateway_command_inner(args):
             print("or run the gateway in foreground mode:")
             print()
             print(
-                "  deepsuck gateway run                              # direct foreground"
+                "  dag gateway run                              # direct foreground"
             )
             print(
-                "  tmux new -s deepsuck 'deepsuck gateway run'         # persistent via tmux"
+                "  tmux new -s dag 'dag gateway run'         # persistent via tmux"
             )
             print(
-                "  nohup deepsuck gateway run > ~/.deepsuck/logs/gateway.log 2>&1 &  # background"
+                "  nohup dag gateway run > ~/.dag/logs/gateway.log 2>&1 &  # background"
             )
             sys.exit(1)
         elif is_container():
             # Phase 4: inside a container with s6 the gateway service is
             # auto-registered when the profile is created (and reconciled
             # at every container boot). `install` is therefore informational.
-            from deepsuck_cli.service_manager import detect_service_manager
+            from dag_cli.service_manager import detect_service_manager
             if detect_service_manager() == "s6":
                 print("Per-profile gateways are auto-registered when you create a profile.")
                 print()
-                print("  deepsuck profile create <name>     # creates the s6 service slot")
-                print("  deepsuck -p <name> gateway start   # bring it up via s6")
-                print("  deepsuck status                    # see currently-supervised gateways")
+                print("  dag profile create <name>     # creates the s6 service slot")
+                print("  dag -p <name> gateway start   # bring it up via s6")
+                print("  dag status                    # see currently-supervised gateways")
                 return
             # Fallback for pre-s6 containers or other container runtimes
             # we haven't taught about supervision (Podman without our
@@ -6573,11 +6573,11 @@ def _gateway_command_inner(args):
             )
             print("  docker restart <container>                # manual restart")
             print()
-            print("To run the gateway: deepsuck gateway run")
+            print("To run the gateway: dag gateway run")
             sys.exit(0)
         else:
             print("Service installation not supported on this platform.")
-            print("Run manually: deepsuck gateway run")
+            print("Run manually: dag gateway run")
             sys.exit(1)
 
     elif subcmd == "uninstall":
@@ -6589,23 +6589,23 @@ def _gateway_command_inner(args):
             print(
                 "Gateway service uninstall is not supported on Termux because there is no managed service to remove."
             )
-            print("Stop manual runs with: deepsuck gateway stop")
+            print("Stop manual runs with: dag gateway stop")
             sys.exit(1)
         if supports_systemd_services():
             systemd_uninstall(system=system)
         elif is_macos():
             launchd_uninstall()
         elif is_windows():
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
 
             gateway_windows.uninstall()
         elif is_container():
-            from deepsuck_cli.service_manager import detect_service_manager
+            from dag_cli.service_manager import detect_service_manager
             if detect_service_manager() == "s6":
                 print("Per-profile gateways are auto-unregistered when you delete the profile.")
                 print()
-                print("  deepsuck profile delete <name>     # tears down the s6 service slot")
-                print("  deepsuck -p <name> gateway stop    # stop without deleting the profile")
+                print("  dag profile delete <name>     # tears down the s6 service slot")
+                print("  dag -p <name> gateway stop    # stop without deleting the profile")
                 return
             print("Service uninstall is not applicable inside a Docker container.")
             print("To stop the gateway, stop or remove the container:")
@@ -6624,7 +6624,7 @@ def _gateway_command_inner(args):
         # Phase 4: inside a container with s6, dispatch via the service
         # manager instead of falling through to systemd/launchd/windows.
         # `--all` isn't meaningful here (each profile has its own service
-        # slot — start them individually via `deepsuck -p <name> gateway
+        # slot — start them individually via `dag -p <name> gateway
         # start`), so just bring up the current profile's slot.
         if not start_all and _dispatch_via_service_manager_if_s6("start"):
             return
@@ -6642,14 +6642,14 @@ def _gateway_command_inner(args):
             print(
                 "Gateway service start is not supported on Termux because there is no system service manager."
             )
-            print("Run manually: deepsuck gateway")
+            print("Run manually: dag gateway")
             sys.exit(1)
         if supports_systemd_services():
             systemd_start(system=system)
         elif is_macos():
             launchd_start()
         elif is_windows():
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
 
             gateway_windows.start()
         elif is_wsl():
@@ -6657,13 +6657,13 @@ def _gateway_command_inner(args):
             print("Run the gateway in foreground mode instead:")
             print()
             print(
-                "  deepsuck gateway run                              # direct foreground"
+                "  dag gateway run                              # direct foreground"
             )
             print(
-                "  tmux new -s deepsuck 'deepsuck gateway run'         # persistent via tmux"
+                "  tmux new -s dag 'dag gateway run'         # persistent via tmux"
             )
             print(
-                "  nohup deepsuck gateway run > ~/.deepsuck/logs/gateway.log 2>&1 &  # background"
+                "  nohup dag gateway run > ~/.dag/logs/gateway.log 2>&1 &  # background"
             )
             print()
             print(
@@ -6682,7 +6682,7 @@ def _gateway_command_inner(args):
             print("  docker start <container>     # start a stopped container")
             print("  docker restart <container>   # restart a running container")
             print()
-            print("Or run the gateway directly: deepsuck gateway run")
+            print("Or run the gateway directly: dag gateway run")
             sys.exit(0)
         else:
             print("Not supported on this platform.")
@@ -6695,7 +6695,7 @@ def _gateway_command_inner(args):
             print_error(
                 "Refusing to stop the gateway from inside the gateway process.\n"
                 "This command was blocked to prevent restart loops.\n"
-                "Use `deepsuck gateway stop` from a shell outside the running gateway."
+                "Use `dag gateway stop` from a shell outside the running gateway."
             )
             sys.exit(1)
 
@@ -6730,7 +6730,7 @@ def _gateway_command_inner(args):
                 except subprocess.CalledProcessError:
                     pass
             elif is_windows():
-                from deepsuck_cli import gateway_windows
+                from dag_cli import gateway_windows
 
                 if gateway_windows.is_installed():
                     try:
@@ -6763,7 +6763,7 @@ def _gateway_command_inner(args):
                 except subprocess.CalledProcessError:
                     pass
             elif is_windows():
-                from deepsuck_cli import gateway_windows
+                from dag_cli import gateway_windows
 
                 if gateway_windows.is_installed():
                     try:
@@ -6788,7 +6788,7 @@ def _gateway_command_inner(args):
             print_error(
                 "Refusing to restart the gateway from inside the gateway process.\n"
                 "This command was blocked to prevent restart loops.\n"
-                "Use `deepsuck gateway restart` from a shell outside the running gateway."
+                "Use `dag gateway restart` from a shell outside the running gateway."
             )
             sys.exit(1)
 
@@ -6827,7 +6827,7 @@ def _gateway_command_inner(args):
                 except subprocess.CalledProcessError:
                     pass
             elif is_windows():
-                from deepsuck_cli import gateway_windows
+                from dag_cli import gateway_windows
 
                 if gateway_windows.is_installed():
                     try:
@@ -6851,7 +6851,7 @@ def _gateway_command_inner(args):
             elif is_macos() and get_launchd_plist_path().exists():
                 launchd_start()
             elif is_windows():
-                from deepsuck_cli import gateway_windows
+                from dag_cli import gateway_windows
 
                 # On Windows, even without a registered Scheduled Task / Startup
                 # entry, gateway_windows.start() uses the safe detached
@@ -6882,7 +6882,7 @@ def _gateway_command_inner(args):
             except subprocess.CalledProcessError:
                 pass
         elif is_windows():
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
 
             # Prefer the Windows-specific restart path: it supports both
             # registered Scheduled Task / Startup installs and no-service
@@ -6917,7 +6917,7 @@ def _gateway_command_inner(args):
                     print(f"  Run:  sudo loginctl enable-linger {_username}")
                     print()
                     print("  Then restart the gateway:")
-                    print("    deepsuck gateway restart")
+                    print("    dag gateway restart")
                     return
 
             if service_configured:
@@ -6926,7 +6926,7 @@ def _gateway_command_inner(args):
                 print(
                     "  The service definition exists, but the service manager did not recover it."
                 )
-                print("  Fix the service, then retry: deepsuck gateway start")
+                print("  Fix the service, then retry: dag gateway start")
                 sys.exit(1)
 
             # Manual restart: stop only this profile's gateway
@@ -6948,7 +6948,7 @@ def _gateway_command_inner(args):
         # Check for service first
         _windows_service_installed = False
         if is_windows():
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
 
             _windows_service_installed = gateway_windows.is_installed()
         if supports_systemd_services() and (
@@ -6961,7 +6961,7 @@ def _gateway_command_inner(args):
             launchd_status(deep)
             _print_gateway_process_mismatch(snapshot)
         elif _windows_service_installed:
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
 
             gateway_windows.status(deep=deep)
             _print_gateway_process_mismatch(snapshot)
@@ -6993,11 +6993,11 @@ def _gateway_command_inner(args):
                     print(
                         "To install as a Windows Scheduled Task (auto-start on login):"
                     )
-                    print("  deepsuck gateway install")
+                    print("  dag gateway install")
                 else:
                     print("To install as a service:")
-                    print("  deepsuck gateway install")
-                    print("  sudo deepsuck gateway install --system")
+                    print("  dag gateway install")
+                    print("  sudo dag gateway install --system")
             else:
                 print("✗ Gateway is not running")
                 runtime_lines = _runtime_health_lines()
@@ -7008,26 +7008,26 @@ def _gateway_command_inner(args):
                         print(f"  {line}")
                 print()
                 print("To start:")
-                print("  deepsuck gateway run      # Run in foreground")
+                print("  dag gateway run      # Run in foreground")
                 if is_termux():
                     print(
-                        "  nohup deepsuck gateway run > ~/.deepsuck/logs/gateway.log 2>&1 &  # Best-effort background start"
+                        "  nohup dag gateway run > ~/.dag/logs/gateway.log 2>&1 &  # Best-effort background start"
                     )
                 elif is_wsl():
                     print(
-                        "  tmux new -s deepsuck 'deepsuck gateway run'         # persistent via tmux"
+                        "  tmux new -s dag 'dag gateway run'         # persistent via tmux"
                     )
                     print(
-                        "  nohup deepsuck gateway run > ~/.deepsuck/logs/gateway.log 2>&1 &  # background"
+                        "  nohup dag gateway run > ~/.dag/logs/gateway.log 2>&1 &  # background"
                     )
                 elif is_windows():
                     print(
-                        "  deepsuck gateway install  # Install as Windows Scheduled Task (auto-start on login)"
+                        "  dag gateway install  # Install as Windows Scheduled Task (auto-start on login)"
                     )
                 else:
-                    print("  deepsuck gateway install  # Install as user service")
+                    print("  dag gateway install  # Install as user service")
                     print(
-                        "  sudo deepsuck gateway install --system  # Install as boot-time system service"
+                        "  sudo dag gateway install --system  # Install as boot-time system service"
                     )
 
         # Show other profiles' gateway status for multi-profile awareness
@@ -7037,12 +7037,12 @@ def _gateway_command_inner(args):
         _gateway_list()
 
     elif subcmd == "migrate-legacy":
-        # Stop, disable, and remove legacy Deepsuck gateway unit files from
-        # pre-rename installs (e.g. deepsuck.service). Profile units and
+        # Stop, disable, and remove legacy Dag gateway unit files from
+        # pre-rename installs (e.g. dag.service). Profile units and
         # unrelated third-party services are never touched.
         dry_run = getattr(args, "dry_run", False)
         yes = getattr(args, "yes", False)
         if not supports_systemd_services() and not is_macos():
             print("Legacy unit migration only applies to systemd-based Linux hosts.")
             return
-        remove_legacy_deepsuck_units(interactive=not yes, dry_run=dry_run)
+        remove_legacy_dag_units(interactive=not yes, dry_run=dry_run)

@@ -17,7 +17,7 @@ import threading
 import time
 import unicodedata
 from typing import Optional
-from deepsuck_cli.config import cfg_get
+from dag_cli.config import cfg_get
 
 from utils import env_var_enabled, is_truthy_value
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Freeze YOLO mode at module import time. Reading os.environ on every call
 # would allow any skill running inside the process to set this variable and
 # instantly bypass all approval checks — a prompt-injection escalation path.
-_YOLO_MODE_FROZEN: bool = is_truthy_value(os.getenv("DEEPSUCK_YOLO_MODE", ""))
+_YOLO_MODE_FROZEN: bool = is_truthy_value(os.getenv("DAG_YOLO_MODE", ""))
 
 # Per-thread/per-task gateway session identity.
 # Gateway runs agent turns concurrently in executor threads, so reading a
@@ -57,7 +57,7 @@ def _fire_approval_hook(hook_name: str, **kwargs) -> None:
     pre_approval_request, post_approval_response.
     """
     try:
-        from deepsuck_cli.plugins import invoke_hook
+        from dag_cli.plugins import invoke_hook
     except Exception:
         # Plugin system not available in this execution context
         # (e.g. bare tool-only imports, minimal test environments).
@@ -117,7 +117,7 @@ def get_current_session_key(default: str = "default") -> str:
     if session_key:
         return session_key
     from gateway.session_context import get_session_env
-    return get_session_env("DEEPSUCK_SESSION_KEY", default)
+    return get_session_env("DAG_SESSION_KEY", default)
 
 
 def _get_session_platform() -> str:
@@ -125,20 +125,20 @@ def _get_session_platform() -> str:
     try:
         from gateway.session_context import get_session_env
 
-        return get_session_env("DEEPSUCK_SESSION_PLATFORM", "") or ""
+        return get_session_env("DAG_SESSION_PLATFORM", "") or ""
     except Exception:
-        return os.getenv("DEEPSUCK_SESSION_PLATFORM", "") or ""
+        return os.getenv("DAG_SESSION_PLATFORM", "") or ""
 
 
 def _is_gateway_approval_context() -> bool:
     """True when this call is inside a gateway/API session.
 
     Legacy gateway integrations set DEEPSUCK_GATEWAY_SESSION in process env.
-    Newer concurrent gateway paths bind DEEPSUCK_SESSION_PLATFORM via
+    Newer concurrent gateway paths bind DAG_SESSION_PLATFORM via
     contextvars so approval mode does not depend on process-global flags.
 
     Cron jobs are NEVER gateway-approval contexts even when they originate
-    from a gateway platform (cron binds DEEPSUCK_SESSION_PLATFORM via
+    from a gateway platform (cron binds DAG_SESSION_PLATFORM via
     contextvars for delivery routing). Cron approvals are governed by
     ``approvals.cron_mode`` config, not interactive resolve — letting cron
     fall through to the gateway branch would submit a pending approval
@@ -151,32 +151,32 @@ def _is_gateway_approval_context() -> bool:
     return bool(_get_session_platform())
 
 # Sensitive write targets that should trigger approval even when referenced
-# via shell expansions like $HOME or $DEEPSUCK_HOME, or by the resolved absolute
-# active profile home path such as /home/deepsuck/.deepsuck/config.yaml. The
-# resolved-absolute form is folded into the ~/.deepsuck/ patterns at detection
+# via shell expansions like $HOME or $DAG_HOME, or by the resolved absolute
+# active profile home path such as /home/dag/.dag/config.yaml. The
+# resolved-absolute form is folded into the ~/.dag/ patterns at detection
 # time by _normalize_command_for_detection() — see the rewrite step there — so
 # these static patterns stay free of any import-time path snapshot (which would
-# go stale when DEEPSUCK_HOME is set after this module is imported, e.g. under the
+# go stale when DAG_HOME is set after this module is imported, e.g. under the
 # hermetic test conftest or any deferred-profile-resolution path).
 _SSH_SENSITIVE_PATH = r'(?:~|\$home|\$\{home\})/\.ssh(?:/|$)'
 _DEEPSUCK_ENV_PATH = (
-    r'(?:~\/\.deepsuck/|'
-    r'(?:\$home|\$\{home\})/\.deepsuck/|'
-    r'(?:\$deepsuck_home|\$\{deepsuck_home\})/)'
+    r'(?:~\/\.dag/|'
+    r'(?:\$home|\$\{home\})/\.dag/|'
+    r'(?:\$dag_home|\$\{dag_home\})/)'
     r'\.env\b'
 )
-# ~/.deepsuck/config.yaml IS the security policy: approvals.mode, yolo, and the
+# ~/.dag/config.yaml IS the security policy: approvals.mode, yolo, and the
 # permanent-approval allowlist live here, and the config cache is mtime-keyed
 # so a write takes effect mid-session (the agent could flip approvals.mode=off
 # and immediately bypass the gate). Pair the write_file/patch deny (file_tools
 # _check_sensitive_path) with terminal-side coverage so `sed -i`, `tee`, `>`,
 # `cp`, etc. targeting it are gated too — otherwise the deny is unpaired
-# theater. Mirrors _DEEPSUCK_ENV_PATH; matches the DEEPSUCK_HOME override form as
-# well as ~/.deepsuck/.
+# theater. Mirrors _DEEPSUCK_ENV_PATH; matches the DAG_HOME override form as
+# well as ~/.dag/.
 _DEEPSUCK_CONFIG_PATH = (
-    r'(?:~\/\.deepsuck/|'
-    r'(?:\$home|\$\{home\})/\.deepsuck/|'
-    r'(?:\$deepsuck_home|\$\{deepsuck_home\})/)'
+    r'(?:~\/\.dag/|'
+    r'(?:\$home|\$\{home\})/\.dag/|'
+    r'(?:\$dag_home|\$\{dag_home\})/)'
     r'config\.yaml\b'
 )
 _PROJECT_ENV_PATH = r'(?:(?:/|\.{1,2}/)?(?:[^\s/"\'`]+/)*\.env(?:\.[^/\s"\'`]+)*)'
@@ -422,23 +422,23 @@ DANGEROUS_PATTERNS = [
     # Gateway lifecycle protection: prevent the agent from killing its own
     # gateway process.  These commands trigger a gateway restart/stop that
     # terminates all running agents mid-work.
-    (r'\bdeepsuck\s+gateway\s+(stop|restart)\b', "stop/restart deepsuck gateway (kills running agents)"),
-    (r'\bdeepsuck\s+update\b', "deepsuck update (restarts gateway, kills running agents)"),
+    (r'\bdag\s+gateway\s+(stop|restart)\b', "stop/restart dag gateway (kills running agents)"),
+    (r'\bdag\s+update\b', "dag update (restarts gateway, kills running agents)"),
     # Docker container lifecycle — any user with docker.sock mounted (a common
     # Docker Compose pattern) gives the agent the ability to restart/stop/kill
     # containers without approval.  These are agent-initiated lifecycle operations
-    # that should always require user consent, just like `deepsuck gateway restart`
+    # that should always require user consent, just like `dag gateway restart`
     # already does for the gateway process.
     (r'\bdocker\s+compose\s+(restart|stop|kill|down)\b', "docker compose restart/stop/kill/down (container lifecycle)"),
     (r'\bdocker\s+(restart|stop|kill)\b', "docker restart/stop/kill (container lifecycle)"),
     # Gateway protection: never start gateway outside systemd management
-    (r'gateway\s+run\b.*(&\s*$|&\s*;|\bdisown\b|\bsetsid\b)', "start gateway outside systemd (use 'systemctl --user restart deepsuck-gateway')"),
-    (r'\bnohup\b.*gateway\s+run\b', "start gateway outside systemd (use 'systemctl --user restart deepsuck-gateway')"),
+    (r'gateway\s+run\b.*(&\s*$|&\s*;|\bdisown\b|\bsetsid\b)', "start gateway outside systemd (use 'systemctl --user restart dag-gateway')"),
+    (r'\bnohup\b.*gateway\s+run\b', "start gateway outside systemd (use 'systemctl --user restart dag-gateway')"),
     # Self-termination protection: prevent agent from killing its own process
-    (r'\b(pkill|killall)\b.*\b(deepsuck|gateway|cli\.py)\b', "kill deepsuck/gateway process (self-termination)"),
+    (r'\b(pkill|killall)\b.*\b(dag|gateway|cli\.py)\b', "kill dag/gateway process (self-termination)"),
     # Self-termination via kill + command substitution (pgrep/pidof).
-    # The name-based pattern above catches `pkill deepsuck` but not
-    # `kill -9 $(pgrep -f deepsuck)` because the substitution is opaque
+    # The name-based pattern above catches `pkill dag` but not
+    # `kill -9 $(pgrep -f dag)` because the substitution is opaque
     # to regex at detection time. Catch the structural pattern instead.
     (r'\bkill\b.*\$\(\s*pgrep\b', "kill process via pgrep expansion (self-termination)"),
     (r'\bkill\b.*`\s*pgrep\b', "kill process via backtick pgrep expansion (self-termination)"),
@@ -446,10 +446,10 @@ DANGEROUS_PATTERNS = [
     # /private/etc/ mirror).
     (rf'\b(cp|mv|install)\b.*\s{_SYSTEM_CONFIG_PATH}', "copy/move file into system config path"),
     (rf'\b(cp|mv|install)\b.*\s["\']?{_PROJECT_SENSITIVE_WRITE_TARGET}["\']?{_COMMAND_TAIL}', "overwrite project env/config file"),
-    # cp/mv/install OVERWRITING a sensitive credential/SSH/shell-rc/Deepsuck file.
+    # cp/mv/install OVERWRITING a sensitive credential/SSH/shell-rc/Dag file.
     # The tee/redirection patterns above already gate _SENSITIVE_WRITE_TARGET
     # (~/.ssh/*, ~/.netrc/.pgpass/.npmrc/.pypirc, shell rc files,
-    # ~/.deepsuck/config.yaml/.env), but cp/mv/install was only paired for /etc and
+    # ~/.dag/config.yaml/.env), but cp/mv/install was only paired for /etc and
     # project-relative env/config — so `cp evil ~/.ssh/authorized_keys` (key
     # implant), `cp creds ~/.netrc`, and `cp evil ~/.bashrc` (login-time command
     # injection) slipped through with auto-approve. Same unpaired-door rationale
@@ -469,12 +469,12 @@ DANGEROUS_PATTERNS = [
     (rf'\b(?:perl|ruby)\b.*(?:^|\s)-[^\s]*i\b.*(?:{_USER_SENSITIVE_WRITE_TARGET})[^\s"\']*', "in-place edit of sensitive credential/SSH/shell-rc path (perl/ruby)"),
     (rf'\bsed\s+-[^\s]*i.*\s{_SYSTEM_CONFIG_PATH}', "in-place edit of system config"),
     (rf'\bsed\s+--in-place\b.*\s{_SYSTEM_CONFIG_PATH}', "in-place edit of system config (long flag)"),
-    # In-place edit of a Deepsuck-managed security file (~/.deepsuck/config.yaml or
+    # In-place edit of a Dag-managed security file (~/.dag/config.yaml or
     # .env). sed -i bypasses the redirection/tee patterns above because it
     # mutates the file directly. Pairs the file_tools write_file/patch deny so
     # the terminal side is not an open door. See #14639.
-    (rf'\bsed\s+-[^\s]*i.*(?:{_DEEPSUCK_CONFIG_PATH}|{_DEEPSUCK_ENV_PATH})', "in-place edit of Deepsuck config/env"),
-    (rf'\bsed\s+--in-place\b.*(?:{_DEEPSUCK_CONFIG_PATH}|{_DEEPSUCK_ENV_PATH})', "in-place edit of Deepsuck config/env (long flag)"),
+    (rf'\bsed\s+-[^\s]*i.*(?:{_DEEPSUCK_CONFIG_PATH}|{_DEEPSUCK_ENV_PATH})', "in-place edit of Dag config/env"),
+    (rf'\bsed\s+--in-place\b.*(?:{_DEEPSUCK_CONFIG_PATH}|{_DEEPSUCK_ENV_PATH})', "in-place edit of Dag config/env (long flag)"),
     # perl -i and ruby -i perform the same in-place mutation as sed -i but are
     # not caught by the -e/-c script-execution pattern above (which targets code
     # evaluation, not file mutation). Pairs the sed -i coverage from #14639.
@@ -483,7 +483,7 @@ DANGEROUS_PATTERNS = [
     # backup suffix (`perl -i.bak`). Match any flag token containing `i`
     # anywhere in the args, not just the first token — `perl -e '...'` (code
     # eval, no -i) does not trip because it has no `-...i` flag token.
-    (rf'\b(?:perl|ruby)\b.*(?:^|\s)-[^\s]*i\b.*(?:{_DEEPSUCK_CONFIG_PATH}|{_DEEPSUCK_ENV_PATH})', "in-place edit of Deepsuck config/env (perl/ruby)"),
+    (rf'\b(?:perl|ruby)\b.*(?:^|\s)-[^\s]*i\b.*(?:{_DEEPSUCK_CONFIG_PATH}|{_DEEPSUCK_ENV_PATH})', "in-place edit of Dag config/env (perl/ruby)"),
     # Script execution via heredoc — bypasses the -e/-c flag patterns above.
     # `python3 << 'EOF'` feeds arbitrary code via stdin without -c/-e flags.
     (r'\b(python[23]?|perl|ruby|node)\s+<<', "script execution via heredoc"),
@@ -579,13 +579,13 @@ def _normalize_command_for_detection(command: str) -> str:
     # profile/session launchers can set HOME after this module is imported.
     command = _rewrite_resolved_user_home(command)
     # Fold the resolved absolute active-profile home path into the canonical
-    # ~/.deepsuck/ form so the Deepsuck config/env patterns catch it. In Docker and
+    # ~/.dag/ form so the Dag config/env patterns catch it. In Docker and
     # gateway deployments the agent often references the resolved absolute path
-    # directly (e.g. `sed -i ... /home/deepsuck/.deepsuck/config.yaml`) rather than
-    # ~, $HOME, or $DEEPSUCK_HOME. Done at detection time (not via an import-time
-    # pattern snapshot) so it tracks the live DEEPSUCK_HOME even when that is set
+    # directly (e.g. `sed -i ... /home/dag/.dag/config.yaml`) rather than
+    # ~, $HOME, or $DAG_HOME. Done at detection time (not via an import-time
+    # pattern snapshot) so it tracks the live DAG_HOME even when that is set
     # after this module is imported — as the hermetic test conftest does.
-    command = _rewrite_resolved_deepsuck_home(command)
+    command = _rewrite_resolved_dag_home(command)
     return command
 
 
@@ -619,17 +619,17 @@ def _rewrite_resolved_user_home(command: str) -> str:
     return command
 
 
-def _rewrite_resolved_deepsuck_home(command: str) -> str:
-    """Rewrite the resolved absolute Deepsuck home prefix to ``~/.deepsuck/``.
+def _rewrite_resolved_dag_home(command: str) -> str:
+    """Rewrite the resolved absolute Dag home prefix to ``~/.dag/``.
 
-    Resolves the active ``DEEPSUCK_HOME`` at call time (and its symlink-resolved
+    Resolves the active ``DAG_HOME`` at call time (and its symlink-resolved
     form) and replaces an occurrence of ``<home>/`` in *command* with
-    ``~/.deepsuck/`` so the static ``_DEEPSUCK_CONFIG_PATH`` / ``_DEEPSUCK_ENV_PATH``
+    ``~/.dag/`` so the static ``_DEEPSUCK_CONFIG_PATH`` / ``_DEEPSUCK_ENV_PATH``
     patterns match. No-op when the path can't be resolved or doesn't appear.
     """
     try:
-        from deepsuck_constants import get_deepsuck_home
-        home = get_deepsuck_home().expanduser()
+        from dag_constants import get_dag_home
+        home = get_dag_home().expanduser()
         candidates = [
             str(home).rstrip("/"),
             str(home.resolve(strict=False)).rstrip("/"),
@@ -641,14 +641,14 @@ def _rewrite_resolved_deepsuck_home(command: str) -> str:
         if not path or path in seen:
             continue
         seen.add(path)
-        # Guard against a degenerate DEEPSUCK_HOME (e.g. "/" or "") rewriting
+        # Guard against a degenerate DAG_HOME (e.g. "/" or "") rewriting
         # unrelated paths: require an absolute path with at least one non-root
         # component. The active profile home is always a real directory like
-        # /home/deepsuck/.deepsuck or a per-test tempdir, never a bare root.
+        # /home/dag/.dag or a per-test tempdir, never a bare root.
         normalized = path.rstrip("/")
         if not normalized.startswith("/") or normalized.count("/") < 2:
             continue
-        command = command.replace(normalized + "/", "~/.deepsuck/")
+        command = command.replace(normalized + "/", "~/.dag/")
     return command
 
 
@@ -854,7 +854,7 @@ def load_permanent_allowlist() -> set:
     patterns added via 'always' in a previous session.
     """
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         config = load_config()
         patterns = set(config.get("command_allowlist", []) or [])
         if patterns:
@@ -868,7 +868,7 @@ def load_permanent_allowlist() -> set:
 def save_permanent_allowlist(patterns: set):
     """Save permanently allowed command patterns to config."""
     try:
-        from deepsuck_cli.config import load_config, save_config
+        from dag_cli.config import load_config, save_config
         config = load_config()
         config["command_allowlist"] = list(patterns)
         save_config(config)
@@ -1013,7 +1013,7 @@ def _normalize_approval_mode(mode) -> str:
 def _get_approval_config() -> dict:
     """Read the approvals config block. Returns a dict with 'mode', 'timeout', etc."""
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         config = load_config()
         return config.get("approvals", {}) or {}
     except Exception as e:
@@ -1038,7 +1038,7 @@ def _get_approval_timeout() -> int:
 def _get_cron_approval_mode() -> str:
     """Read the cron approval mode from config. Returns 'deny' or 'approve'."""
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         config = load_config()
         mode = str(cfg_get(config, "approvals", "cron_mode", default="deny")).lower().strip()
         if mode in {"approve", "off", "allow", "yes"}:

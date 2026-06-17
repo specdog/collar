@@ -1,15 +1,15 @@
-"""``deepsuck slack ...`` CLI subcommands.
+"""``dag slack ...`` CLI subcommands.
 
-Today only ``deepsuck slack manifest`` is implemented — it generates the
+Today only ``dag slack manifest`` is implemented — it generates the
 Slack app manifest JSON for registering every gateway command as a native
 Slack slash (``/btw``, ``/stop``, ``/model``, …) so users get the same
 first-class slash UX Discord and Telegram already have.
 
 Typical workflow::
 
-    $ deepsuck slack manifest > slack-manifest.json
+    $ dag slack manifest > slack-manifest.json
     # or:
-    $ deepsuck slack manifest --write
+    $ dag slack manifest --write
 
 Then paste the printed JSON into the Slack app config (Features → App
 Manifest → Edit) and click Save. Slack diffs the manifest and prompts
@@ -27,12 +27,12 @@ def _build_full_manifest(bot_name: str, bot_description: str) -> dict:
     """Build a full Slack manifest merging display info + our slash list.
 
     The slash-command list is always generated from ``COMMAND_REGISTRY`` so
-    it stays in sync with the rest of Deepsuck. Other manifest sections
+    it stays in sync with the rest of Dag. Other manifest sections
     (display info, OAuth scopes, socket mode) are set to sensible defaults
-    for a Deepsuck deployment — users can tweak them in the Slack UI after
+    for a Dag deployment — users can tweak them in the Slack UI after
     pasting.
     """
-    from deepsuck_cli.commands import slack_app_manifest
+    from dag_cli.commands import slack_app_manifest
 
     partial = slack_app_manifest()
     slashes = partial["features"]["slash_commands"]
@@ -44,7 +44,7 @@ def _build_full_manifest(bot_name: str, bot_description: str) -> dict:
         },
         "display_information": {
             "name": bot_name[:35],
-            "description": (bot_description or "Your Deepsuck agent on Slack")[:140],
+            "description": (bot_description or "Your Dag agent on Slack")[:140],
             "background_color": "#1a1a2e",
         },
         "features": {
@@ -59,7 +59,7 @@ def _build_full_manifest(bot_name: str, bot_description: str) -> dict:
             },
             "slash_commands": slashes,
             "assistant_view": {
-                "assistant_description": "Chat with Deepsuck in threads and DMs.",
+                "assistant_description": "Chat with Dag in threads and DMs.",
             },
         },
         "oauth_config": {
@@ -106,19 +106,19 @@ def _build_full_manifest(bot_name: str, bot_description: str) -> dict:
 def slack_manifest_command(args) -> int:
     """Print or write a Slack app manifest JSON.
 
-    Flags (all parsed in ``deepsuck_cli/main.py``):
+    Flags (all parsed in ``dag_cli/main.py``):
       --write [PATH]  Write to file instead of stdout (default path:
-                      ``$DEEPSUCK_HOME/slack-manifest.json``)
-      --name NAME     Override the bot display name (default: "Deepsuck")
+                      ``$DAG_HOME/slack-manifest.json``)
+      --name NAME     Override the bot display name (default: "DAG")
       --description DESC  Override the bot description
       --slashes-only  Emit only the ``features.slash_commands`` array (for
                       merging into an existing manifest manually)
     """
-    name = getattr(args, "name", None) or "Deepsuck"
-    description = getattr(args, "description", None) or "Your Deepsuck agent on Slack"
+    name = getattr(args, "name", None) or "DAG"
+    description = getattr(args, "description", None) or "Your Dag agent on Slack"
 
     if getattr(args, "slashes_only", False):
-        from deepsuck_cli.commands import slack_app_manifest
+        from dag_cli.commands import slack_app_manifest
 
         manifest = slack_app_manifest()["features"]["slash_commands"]
     else:
@@ -131,11 +131,11 @@ def slack_manifest_command(args) -> int:
         if isinstance(write_target, bool) and write_target:
             # --write with no value → default location
             try:
-                from deepsuck_constants import get_deepsuck_home
+                from dag_constants import get_dag_home
 
-                target = Path(get_deepsuck_home()) / "slack-manifest.json"
+                target = Path(get_dag_home()) / "slack-manifest.json"
             except Exception:
-                target = Path(os.environ.get("DEEPSUCK_HOME") or str(Path.home() / ".deepsuck")) / "slack-manifest.json"
+                target = Path(os.environ.get("DAG_HOME") or str(Path.home() / ".dag")) / "slack-manifest.json"
         else:
             target = Path(write_target).expanduser()
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -143,7 +143,7 @@ def slack_manifest_command(args) -> int:
         print(f"Slack manifest written to: {target}", file=sys.stderr)
         print(
             "\nNext steps:\n"
-            "  1. Open https://api.slack.com/apps and pick your Deepsuck app\n"
+            "  1. Open https://api.slack.com/apps and pick your Dag app\n"
             "     (or create a new one: Create New App → From an app manifest).\n"
             f"  2. Features → App Manifest → paste the contents of\n"
             f"     {target}\n"
@@ -151,7 +151,7 @@ def slack_manifest_command(args) -> int:
             "     slash commands changed.\n"
             "  4. Make sure Socket Mode is enabled and you have a bot token\n"
             "     (xoxb-...) and app token (xapp-...) configured via\n"
-            "     `deepsuck setup`.\n",
+            "     `dag setup`.\n",
             file=sys.stderr,
         )
     else:

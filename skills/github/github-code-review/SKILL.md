@@ -6,7 +6,7 @@ author: Deepsuck Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  deepsuck:
+  dag:
     tags: [GitHub, Code-Review, Pull-Requests, Git, Quality]
     related_skills: [github-auth, github-pr-workflow]
 ---
@@ -28,8 +28,8 @@ if command -v gh &>/dev/null && gh auth status &>/dev/null; then
 else
   AUTH="git"
   if [ -z "$GITHUB_TOKEN" ]; then
-    if _deepsuck_env="${DEEPSUCK_HOME:-$HOME/.deepsuck}/.env"; [ -f "$_deepsuck_env" ] && grep -q "^GITHUB_TOKEN=" "$_deepsuck_env"; then
-      GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_deepsuck_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
+    if _dag_env="${DAG_HOME:-$HOME/.dag}/.env"; [ -f "$_dag_env" ] && grep -q "^GITHUB_TOKEN=" "$_dag_env"; then
+      GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_dag_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
     elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
       GITHUB_TOKEN=$(grep "github.com" ~/.git-credentials 2>/dev/null | head -1 | sed 's|https://[^:]*:\([^@]*\)@.*|\1|')
     fi
@@ -335,7 +335,7 @@ When the user asks you to "review PR #N", "look at this PR", or gives you a PR U
 ### Step 1: Set up environment
 
 ```bash
-source "${DEEPSUCK_HOME:-$HOME/.deepsuck}/skills/github/github-auth/scripts/gh-env.sh"
+source "${DAG_HOME:-$HOME/.dag}/skills/github/github-auth/scripts/gh-env.sh"
 # Or run the inline setup block from the top of this skill
 ```
 

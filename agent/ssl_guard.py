@@ -1,4 +1,4 @@
-"""Preventive SSL CA certificate checks for Deepsuck Agent.
+"""Preventive SSL CA certificate checks for DAG Agent.
 
 This module catches broken CA bundle paths before OpenAI/httpx turns them into
 opaque ``FileNotFoundError: [Errno 2] No such file or directory`` failures.

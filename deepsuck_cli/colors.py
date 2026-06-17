@@ -1,4 +1,4 @@
-"""Shared ANSI color utilities for Deepsuck CLI modules."""
+"""Shared ANSI color utilities for Dag CLI modules."""
 
 import os
 import sys

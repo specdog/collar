@@ -4,12 +4,12 @@ Bypasses cli.py entirely.  No banner, no spinner, no session_id line,
 no stderr chatter.  Just the agent's final text to stdout.
 
 Toolsets = explicit --toolsets when provided, otherwise whatever the user has
-configured for "cli" in `deepsuck tools`.
+configured for "cli" in `dag tools`.
 Rules / memory / AGENTS.md / preloaded skills = same as a normal chat turn.
-Approvals = auto-bypassed (DEEPSUCK_YOLO_MODE=1 is set for the call).
+Approvals = auto-bypassed (DAG_YOLO_MODE=1 is set for the call).
 Working directory = the user's CWD (AGENTS.md etc. resolve from there as usual).
 
-Model / provider selection mirrors `deepsuck chat`:
+Model / provider selection mirrors `dag chat`:
     - Both optional. If omitted, use the user's configured default.
     - If both given, pair them exactly as given.
     - If only --model given, auto-detect the provider that serves it.
@@ -27,7 +27,7 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 from typing import Optional
 
-from deepsuck_cli.fallback_config import get_fallback_chain
+from dag_cli.fallback_config import get_fallback_chain
 
 
 def _normalize_toolsets(toolsets: object = None) -> list[str] | None:
@@ -56,14 +56,14 @@ def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | No
     try:
         from toolsets import validate_toolset
     except Exception as exc:
-        return None, f"deepsuck -z: failed to validate --toolsets: {exc}\n"
+        return None, f"dag -z: failed to validate --toolsets: {exc}\n"
 
     built_in = [name for name in normalized if validate_toolset(name)]
     unresolved = [name for name in normalized if name not in built_in]
 
     if unresolved:
         try:
-            from deepsuck_cli.plugins import discover_plugins
+            from dag_cli.plugins import discover_plugins
 
             discover_plugins()
             plugin_valid = [name for name in unresolved if validate_toolset(name)]
@@ -78,7 +78,7 @@ def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | No
         ignored = [name for name in normalized if name not in {"all", "*"}]
         if ignored:
             sys.stderr.write(
-                "deepsuck -z: --toolsets all enables every toolset; "
+                "dag -z: --toolsets all enables every toolset; "
                 f"ignoring additional entries: {', '.join(ignored)}\n"
             )
         return None, None
@@ -87,8 +87,8 @@ def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | No
     mcp_disabled: set[str] = set()
     if unresolved:
         try:
-            from deepsuck_cli.config import read_raw_config
-            from deepsuck_cli.tools_config import _parse_enabled_flag
+            from dag_cli.config import read_raw_config
+            from dag_cli.tools_config import _parse_enabled_flag
 
             cfg = read_raw_config()
             mcp_servers = cfg.get("mcp_servers") if isinstance(cfg.get("mcp_servers"), dict) else {}
@@ -109,15 +109,15 @@ def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | No
     valid = built_in + mcp_valid
 
     if unknown:
-        sys.stderr.write(f"deepsuck -z: ignoring unknown --toolsets entries: {', '.join(unknown)}\n")
+        sys.stderr.write(f"dag -z: ignoring unknown --toolsets entries: {', '.join(unknown)}\n")
     if disabled:
         sys.stderr.write(
-            "deepsuck -z: ignoring disabled MCP servers (set enabled: true in config.yaml to use): "
+            "dag -z: ignoring disabled MCP servers (set enabled: true in config.yaml to use): "
             f"{', '.join(disabled)}\n"
         )
 
     if not valid:
-        return None, "deepsuck -z: --toolsets did not contain any valid toolsets.\n"
+        return None, "dag -z: --toolsets did not contain any valid toolsets.\n"
 
     return valid, None
 
@@ -155,7 +155,7 @@ def run_oneshot(
     env_model_early = os.getenv("DEEPSUCK_INFERENCE_MODEL", "").strip()
     if provider and not ((model or "").strip() or env_model_early):
         sys.stderr.write(
-            "deepsuck -z: --provider requires --model (or DEEPSUCK_INFERENCE_MODEL). "
+            "dag -z: --provider requires --model (or DEEPSUCK_INFERENCE_MODEL). "
             "Pass both explicitly, or neither to use your configured defaults.\n"
         )
         return 2
@@ -168,7 +168,7 @@ def run_oneshot(
 
     # Auto-approve any shell / tool approvals.  Non-interactive by
     # definition — a prompt would hang forever.
-    os.environ["DEEPSUCK_YOLO_MODE"] = "1"
+    os.environ["DAG_YOLO_MODE"] = "1"
     os.environ["DEEPSUCK_ACCEPT_HOOKS"] = "1"
 
     # Redirect stderr AND stdout to devnull for the entire call tree.
@@ -209,12 +209,12 @@ def run_oneshot(
         # (Ctrl-C / explicit sys.exit() inside the agent).
         if isinstance(failure, (KeyboardInterrupt, SystemExit)):
             raise failure
-        real_stderr.write(f"deepsuck -z: agent failed: {failure}\n")
+        real_stderr.write(f"dag -z: agent failed: {failure}\n")
         real_stderr.flush()
         return 1
 
     if not (response or "").strip():
-        real_stderr.write("deepsuck -z: no final response was produced; treating the run as failed.\n")
+        real_stderr.write("dag -z: no final response was produced; treating the run as failed.\n")
         real_stderr.flush()
         return 1
 
@@ -227,14 +227,14 @@ def run_oneshot(
 
 
 def _create_session_db_for_oneshot():
-    """Best-effort SessionDB for ``deepsuck -z`` / oneshot mode.
+    """Best-effort SessionDB for ``dag -z`` / oneshot mode.
 
-    Oneshot bypasses ``DeepsuckCLI._init_agent()``, so it must wire the SQLite
+    Oneshot bypasses ``DagCLI._init_agent()``, so it must wire the SQLite
     session store itself. Without this, the ``session_search``/recall tool is
     advertised but every call returns "Session database not available.".
     """
     try:
-        from deepsuck_state import SessionDB
+        from dag_state import SessionDB
 
         return SessionDB()
     except Exception as exc:
@@ -251,12 +251,12 @@ def _run_agent(
 ) -> str:
     """Build an AIAgent exactly like a normal CLI chat turn would, then
     run a single conversation.  Returns the final response string."""
-    # Imports are local so they don't run when deepsuck is invoked for
+    # Imports are local so they don't run when dag is invoked for
     # other commands (keeps top-level CLI startup cheap).
-    from deepsuck_cli.config import load_config
-    from deepsuck_cli.models import detect_provider_for_model
-    from deepsuck_cli.runtime_provider import resolve_runtime_provider
-    from deepsuck_cli.tools_config import _get_platform_tools
+    from dag_cli.config import load_config
+    from dag_cli.models import detect_provider_for_model
+    from dag_cli.runtime_provider import resolve_runtime_provider
+    from dag_cli.tools_config import _get_platform_tools
     from run_agent import AIAgent
 
     cfg = load_config()
@@ -291,7 +291,7 @@ def _run_agent(
             # These map a user-defined alias to (model, provider, base_url) for
             # endpoints not in any catalog (local servers, custom proxies, etc.).
             try:
-                from deepsuck_cli import model_switch as _ms
+                from dag_cli import model_switch as _ms
                 _ms._ensure_direct_aliases()
                 direct = _ms.DIRECT_ALIASES.get(explicit_model.strip().lower())
             except Exception:
@@ -353,7 +353,7 @@ def _run_agent(
         #                DEEPSUCK_INTERACTIVE which we never set
         #   - shell-hook approval → auto-approved via DEEPSUCK_ACCEPT_HOOKS=1
         #                (set above); also falls back to deny on non-tty
-        #   - dangerous-command approval → bypassed via DEEPSUCK_YOLO_MODE=1
+        #   - dangerous-command approval → bypassed via DAG_YOLO_MODE=1
         #   - skill secret capture → returns gracefully when no callback set
         clarify_callback=_oneshot_clarify_callback,
     )

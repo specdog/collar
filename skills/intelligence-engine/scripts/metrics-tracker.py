@@ -10,7 +10,7 @@ Usage: python3 metrics-tracker.py --session-id <id> --action <log|report>
 import sys, json, os, datetime
 from pathlib import Path
 
-METRICS_DIR = Path.home() / ".deepsuck" / "metrics"
+METRICS_DIR = Path.home() / ".dag" / "metrics"
 METRICS_DIR.mkdir(parents=True, exist_ok=True)
 
 METRICS = {

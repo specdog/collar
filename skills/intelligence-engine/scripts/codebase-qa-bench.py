@@ -1,6 +1,6 @@
 import json, urllib.request, os, subprocess, re
 
-env = os.path.expanduser("~/.deepsuck/.env")
+env = os.path.expanduser("~/.dag/.env")
 AK = ""
 for line in open(env):
     if "DEEPSEEK_API_KEY" in line and "=" in line:
@@ -13,7 +13,7 @@ def call(sys_msg, prompt):
         headers={"Authorization":"Bearer "+AK,"Content-Type":"application/json"})
     return json.loads(urllib.request.urlopen(req, timeout=60).read())["choices"][0]["message"]["content"]
 
-SYS = "You are a software engineer. Answer the question about the deepsuck codebase."
+SYS = "You are a software engineer. Answer the question about the dag codebase."
 
 # Ground truth for scoring
 TRUTH = {
@@ -94,10 +94,10 @@ def score_answer(text, q_id):
     return score, details
 
 questions = [
-    (1, "What are all the entities in the deepsuck harness DAG that are involved in enforcement? List their relationships."),
-    (2, "How does the deepsuck agent handle OAuth2 authentication and where are tokens stored?"),
+    (1, "What are all the entities in the dag harness DAG that are involved in enforcement? List their relationships."),
+    (2, "How does the dag agent handle OAuth2 authentication and where are tokens stored?"),
     (3, "What is the lifecycle of the CompoundingLoop entity and what triggers it?"),
-    (4, "Does the deepsuck harness use Redis for caching enforcement rules?"),
+    (4, "Does the dag harness use Redis for caching enforcement rules?"),
     (5, "What hook events does HookEnforcement fire on and what do they do?"),
 ]
 
@@ -118,7 +118,7 @@ for q_id, question in questions:
     
     # Pipeline
     try:
-        pipe = subprocess.run(["python3", "/Users/dico/.deepsuck/skills/intelligence-engine/pipeline.py", "--fast"],
+        pipe = subprocess.run(["python3", "/Users/dico/.dag/skills/intelligence-engine/pipeline.py", "--fast"],
             input=question, capture_output=True, text=True, timeout=180,
             env={**os.environ, "DEEPSEEK_API_KEY": AK})
         p_score, p_details = score_answer(pipe.stdout, q_id)

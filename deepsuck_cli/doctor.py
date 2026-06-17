@@ -1,7 +1,7 @@
 """
-Doctor command for deepsuck CLI.
+Doctor command for dag CLI.
 
-Diagnoses issues with Deepsuck Agent setup.
+Diagnoses issues with DAG Agent setup.
 """
 
 import os
@@ -10,21 +10,21 @@ import subprocess
 import shutil
 from pathlib import Path
 
-from deepsuck_cli.config import get_project_root, get_deepsuck_home, get_env_path
-from deepsuck_cli.env_loader import load_deepsuck_dotenv
-from deepsuck_constants import display_deepsuck_home
+from dag_cli.config import get_project_root, get_dag_home, get_env_path
+from dag_cli.env_loader import load_dag_dotenv
+from dag_constants import display_dag_home
 
 PROJECT_ROOT = get_project_root()
-DEEPSUCK_HOME = get_deepsuck_home()
-_DHH = display_deepsuck_home()  # user-facing display path (e.g. ~/.deepsuck or ~/.deepsuck/profiles/coder)
+DAG_HOME = get_dag_home()
+_DHH = display_dag_home()  # user-facing display path (e.g. ~/.dag or ~/.dag/profiles/coder)
 
-# Load environment variables from ~/.deepsuck/.env so API key checks work
+# Load environment variables from ~/.dag/.env so API key checks work
 _env_path = get_env_path()
-load_deepsuck_dotenv(deepsuck_home=_env_path.parent, project_env=PROJECT_ROOT / ".env")
+load_dag_dotenv(dag_home=_env_path.parent, project_env=PROJECT_ROOT / ".env")
 
-from deepsuck_cli.colors import Colors, color
-from deepsuck_cli.models import _DEEPSUCK_USER_AGENT
-from deepsuck_constants import OPENROUTER_MODELS_URL
+from dag_cli.colors import Colors, color
+from dag_cli.models import _DEEPSUCK_USER_AGENT
+from dag_constants import OPENROUTER_MODELS_URL
 from utils import base_url_host_matches
 
 
@@ -54,7 +54,7 @@ _PROVIDER_ENV_HINTS = (
 )
 
 
-from deepsuck_constants import is_termux as _is_termux
+from dag_constants import is_termux as _is_termux
 
 
 def _python_install_cmd() -> str:
@@ -98,7 +98,7 @@ def _termux_install_all_fallback_notes() -> list[str]:
 
 
 def _has_provider_env_config(content: str) -> bool:
-    """Return True when ~/.deepsuck/.env contains provider auth/base URL settings."""
+    """Return True when ~/.dag/.env contains provider auth/base URL settings."""
     return any(key in content for key in _PROVIDER_ENV_HINTS)
 
 
@@ -117,7 +117,7 @@ def _is_kanban_worker_env_gate(item: dict) -> bool:
     """Return True when Kanban is unavailable only because this is not a worker process."""
     if item.get("name") != "kanban":
         return False
-    if os.environ.get("DEEPSUCK_KANBAN_TASK"):
+    if os.environ.get("DAG_KANBAN_TASK"):
         return False
 
     tools = item.get("tools") or []
@@ -126,7 +126,7 @@ def _is_kanban_worker_env_gate(item: dict) -> bool:
 
 def _doctor_tool_availability_detail(toolset: str) -> str:
     """Optional explanatory suffix for toolsets whose doctor status needs context."""
-    if toolset == "kanban" and not os.environ.get("DEEPSUCK_KANBAN_TASK"):
+    if toolset == "kanban" and not os.environ.get("DAG_KANBAN_TASK"):
         return "(runtime-gated; loaded only for dispatcher-spawned workers)"
     return ""
 
@@ -160,19 +160,19 @@ def _has_healthy_oauth_fallback_for_apikey_provider(provider_label: str) -> bool
     normalized = (provider_label or "").strip().lower()
     if normalized in {"google / gemini", "gemini"}:
         try:
-            from deepsuck_cli.auth import get_gemini_oauth_auth_status
+            from dag_cli.auth import get_gemini_oauth_auth_status
             return bool((get_gemini_oauth_auth_status() or {}).get("logged_in"))
         except Exception:
             return False
     if normalized == "minimax":
         try:
-            from deepsuck_cli.auth import get_minimax_oauth_auth_status
+            from dag_cli.auth import get_minimax_oauth_auth_status
             return bool((get_minimax_oauth_auth_status() or {}).get("logged_in"))
         except Exception:
             return False
     if normalized == "xai":
         try:
-            from deepsuck_cli.auth import get_xai_oauth_auth_status
+            from dag_cli.auth import get_xai_oauth_auth_status
             return bool((get_xai_oauth_auth_status() or {}).get("logged_in"))
         except Exception:
             return False
@@ -231,15 +231,15 @@ def _read_pyproject_version() -> str | None:
 
 
 def _check_version_consistency(issues: list[str]) -> None:
-    """Verify pyproject.toml version matches deepsuck_cli.__version__.
+    """Verify pyproject.toml version matches dag_cli.__version__.
 
     A git conflict resolution (reset/merge) can revert one file without the
-    other, leaving ``deepsuck --version`` reporting a stale version while
+    other, leaving ``dag --version`` reporting a stale version while
     ``pyproject.toml`` is current. Detect that drift so users can re-sync.
     Silent no-op for installed wheels where pyproject.toml isn't present.
     """
     try:
-        from deepsuck_cli import __version__ as init_version
+        from dag_cli import __version__ as init_version
     except Exception:
         return
     pyproject_version = _read_pyproject_version()
@@ -251,9 +251,9 @@ def _check_version_consistency(issues: list[str]) -> None:
     else:
         _fail_and_issue(
             "Version mismatch between source files",
-            f"(pyproject.toml {pyproject_version} != deepsuck_cli/__init__.py {init_version})",
-            "Re-sync version files (e.g. run 'deepsuck update', or set "
-            "deepsuck_cli/__init__.py __version__ to match pyproject.toml)",
+            f"(pyproject.toml {pyproject_version} != dag_cli/__init__.py {init_version})",
+            "Re-sync version files (e.g. run 'dag update', or set "
+            "dag_cli/__init__.py __version__ to match pyproject.toml)",
             issues,
         )
 
@@ -266,13 +266,13 @@ def _check_s6_supervision(issues: list[str]) -> None:
     container so host runs aren't cluttered with irrelevant output.
 
     Reports:
-      - Whether the main-deepsuck and dashboard static services are up
+      - Whether the main-dag and dashboard static services are up
       - How many per-profile gateway slots are registered (via
         ``S6ServiceManager.list_profile_gateways()``) and how many are
         currently supervised as ``up``
     """
     try:
-        from deepsuck_cli.service_manager import (
+        from dag_cli.service_manager import (
             S6ServiceManager,
             detect_service_manager,
         )
@@ -288,7 +288,7 @@ def _check_s6_supervision(issues: list[str]) -> None:
 
     # Static services. They live under /run/service/ via s6-rc symlinks,
     # so the same s6-svstat probe works.
-    for static in ("main-deepsuck", "dashboard"):
+    for static in ("main-dag", "dashboard"):
         if mgr.is_running(static):
             check_ok(f"{static}: up")
         else:
@@ -296,7 +296,7 @@ def _check_s6_supervision(issues: list[str]) -> None:
 
     profiles = mgr.list_profile_gateways()
     if not profiles:
-        check_info("No per-profile gateways registered yet — create one with `deepsuck profile create <name>`")
+        check_info("No per-profile gateways registered yet — create one with `dag profile create <name>`")
         return
 
     up_count = sum(1 for p in profiles if mgr.is_running(f"gateway-{p}"))
@@ -332,12 +332,12 @@ def _check_gateway_service_linger(issues: list[str]) -> None:
     ``_check_s6_supervision``.
     """
     try:
-        from deepsuck_cli.gateway import (
+        from dag_cli.gateway import (
             get_systemd_linger_status,
             get_systemd_unit_path,
             is_linux,
         )
-        from deepsuck_cli.service_manager import detect_service_manager
+        from dag_cli.service_manager import detect_service_manager
     except Exception as e:
         check_warn("Gateway service linger", f"(could not import gateway helpers: {e})")
         return
@@ -423,7 +423,7 @@ def _build_apikey_providers_list() -> list:
         from providers import list_providers
         from providers.base import ProviderProfile as _PP
         try:
-            from deepsuck_cli.providers import normalize_provider as _normalize_provider
+            from dag_cli.providers import normalize_provider as _normalize_provider
         except Exception:  # pragma: no cover - normalization is best-effort
             def _normalize_provider(_name: str) -> str:
                 return (_name or "").strip().lower()
@@ -468,14 +468,14 @@ def run_doctor(args):
     ack_target = getattr(args, 'ack', None)
 
     # Doctor runs from the interactive CLI, so CLI-gated tool availability
-    # checks (like cronjob management) should see the same context as `deepsuck`.
+    # checks (like cronjob management) should see the same context as `dag`.
     os.environ.setdefault("DEEPSUCK_INTERACTIVE", "1")
 
-    # Handle `deepsuck doctor --ack <id>` as a fast path. Persist the ack and
+    # Handle `dag doctor --ack <id>` as a fast path. Persist the ack and
     # return without running the rest of the diagnostics — the user has
     # already seen the advisory and just wants to silence it.
     if ack_target:
-        from deepsuck_cli.security_advisories import (
+        from dag_cli.security_advisories import (
             ADVISORIES,
             ack_advisory,
         )
@@ -496,7 +496,7 @@ def run_doctor(args):
         else:
             print(color(
                 f"  ✗ Failed to persist ack for {ack_target}. "
-                f"Check ~/.deepsuck/config.yaml is writable.",
+                f"Check ~/.dag/config.yaml is writable.",
                 Colors.RED,
             ))
             sys.exit(1)
@@ -508,12 +508,12 @@ def run_doctor(args):
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.CYAN))
-    print(color("│                 🩺 Deepsuck Doctor                        │", Colors.CYAN))
+    print(color("│                 🩺 Dag Doctor                        │", Colors.CYAN))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.CYAN))
 
     _section("Security Advisories")
     try:
-        from deepsuck_cli.security_advisories import (
+        from dag_cli.security_advisories import (
             detect_compromised,
             filter_unacked,
             full_remediation_text,
@@ -540,7 +540,7 @@ def run_doctor(args):
                     f"Resolve security advisory {hit.advisory.id}: "
                     f"uninstall {hit.package}=={hit.installed_version} and "
                     f"rotate credentials, then run "
-                    f"`deepsuck doctor --ack {hit.advisory.id}`."
+                    f"`dag doctor --ack {hit.advisory.id}`."
                 )
             # Acked-but-still-installed: show as informational so the user
             # knows the package is still on disk after the ack.
@@ -559,8 +559,8 @@ def run_doctor(args):
 
     _section("MCP Server Security")
     try:
-        from deepsuck_cli.config import load_config
-        from deepsuck_cli.mcp_security import validate_mcp_server_entry
+        from dag_cli.config import load_config
+        from dag_cli.mcp_security import validate_mcp_server_entry
 
         servers = load_config().get("mcp_servers") or {}
         suspicious = 0
@@ -605,7 +605,7 @@ def run_doctor(args):
     else:
         check_warn("Not in virtual environment", "(recommended)")
 
-    # Detect drift between pyproject.toml and deepsuck_cli/__init__.py versions
+    # Detect drift between pyproject.toml and dag_cli/__init__.py versions
     # (a git conflict resolution can silently revert one but not the other).
     _check_version_consistency(issues)
 
@@ -642,8 +642,8 @@ def run_doctor(args):
             check_warn(name, "(optional, not installed)")
     
     _section("Configuration Files")
-    # Check ~/.deepsuck/.env (primary location for user config)
-    env_path = DEEPSUCK_HOME / '.env'
+    # Check ~/.dag/.env (primary location for user config)
+    env_path = DAG_HOME / '.env'
     if env_path.exists():
         check_ok(f"{_DHH}/.env file exists")
         
@@ -656,7 +656,7 @@ def run_doctor(args):
             check_ok("API key or custom endpoint configured")
         else:
             check_warn(f"No API key found in {_DHH}/.env")
-            issues.append("Run 'deepsuck setup' to configure API keys")
+            issues.append("Run 'dag setup' to configure API keys")
     else:
         # Also check project root as fallback
         fallback_env = PROJECT_ROOT / '.env'
@@ -675,14 +675,14 @@ def run_doctor(args):
                 except OSError:
                     pass
                 check_ok(f"Created empty {_DHH}/.env")
-                check_info("Run 'deepsuck setup' to configure API keys")
+                check_info("Run 'dag setup' to configure API keys")
                 fixed_count += 1
             else:
-                check_info("Run 'deepsuck setup' to create one")
-                issues.append("Run 'deepsuck setup' to create .env")
+                check_info("Run 'dag setup' to create one")
+                issues.append("Run 'dag setup' to create .env")
     
-    # Check ~/.deepsuck/config.yaml (primary) or project cli-config.yaml (fallback)
-    config_path = DEEPSUCK_HOME / 'config.yaml'
+    # Check ~/.dag/config.yaml (primary) or project cli-config.yaml (fallback)
+    config_path = DAG_HOME / 'config.yaml'
     if config_path.exists():
         check_ok(f"{_DHH}/config.yaml exists")
 
@@ -697,7 +697,7 @@ def run_doctor(args):
 
             known_providers: set = set()
             try:
-                from deepsuck_cli.auth import (
+                from dag_cli.auth import (
                     PROVIDER_REGISTRY,
                     resolve_provider as _resolve_auth_provider,
                 )
@@ -706,8 +706,8 @@ def run_doctor(args):
                 _resolve_auth_provider = None
                 pass
             try:
-                from deepsuck_cli.config import get_compatible_custom_providers as _compatible_custom_providers
-                from deepsuck_cli.providers import (
+                from dag_cli.config import get_compatible_custom_providers as _compatible_custom_providers
+                from dag_cli.providers import (
                     normalize_provider as _normalize_catalog_provider,
                     resolve_provider_full as _resolve_provider_full,
                 )
@@ -777,7 +777,7 @@ def run_doctor(args):
                         (
                             f"model.provider '{provider_raw}' is unknown. "
                             f"Valid providers: {known_list}. "
-                            f"Fix: run 'deepsuck config set model.provider <valid_provider>'"
+                            f"Fix: run 'dag config set model.provider <valid_provider>'"
                         ),
                         issues,
                     )
@@ -827,14 +827,14 @@ def run_doctor(args):
             if runtime_provider and runtime_provider not in ("auto", "custom"):
                 try:
                     if runtime_provider == "openrouter":
-                        from deepsuck_cli.config import get_env_value
+                        from dag_cli.config import get_env_value
 
                         configured = bool(
                             str(get_env_value("OPENROUTER_API_KEY") or "").strip()
                             or str(get_env_value("OPENAI_API_KEY") or "").strip()
                         )
                     else:
-                        from deepsuck_cli.auth import PROVIDER_REGISTRY, get_auth_status
+                        from dag_cli.auth import PROVIDER_REGISTRY, get_auth_status
 
                         pconfig = PROVIDER_REGISTRY.get(runtime_provider)
                         configured = True
@@ -848,11 +848,11 @@ def run_doctor(args):
                     if not configured:
                         _fail_and_issue(
                             f"model.provider '{runtime_provider}' is set but no API key is configured",
-                            "(check ~/.deepsuck/.env or run 'deepsuck setup')",
+                            "(check ~/.dag/.env or run 'dag setup')",
                             (
                                 f"No credentials found for provider '{runtime_provider}'. "
-                                f"Run 'deepsuck setup' or set the provider's API key in {_DHH}/.env, "
-                                f"or switch providers with 'deepsuck config set model.provider <name>'"
+                                f"Run 'dag setup' or set the provider's API key in {_DHH}/.env, "
+                                f"or switch providers with 'dag config set model.provider <name>'"
                             ),
                             issues,
                         )
@@ -873,7 +873,7 @@ def run_doctor(args):
                     shutil.copy2(str(example_config), str(config_path))
                     check_ok(f"Created {_DHH}/config.yaml from cli-config.yaml.example")
                 else:
-                    from deepsuck_cli.config import DEFAULT_CONFIG, save_config
+                    from dag_cli.config import DEFAULT_CONFIG, save_config
                     save_config(DEFAULT_CONFIG)
                     check_ok(f"Created {_DHH}/config.yaml from defaults")
                 fixed_count += 1
@@ -881,10 +881,10 @@ def run_doctor(args):
                 check_warn("config.yaml not found", "(using defaults)")
 
     # Check config version and stale keys
-    config_path = DEEPSUCK_HOME / 'config.yaml'
+    config_path = DAG_HOME / 'config.yaml'
     if config_path.exists():
         try:
-            from deepsuck_cli.config import check_config_version, migrate_config
+            from dag_cli.config import check_config_version, migrate_config
             current_ver, latest_ver = check_config_version()
             if current_ver < latest_ver:
                 check_warn(
@@ -898,9 +898,9 @@ def run_doctor(args):
                         fixed_count += 1
                     except Exception as mig_err:
                         check_warn(f"Auto-migration failed: {mig_err}")
-                        issues.append("Run 'deepsuck setup' to migrate config")
+                        issues.append("Run 'dag setup' to migrate config")
                 else:
-                    issues.append("Run 'deepsuck doctor --fix' or 'deepsuck setup' to migrate config")
+                    issues.append("Run 'dag doctor --fix' or 'dag setup' to migrate config")
             else:
                 check_ok(f"Config version up to date (v{current_ver})")
         except Exception:
@@ -940,7 +940,7 @@ def run_doctor(args):
                     check_ok("Migrated stale root-level keys into model section")
                     fixed_count += 1
                 else:
-                    issues.append("Stale root-level provider/base_url in config.yaml — run 'deepsuck doctor --fix'")
+                    issues.append("Stale root-level provider/base_url in config.yaml — run 'dag doctor --fix'")
         except Exception:
             pass
 
@@ -956,7 +956,7 @@ def run_doctor(args):
         # which the startup bridge may already have overridden.
         try:
             import yaml
-            from deepsuck_cli.config import load_env, remove_env_value
+            from dag_cli.config import load_env, remove_env_value
             with open(config_path, encoding="utf-8") as f:
                 raw_config = yaml.safe_load(f) or {}
             agent_cfg = raw_config.get("agent")
@@ -978,7 +978,7 @@ def run_doctor(args):
                 check_warn(
                     f"DEEPSUCK_MAX_ITERATIONS={env_ghost} in .env shadows "
                     f"agent.max_turns={cfg_max_turns} in config.yaml",
-                    "(stale ghost from an earlier `deepsuck setup` run)",
+                    "(stale ghost from an earlier `dag setup` run)",
                 )
                 if should_fix:
                     if remove_env_value("DEEPSUCK_MAX_ITERATIONS"):
@@ -996,14 +996,14 @@ def run_doctor(args):
                 else:
                     issues.append(
                         "Stale DEEPSUCK_MAX_ITERATIONS in .env shadows config.yaml — "
-                        "run 'deepsuck doctor --fix'"
+                        "run 'dag doctor --fix'"
                     )
         except Exception:
             pass
 
         # Validate config structure (catches malformed custom_providers, etc.)
         try:
-            from deepsuck_cli.config import validate_config_structure
+            from dag_cli.config import validate_config_structure
             config_issues = validate_config_structure()
             if config_issues:
                 _section("Config Structure")
@@ -1022,8 +1022,8 @@ def run_doctor(args):
     _section("xAI Model Retirement (May 15, 2026)")
 
     try:
-        from deepsuck_cli.config import load_config
-        from deepsuck_cli.xai_retirement import (
+        from dag_cli.config import load_config
+        from dag_cli.xai_retirement import (
             MIGRATION_GUIDE_URL,
             find_retired_xai_refs,
             format_issue,
@@ -1047,7 +1047,7 @@ def run_doctor(args):
     _section("Auth Providers")
 
     try:
-        from deepsuck_cli.auth import (
+        from dag_cli.auth import (
             get_nous_auth_status,
             get_codex_auth_status,
             get_gemini_oauth_auth_status,
@@ -1067,7 +1067,7 @@ def run_doctor(args):
             check_warn("OpenAI Codex auth", "(not logged in)")
             if codex_status.get("error"):
                 check_info(codex_status["error"])
-            # Native OAuth uses Deepsuck' own device-code flow — the Codex CLI is
+            # Native OAuth uses Dag' own device-code flow — the Codex CLI is
             # only needed to import existing tokens from ~/.codex/auth.json.
             # Attach the hint to the Codex auth row so it doesn't read as
             # remediation for whichever provider happens to print next (#27975).
@@ -1104,7 +1104,7 @@ def run_doctor(args):
     # xAI OAuth — separate try/except so an import failure here cannot
     # disrupt the already-printed Nous/Codex/Gemini/MiniMax rows above.
     try:
-        from deepsuck_cli.auth import get_xai_oauth_auth_status
+        from dag_cli.auth import get_xai_oauth_auth_status
         xai_oauth_status = get_xai_oauth_auth_status() or {}
         if xai_oauth_status.get("logged_in"):
             check_ok("xAI OAuth", "(logged in)")
@@ -1116,11 +1116,11 @@ def run_doctor(args):
         pass
 
     _section("Directory Structure")
-    deepsuck_home = DEEPSUCK_HOME
-    if deepsuck_home.exists():
+    dag_home = DAG_HOME
+    if dag_home.exists():
         check_ok(f"{_DHH} directory exists")
     elif should_fix:
-        deepsuck_home.mkdir(parents=True, exist_ok=True)
+        dag_home.mkdir(parents=True, exist_ok=True)
         check_ok(f"Created {_DHH} directory")
         fixed_count += 1
     else:
@@ -1129,7 +1129,7 @@ def run_doctor(args):
     # Check expected subdirectories
     expected_subdirs = ["cron", "sessions", "logs", "skills", "memories"]
     for subdir_name in expected_subdirs:
-        subdir_path = deepsuck_home / subdir_name
+        subdir_path = dag_home / subdir_name
         if subdir_path.exists():
             check_ok(f"{_DHH}/{subdir_name}/ exists")
         elif should_fix:
@@ -1140,7 +1140,7 @@ def run_doctor(args):
             check_warn(f"{_DHH}/{subdir_name}/ not found", "(will be created on first use)")
     
     # Check for SOUL.md persona file
-    soul_path = deepsuck_home / "SOUL.md"
+    soul_path = dag_home / "SOUL.md"
     if soul_path.exists():
         content = soul_path.read_text(encoding="utf-8").strip()
         # Check if it's just the template comments (no real content)
@@ -1150,20 +1150,20 @@ def run_doctor(args):
         else:
             check_info(f"{_DHH}/SOUL.md exists but is empty — edit it to customize personality")
     else:
-        check_warn(f"{_DHH}/SOUL.md not found", "(create it to give Deepsuck a custom personality)")
+        check_warn(f"{_DHH}/SOUL.md not found", "(create it to give Dag a custom personality)")
         if should_fix:
             soul_path.parent.mkdir(parents=True, exist_ok=True)
             soul_path.write_text(
-                "# Deepsuck Agent Persona\n\n"
-                "<!-- Edit this file to customize how Deepsuck communicates. -->\n\n"
-                "You are Deepsuck, a helpful AI assistant.\n",
+                "# DAG Agent Persona\n\n"
+                "<!-- Edit this file to customize how Dag communicates. -->\n\n"
+                "You are Dag, a helpful AI assistant.\n",
                 encoding="utf-8",
             )
             check_ok(f"Created {_DHH}/SOUL.md with basic template")
             fixed_count += 1
     
     # Check memory directory
-    memories_dir = deepsuck_home / "memories"
+    memories_dir = dag_home / "memories"
     if memories_dir.exists():
         check_ok(f"{_DHH}/memories/ directory exists")
         memory_file = memories_dir / "MEMORY.md"
@@ -1186,7 +1186,7 @@ def run_doctor(args):
             fixed_count += 1
     
     # Check SQLite session store
-    state_db_path = deepsuck_home / "state.db"
+    state_db_path = dag_home / "state.db"
     if state_db_path.exists():
         try:
             import sqlite3
@@ -1196,7 +1196,7 @@ def run_doctor(args):
             conn.close()
             check_ok(f"{_DHH}/state.db exists ({count} sessions)")
         except Exception as e:
-            from deepsuck_state import is_malformed_db_error, repair_state_db_schema
+            from dag_state import is_malformed_db_error, repair_state_db_schema
 
             if is_malformed_db_error(e):
                 # sqlite_master itself is malformed (e.g. duplicate
@@ -1238,8 +1238,8 @@ def run_doctor(args):
                         )
                 else:
                     issues.append(
-                        "state.db schema malformed — run 'deepsuck doctor --fix' "
-                        "(or 'deepsuck sessions repair') to recover hidden sessions"
+                        "state.db schema malformed — run 'dag doctor --fix' "
+                        "(or 'dag sessions repair') to recover hidden sessions"
                     )
             else:
                 check_warn(f"{_DHH}/state.db exists but has issues: {e}")
@@ -1247,7 +1247,7 @@ def run_doctor(args):
         check_info(f"{_DHH}/state.db not created yet (will be created on first session)")
 
     # Check WAL file size (unbounded growth indicates missed checkpoints)
-    wal_path = deepsuck_home / "state.db-wal"
+    wal_path = dag_home / "state.db-wal"
     if wal_path.exists():
         try:
             wal_size = wal_path.stat().st_size
@@ -1265,7 +1265,7 @@ def run_doctor(args):
                     check_ok(f"WAL checkpoint performed ({wal_size // 1024}K → {new_size // 1024}K)")
                     fixed_count += 1
                 else:
-                    issues.append("Large WAL file — run 'deepsuck doctor --fix' to checkpoint")
+                    issues.append("Large WAL file — run 'dag doctor --fix' to checkpoint")
             elif wal_size > 10 * 1024 * 1024:  # 10 MB
                 check_info(f"WAL file is {wal_size // (1024*1024)} MB (normal for active sessions)")
         except Exception:
@@ -1279,7 +1279,7 @@ def run_doctor(args):
         # Determine the venv entry point location
         _venv_bin = None
         for _venv_name in ("venv", ".venv"):
-            _candidate = PROJECT_ROOT / _venv_name / "bin" / "deepsuck"
+            _candidate = PROJECT_ROOT / _venv_name / "bin" / "dag"
             if _candidate.exists():
                 _venv_bin = _candidate
                 break
@@ -1293,12 +1293,12 @@ def run_doctor(args):
         else:
             _cmd_link_dir = Path.home() / ".local" / "bin"
             _cmd_link_display = "~/.local/bin"
-        _cmd_link = _cmd_link_dir / "deepsuck"
+        _cmd_link = _cmd_link_dir / "dag"
 
         if _venv_bin is None:
             check_warn(
                 "Venv entry point not found",
-                "(deepsuck not in venv/bin/ or .venv/bin/ — reinstall with pip install -e '.[all]')"
+                "(dag not in venv/bin/ or .venv/bin/ — reinstall with pip install -e '.[all]')"
             )
             manual_issues.append(
                 f"Reinstall entry point: cd {PROJECT_ROOT} && source venv/bin/activate && pip install -e '.[all]'"
@@ -1311,31 +1311,31 @@ def run_doctor(args):
                 _target = _cmd_link.resolve()
                 _expected = _venv_bin.resolve()
                 if _target == _expected:
-                    check_ok(f"{_cmd_link_display}/deepsuck → correct target")
+                    check_ok(f"{_cmd_link_display}/dag → correct target")
                 else:
                     check_warn(
-                        f"{_cmd_link_display}/deepsuck points to wrong target",
+                        f"{_cmd_link_display}/dag points to wrong target",
                         f"(→ {_target}, expected → {_expected})"
                     )
                     if should_fix:
                         _cmd_link.unlink()
                         _cmd_link.symlink_to(_venv_bin)
-                        check_ok(f"Fixed symlink: {_cmd_link_display}/deepsuck → {_venv_bin}")
+                        check_ok(f"Fixed symlink: {_cmd_link_display}/dag → {_venv_bin}")
                         fixed_count += 1
                     else:
-                        issues.append(f"Broken symlink at {_cmd_link_display}/deepsuck — run 'deepsuck doctor --fix'")
+                        issues.append(f"Broken symlink at {_cmd_link_display}/dag — run 'dag doctor --fix'")
             elif _cmd_link.exists():
                 # It's a regular file, not a symlink — possibly a wrapper script
-                check_ok(f"{_cmd_link_display}/deepsuck exists (non-symlink)")
+                check_ok(f"{_cmd_link_display}/dag exists (non-symlink)")
             else:
                 check_fail(
-                    f"{_cmd_link_display}/deepsuck not found",
-                    "(deepsuck command may not work outside the venv)"
+                    f"{_cmd_link_display}/dag not found",
+                    "(dag command may not work outside the venv)"
                 )
                 if should_fix:
                     _cmd_link_dir.mkdir(parents=True, exist_ok=True)
                     _cmd_link.symlink_to(_venv_bin)
-                    check_ok(f"Created symlink: {_cmd_link_display}/deepsuck → {_venv_bin}")
+                    check_ok(f"Created symlink: {_cmd_link_display}/dag → {_venv_bin}")
                     fixed_count += 1
 
                     # Check if the link dir is on PATH
@@ -1347,7 +1347,7 @@ def run_doctor(args):
                         )
                         manual_issues.append(f"Add {_cmd_link_display} to your PATH")
                 else:
-                    issues.append(f"Missing {_cmd_link_display}/deepsuck symlink — run 'deepsuck doctor --fix'")
+                    issues.append(f"Missing {_cmd_link_display}/dag symlink — run 'dag doctor --fix'")
 
     _section("External Tools")
     # Git
@@ -1366,7 +1366,7 @@ def run_doctor(args):
     # Docker (optional)
     terminal_env = os.getenv("TERMINAL_ENV", "local")
     try:
-        from deepsuck_constants import is_container as _is_container
+        from dag_constants import is_container as _is_container
         running_in_container = _is_container()
     except Exception:
         running_in_container = False
@@ -1501,7 +1501,7 @@ def run_doctor(args):
         if agent_browser_ok and not _is_termux():
             try:
                 # Lazy import: browser_tool is a ~150KB module we don't want
-                # to eagerly load in every `deepsuck doctor` invocation.
+                # to eagerly load in every `dag doctor` invocation.
                 from tools.browser_tool import (
                     _chromium_installed,
                     _is_camofox_mode,
@@ -1621,7 +1621,7 @@ def run_doctor(args):
                         # tooling (esbuild/vite, etc.), not runtime code that ships
                         # to users. Manual npm remediation may error with a known
                         # arborist crash (edgesOut / isDescendantOf) on this monorepo
-                        # tree — in that case it is an npm bug, not a Deepsuck one.
+                        # tree — in that case it is an npm bug, not a Dag one.
                         check_info(
                             "  ^ build-time tooling (not runtime); if manual npm remediation "
                             "errors with an arborist crash it's a known npm bug — clears "
@@ -1700,7 +1700,7 @@ def run_doctor(args):
                     [(color("✗", Colors.RED), "OpenRouter API",
                       color("(out of credits — payment required)", Colors.DIM))],
                     ["OpenRouter account has insufficient credits. "
-                     "Fix: run 'deepsuck config set model.provider <provider>' "
+                     "Fix: run 'dag config set model.provider <provider>' "
                      "to switch providers, or fund your OpenRouter account "
                      "at https://openrouter.ai/settings/credits"],
                 )
@@ -1727,7 +1727,7 @@ def run_doctor(args):
             )
 
     def _probe_anthropic() -> _ConnectivityResult:
-        from deepsuck_cli.auth import get_anthropic_key
+        from dag_cli.auth import get_anthropic_key
         key = get_anthropic_key()
         if not key:
             return _ConnectivityResult("Anthropic API", [], [])
@@ -1839,7 +1839,7 @@ def run_doctor(args):
             # ``ACCESS_TOKEN_TYPE_UNSUPPORTED`` — that header is reserved for
             # OAuth 2 access tokens, not plain API keys. Plain keys use
             # ``x-goog-api-key`` (or ``?key=``). Without this, a perfectly valid
-            # GOOGLE_API_KEY/GEMINI_API_KEY always shows red in ``deepsuck doctor``.
+            # GOOGLE_API_KEY/GEMINI_API_KEY always shows red in ``dag doctor``.
             if url and base_url_host_matches(url, "generativelanguage.googleapis.com"):
                 headers.pop("Authorization", None)
                 headers["x-goog-api-key"] = key
@@ -1944,7 +1944,7 @@ def run_doctor(args):
         """
         label = "Azure Foundry (Entra ID)".ljust(28)
         try:
-            from deepsuck_cli.config import load_config
+            from dag_cli.config import load_config
             cfg = load_config()
             model_cfg = cfg.get("model") if isinstance(cfg, dict) else {}
             if not isinstance(model_cfg, dict):
@@ -2044,7 +2044,7 @@ def run_doctor(args):
     # Set on the parent thread before submitting work so the env-var
     # mutation never races with another worker. has_aws_credentials() in
     # the bedrock probe already gates on real env-var creds, so IMDS is
-    # never the legitimate source for `deepsuck doctor`.
+    # never the legitimate source for `dag doctor`.
     _imds_prev = os.environ.get("AWS_EC2_METADATA_DISABLED")
     os.environ["AWS_EC2_METADATA_DISABLED"] = "true"
     try:
@@ -2099,12 +2099,12 @@ def run_doctor(args):
         # Count disabled tools with API key requirements
         api_disabled = [u for u in unavailable if (u.get("missing_vars") or u.get("env_vars"))]
         if api_disabled:
-            issues.append("Run 'deepsuck setup' to configure missing API keys for full tool access")
+            issues.append("Run 'dag setup' to configure missing API keys for full tool access")
     except Exception as e:
         check_warn("Could not check tool availability", f"({e})")
     
     _section("Skills Hub")
-    hub_dir = DEEPSUCK_HOME / "skills" / ".hub"
+    hub_dir = DAG_HOME / "skills" / ".hub"
     if hub_dir.exists():
         check_ok("Skills Hub directory exists")
         lock_file = hub_dir / "lock.json"
@@ -2121,9 +2121,9 @@ def run_doctor(args):
         if q_count > 0:
             check_warn(f"{q_count} skill(s) in quarantine", "(pending review)")
     else:
-        check_warn("Skills Hub directory not initialized", "(run: deepsuck skills list)")
+        check_warn("Skills Hub directory not initialized", "(run: dag skills list)")
 
-    from deepsuck_cli.config import get_env_value
+    from dag_cli.config import get_env_value
 
     def _gh_authenticated() -> bool:
         """Check if gh CLI is authenticated via token file or device flow."""
@@ -2148,7 +2148,7 @@ def run_doctor(args):
     _active_memory_provider = ""
     try:
         import yaml as _yaml
-        _mem_cfg_path = DEEPSUCK_HOME / "config.yaml"
+        _mem_cfg_path = DAG_HOME / "config.yaml"
         if _mem_cfg_path.exists():
             with open(_mem_cfg_path, encoding="utf-8") as _f:
                 _raw_cfg = _yaml.safe_load(_f) or {}
@@ -2173,14 +2173,14 @@ def run_doctor(args):
                         f"config file {_honcho_cfg_path} not found, using HONCHO_API_KEY env var",
                     )
                 else:
-                    check_warn("Honcho config not found", "run: deepsuck memory setup")
+                    check_warn("Honcho config not found", "run: dag memory setup")
             elif not hcfg.enabled:
                 check_info(f"Honcho disabled (set enabled: true in {_honcho_cfg_path} to activate)")
             elif not (hcfg.api_key or hcfg.base_url):
                 _fail_and_issue(
                     "Honcho API key or base URL not set",
-                    "run: deepsuck memory setup",
-                    "No Honcho API key — run 'deepsuck memory setup'",
+                    "run: dag memory setup",
+                    "No Honcho API key — run 'dag memory setup'",
                     issues,
                 )
             else:
@@ -2214,7 +2214,7 @@ def run_doctor(args):
             else:
                 _fail_and_issue(
                     "Mem0 API key not set",
-                    "(set MEM0_API_KEY in .env or run deepsuck memory setup)",
+                    "(set MEM0_API_KEY in .env or run dag memory setup)",
                     "Mem0 is set as memory provider but API key is missing",
                     issues,
                 )
@@ -2235,14 +2235,14 @@ def run_doctor(args):
             if _provider and _provider.is_available():
                 check_ok(f"{_active_memory_provider} provider active")
             elif _provider:
-                check_warn(f"{_active_memory_provider} configured but not available", "run: deepsuck memory status")
+                check_warn(f"{_active_memory_provider} configured but not available", "run: dag memory status")
             else:
-                check_warn(f"{_active_memory_provider} plugin not found", "run: deepsuck memory setup")
+                check_warn(f"{_active_memory_provider} plugin not found", "run: dag memory setup")
         except Exception as _e:
             check_warn(f"{_active_memory_provider} check failed", str(_e))
 
     try:
-        from deepsuck_cli.profiles import list_profiles, _get_wrapper_dir, profile_exists
+        from dag_cli.profiles import list_profiles, _get_wrapper_dir, profile_exists
         import re as _re
 
         named_profiles = [p for p in list_profiles() if not p.is_default]
@@ -2273,8 +2273,8 @@ def run_doctor(args):
                         continue
                     try:
                         content = wrapper.read_text()
-                        if "deepsuck -p" in content:
-                            _m = _re.search(r"deepsuck -p (\S+)", content)
+                        if "dag -p" in content:
+                            _m = _re.search(r"dag -p (\S+)", content)
                             if _m and not profile_exists(_m.group(1)):
                                 check_warn(f"Orphan alias: {wrapper.name} → profile '{_m.group(1)}' no longer exists")
                     except Exception:
@@ -2306,7 +2306,7 @@ def run_doctor(args):
             print(f"  {i}. {issue}")
         print()
         if not should_fix:
-            print(color("  Tip: run 'deepsuck doctor --fix' to auto-fix what's possible.", Colors.DIM))
+            print(color("  Tip: run 'dag doctor --fix' to auto-fix what's possible.", Colors.DIM))
     else:
         print(color("─" * 60, Colors.GREEN))
         print(color("  All checks passed! 🎉", Colors.GREEN, Colors.BOLD))

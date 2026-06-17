@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # full-width digits / Unicode word chars can't sneak through.
 _SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9@.+\-]+$")
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 
 
 def normalize_whatsapp_identifier(value: str) -> str:
@@ -71,7 +71,7 @@ def expand_whatsapp_aliases(identifier: str) -> Set[str]:
     """Resolve WhatsApp phone/LID aliases via bridge session mapping files.
 
     Returns the set of all identifiers transitively reachable through the
-    bridge's ``$DEEPSUCK_HOME/whatsapp/session/lid-mapping-*.json`` files,
+    bridge's ``$DAG_HOME/whatsapp/session/lid-mapping-*.json`` files,
     starting from ``identifier``. The result always includes the
     normalized input itself, so callers can safely ``in`` check against
     the return value without a separate fallback branch.
@@ -82,7 +82,7 @@ def expand_whatsapp_aliases(identifier: str) -> Set[str]:
     if not normalized:
         return set()
 
-    session_dir = get_deepsuck_home() / "whatsapp" / "session"
+    session_dir = get_dag_home() / "whatsapp" / "session"
     resolved: Set[str] = set()
     queue = [normalized]
 

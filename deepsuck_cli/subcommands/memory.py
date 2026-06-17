@@ -1,6 +1,6 @@
-"""``deepsuck memory`` subcommand parser.
+"""``dag memory`` subcommand parser.
 
-Extracted from ``deepsuck_cli/main.py:main()`` (god-file Phase 2 follow-up).
+Extracted from ``dag_cli/main.py:main()`` (god-file Phase 2 follow-up).
 Handler injected to avoid importing ``main``.
 """
 

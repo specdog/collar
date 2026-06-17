@@ -5,12 +5,12 @@ from pathlib import Path
 
 KNOWN_ROOTS = [
     os.getcwd(),
-    str(Path.home() / "deepsuck" / "projects"),
+    str(Path.home() / "dag" / "projects"),
     str(Path.home() / "projects"),
     str(Path.home() / "specdog" / "projects"),
 ]
-SKIP_DAGS = {"deepsuck-harness"}
-HARNESS_DAG = str(Path.home() / "deepsuck" / "projects" / "deepsuck-harness" / "deepsuck-harness.dag")
+SKIP_DAGS = {"dag-harness"}
+HARNESS_DAG = str(Path.home() / "dag" / "projects" / "dag-harness" / "dag-harness.dag")
 MAX_ENTITIES = 15
 MAX_EDGES = 5
 

@@ -1,22 +1,22 @@
-"""``deepsuck logs`` — view and filter Deepsuck log files.
+"""``dag logs`` — view and filter Dag log files.
 
 Supports tailing, following, session filtering, level filtering,
 component filtering, and relative time ranges.  All log files live
-under ``~/.deepsuck/logs/``.
+under ``~/.dag/logs/``.
 
 Usage examples::
 
-    deepsuck logs                    # last 50 lines of agent.log
-    deepsuck logs -f                 # follow agent.log in real time
-    deepsuck logs errors             # last 50 lines of errors.log
-    deepsuck logs gateway -n 100    # last 100 lines of gateway.log
-    deepsuck logs gui -f            # follow gui.log (dashboard/pty/ws)
-    deepsuck logs desktop -f        # follow desktop.log (Electron app boot/backend)
-    deepsuck logs --level WARNING    # only WARNING+ lines
-    deepsuck logs --session abc123   # filter by session ID substring
-    deepsuck logs --component tools  # only tool-related lines
-    deepsuck logs --since 1h         # lines from the last hour
-    deepsuck logs --since 30m -f     # follow, starting 30 min ago
+    dag logs                    # last 50 lines of agent.log
+    dag logs -f                 # follow agent.log in real time
+    dag logs errors             # last 50 lines of errors.log
+    dag logs gateway -n 100    # last 100 lines of gateway.log
+    dag logs gui -f            # follow gui.log (dashboard/pty/ws)
+    dag logs desktop -f        # follow desktop.log (Electron app boot/backend)
+    dag logs --level WARNING    # only WARNING+ lines
+    dag logs --session abc123   # filter by session ID substring
+    dag logs --component tools  # only tool-related lines
+    dag logs --since 1h         # lines from the last hour
+    dag logs --since 30m -f     # follow, starting 30 min ago
 """
 
 import re
@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Sequence
 
-from deepsuck_constants import get_deepsuck_home, display_deepsuck_home
+from dag_constants import get_dag_home, display_dag_home
 
 # Known log files (name → filename)
 LOG_FILES = {
@@ -173,10 +173,10 @@ def tail_log(
         print(f"Unknown log: {log_name!r}. Available: {', '.join(sorted(LOG_FILES))}")
         sys.exit(1)
 
-    log_path = get_deepsuck_home() / "logs" / filename
+    log_path = get_dag_home() / "logs" / filename
     if not log_path.exists():
         print(f"Log file not found: {log_path}")
-        print(f"(Logs are created when Deepsuck runs — try 'deepsuck chat' first)")
+        print(f"(Logs are created when Dag runs — try 'dag chat' first)")
         sys.exit(1)
 
     # Parse --since into a datetime cutoff
@@ -195,7 +195,7 @@ def tail_log(
     # Resolve component to logger name prefixes
     component_prefixes = None
     if component:
-        from deepsuck_logging import COMPONENT_PREFIXES
+        from dag_logging import COMPONENT_PREFIXES
         component_lower = component.lower()
         if component_lower not in COMPONENT_PREFIXES:
             available = ", ".join(sorted(COMPONENT_PREFIXES))
@@ -232,9 +232,9 @@ def tail_log(
     filter_desc = f" [{', '.join(filter_parts)}]" if filter_parts else ""
 
     if follow:
-        print(f"--- {display_deepsuck_home()}/logs/{filename}{filter_desc} (Ctrl+C to stop) ---")
+        print(f"--- {display_dag_home()}/logs/{filename}{filter_desc} (Ctrl+C to stop) ---")
     else:
-        print(f"--- {display_deepsuck_home()}/logs/{filename}{filter_desc} (last {num_lines}) ---")
+        print(f"--- {display_dag_home()}/logs/{filename}{filter_desc} (last {num_lines}) ---")
 
     for line in lines:
         print(line, end="")
@@ -361,12 +361,12 @@ def _follow_log(
 
 def list_logs() -> None:
     """Print available log files with sizes."""
-    log_dir = get_deepsuck_home() / "logs"
+    log_dir = get_dag_home() / "logs"
     if not log_dir.exists():
-        print(f"No logs directory at {display_deepsuck_home()}/logs/")
+        print(f"No logs directory at {display_dag_home()}/logs/")
         return
 
-    print(f"Log files in {display_deepsuck_home()}/logs/:\n")
+    print(f"Log files in {display_dag_home()}/logs/:\n")
     found = False
     for entry in sorted(log_dir.iterdir()):
         if entry.is_file() and entry.suffix == ".log":
@@ -391,4 +391,4 @@ def list_logs() -> None:
             found = True
 
     if not found:
-        print("  (no log files yet — run 'deepsuck chat' to generate logs)")
+        print("  (no log files yet — run 'dag chat' to generate logs)")

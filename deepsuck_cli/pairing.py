@@ -2,14 +2,14 @@
 CLI commands for the DM pairing system.
 
 Usage:
-    deepsuck pairing list              # Show all pending + approved users
-    deepsuck pairing approve <platform> <code>  # Approve a pairing code
-    deepsuck pairing revoke <platform> <user_id> # Revoke user access
-    deepsuck pairing clear-pending     # Clear all expired/pending codes
+    dag pairing list              # Show all pending + approved users
+    dag pairing approve <platform> <code>  # Approve a pairing code
+    dag pairing revoke <platform> <user_id> # Revoke user access
+    dag pairing clear-pending     # Clear all expired/pending codes
 """
 
 def pairing_command(args):
-    """Handle deepsuck pairing subcommands."""
+    """Handle dag pairing subcommands."""
     from gateway.pairing import PairingStore
 
     store = PairingStore()
@@ -24,8 +24,8 @@ def pairing_command(args):
     elif action == "clear-pending":
         _cmd_clear_pending(store)
     else:
-        print("Usage: deepsuck pairing {list|approve|revoke|clear-pending}")
-        print("Run 'deepsuck pairing --help' for details.")
+        print("Usage: dag pairing {list|approve|revoke|clear-pending}")
+        print("Run 'dag pairing --help' for details.")
 
 
 def _cmd_list(store):
@@ -89,11 +89,11 @@ def _cmd_approve(store, platform: str, code: str):
         print(f"  Lockout clears in ~{mins} minute(s).")
         print(
             "  To reset sooner, delete the '_lockout:{0}' entry from "
-            "~/.deepsuck/platforms/pairing/_rate_limits.json\n".format(platform)
+            "~/.dag/platforms/pairing/_rate_limits.json\n".format(platform)
         )
     else:
         print(f"\n  Code '{code}' not found or expired for platform '{platform}'.")
-        print("  Run 'deepsuck pairing list' to see pending codes.\n")
+        print("  Run 'dag pairing list' to see pending codes.\n")
 
 
 def _cmd_revoke(store, platform: str, user_id: str):

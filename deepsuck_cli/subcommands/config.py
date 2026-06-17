@@ -1,6 +1,6 @@
-"""``deepsuck config`` subcommand parser.
+"""``dag config`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -17,7 +17,7 @@ def build_config_parser(subparsers, *, cmd_config: Callable) -> None:
     config_parser = subparsers.add_parser(
         "config",
         help="View and edit configuration",
-        description="Manage Deepsuck Agent configuration",
+        description="Manage DAG Agent configuration",
     )
     config_subparsers = config_parser.add_subparsers(dest="config_command")
 

@@ -1,8 +1,8 @@
-"""Centralized logging setup for Deepsuck Agent.
+"""Centralized logging setup for DAG Agent.
 
 Provides a single ``setup_logging()`` entry point that both the CLI and
 gateway call early in their startup path.  All log files live under
-``~/.deepsuck/logs/`` (profile-aware via ``get_deepsuck_home()``).
+``~/.dag/logs/`` (profile-aware via ``get_dag_home()``).
 
 Log files produced:
     agent.log   — INFO+, all agent/tool/session activity (the main log)
@@ -17,8 +17,8 @@ secrets are never written to disk.
 Component separation:
     gateway.log only receives records from ``gateway.*`` loggers —
     platform adapters, session management, slash commands, delivery.
-    gui.log receives dashboard-side records from ``deepsuck_cli.web_server``,
-    ``deepsuck_cli.pty_bridge``, ``tui_gateway.*``, and ``uvicorn.*``.
+    gui.log receives dashboard-side records from ``dag_cli.web_server``,
+    ``dag_cli.pty_bridge``, ``tui_gateway.*``, and ``uvicorn.*``.
     agent.log remains the catch-all (everything goes there).
 
 Session context:
@@ -36,7 +36,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional, Sequence
 
-from deepsuck_constants import get_config_path, get_deepsuck_home
+from dag_constants import get_config_path, get_dag_home
 
 # Sentinel to track whether setup_logging() has already run.  The function
 # is idempotent — calling it twice is safe but the second call is a no-op
@@ -141,7 +141,7 @@ def _install_session_record_factory() -> None:
     the module is reloaded.
     """
     current_factory = logging.getLogRecordFactory()
-    if getattr(current_factory, "_deepsuck_session_injector", False):
+    if getattr(current_factory, "_dag_session_injector", False):
         return  # already installed
 
     def _session_record_factory(*args, **kwargs):
@@ -150,7 +150,7 @@ def _install_session_record_factory() -> None:
         record.session_tag = f" [{sid}]" if sid else ""  # type: ignore[attr-defined]
         return record
 
-    _session_record_factory._deepsuck_session_injector = True  # type: ignore[attr-defined]
+    _session_record_factory._dag_session_injector = True  # type: ignore[attr-defined]
     logging.setLogRecordFactory(_session_record_factory)
 
 
@@ -179,16 +179,16 @@ class _ComponentFilter(logging.Filter):
 
 
 # Logger name prefixes that belong to each component.
-# Used by _ComponentFilter and exposed for ``deepsuck logs --component``.
+# Used by _ComponentFilter and exposed for ``dag logs --component``.
 COMPONENT_PREFIXES = {
-    "gateway": ("gateway", "deepsuck_plugins"),
+    "gateway": ("gateway", "dag_plugins"),
     "agent": ("agent", "run_agent", "model_tools", "batch_runner"),
     "tools": ("tools",),
-    "cli": ("deepsuck_cli", "cli"),
+    "cli": ("dag_cli", "cli"),
     "cron": ("cron",),
     "gui": (
-        "deepsuck_cli.web_server",
-        "deepsuck_cli.pty_bridge",
+        "dag_cli.web_server",
+        "dag_cli.pty_bridge",
         "tui_gateway",
         "uvicorn",
     ),
@@ -201,23 +201,23 @@ COMPONENT_PREFIXES = {
 
 def setup_logging(
     *,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
     log_level: Optional[str] = None,
     max_size_mb: Optional[int] = None,
     backup_count: Optional[int] = None,
     mode: Optional[str] = None,
     force: bool = False,
 ) -> Path:
-    """Configure the Deepsuck logging subsystem.
+    """Configure the Dag logging subsystem.
 
     Safe to call multiple times — the second call is a no-op unless
     *force* is ``True``.
 
     Parameters
     ----------
-    deepsuck_home
-        Override for the Deepsuck home directory.  Falls back to
-        ``get_deepsuck_home()`` (profile-aware).
+    dag_home
+        Override for the Dag home directory.  Falls back to
+        ``get_dag_home()`` (profile-aware).
     log_level
         Minimum level for the ``agent.log`` file handler.  Accepts any
         standard Python level name (``"DEBUG"``, ``"INFO"``, ``"WARNING"``).
@@ -243,7 +243,7 @@ def setup_logging(
         The ``logs/`` directory where files are written.
     """
     global _logging_initialized
-    home = deepsuck_home or get_deepsuck_home()
+    home = dag_home or get_dag_home()
     log_dir = home / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -331,13 +331,13 @@ def setup_verbose_logging() -> None:
     # Avoid adding duplicate stream handlers.
     for h in root.handlers:
         if isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler):
-            if getattr(h, "_deepsuck_verbose", False):
+            if getattr(h, "_dag_verbose", False):
                 return
 
     handler = logging.StreamHandler(_safe_stderr())
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(RedactingFormatter(_LOG_FORMAT_VERBOSE, datefmt="%H:%M:%S"))
-    handler._deepsuck_verbose = True  # type: ignore[attr-defined]
+    handler._dag_verbose = True  # type: ignore[attr-defined]
     root.addHandler(handler)
 
     # Lower root logger level so DEBUG records reach all handlers.
@@ -362,7 +362,7 @@ class _ManagedRotatingFileHandler(RotatingFileHandler):
     Two responsibilities:
 
     1.  In managed mode (NixOS), the stateDir uses setgid (2770) so new files
-        inherit the deepsuck group. However, both ``_open()`` (initial creation)
+        inherit the dag group. However, both ``_open()`` (initial creation)
         and ``doRollover()`` create files via ``open()``, which uses the
         process umask — typically 0022, producing 0644. This subclass applies
         ``chmod 0660`` after both operations so the gateway and interactive
@@ -381,7 +381,7 @@ class _ManagedRotatingFileHandler(RotatingFileHandler):
     """
 
     def __init__(self, *args, **kwargs):
-        from deepsuck_cli.config import is_managed
+        from dag_cli.config import is_managed
         self._managed = is_managed()
         super().__init__(*args, **kwargs)
         # Snapshot the inode of the currently open stream so emit() can

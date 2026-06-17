@@ -1,4 +1,4 @@
-"""Helpers for loading Deepsuck .env files consistently across entrypoints."""
+"""Helpers for loading Dag .env files consistently across entrypoints."""
 
 from __future__ import annotations
 
@@ -17,21 +17,21 @@ from utils import atomic_replace
 _CREDENTIAL_SUFFIXES = ("_API_KEY", "_TOKEN", "_SECRET", "_KEY")
 
 # Names we've already warned about during this process, so repeated
-# load_deepsuck_dotenv() calls (user env + project env, gateway hot-reload,
+# load_dag_dotenv() calls (user env + project env, gateway hot-reload,
 # tests) don't spam the same warning multiple times.
 _WARNED_KEYS: set[str] = set()
 
 # Map of env-var name → source label ("bitwarden", etc.) for credentials
-# that were injected by an external secret source during load_deepsuck_dotenv().
-# Used by setup / `deepsuck model` flows to label detected credentials so
+# that were injected by an external secret source during load_dag_dotenv().
+# Used by setup / `dag model` flows to label detected credentials so
 # users understand WHERE a key came from when their .env doesn't contain it
 # directly (otherwise the "credentials detected ✓" line looks identical to
 # the .env case and they don't know Bitwarden is wired up).
 _SECRET_SOURCES: dict[str, str] = {}
 
-# DEEPSUCK_HOME paths we've already pulled external secrets for during this
-# process.  ``load_deepsuck_dotenv()`` is called at module-import time from
-# several hot modules (cli.py, deepsuck_cli/main.py, run_agent.py,
+# DAG_HOME paths we've already pulled external secrets for during this
+# process.  ``load_dag_dotenv()`` is called at module-import time from
+# several hot modules (cli.py, dag_cli/main.py, run_agent.py,
 # trajectory_compressor.py, gateway/run.py, ...), so without this guard the
 # Bitwarden status line gets printed 3-5x per startup.  Bitwarden's own
 # in-process cache prevents redundant network calls, but the print, the
@@ -43,7 +43,7 @@ def get_secret_source(env_var: str) -> str | None:
     """Return the label of the secret source that supplied ``env_var``, if any.
 
     Returns ``"bitwarden"`` for keys pulled from Bitwarden Secrets Manager
-    during the current process's ``load_deepsuck_dotenv()`` call.  Returns
+    during the current process's ``load_dag_dotenv()`` call.  Returns
     ``None`` for keys that came from ``.env``, the shell environment, or
     aren't tracked.  The returned label is metadata only: credential-pool
     persistence may store it to explain the origin of a borrowed secret, but
@@ -53,7 +53,7 @@ def get_secret_source(env_var: str) -> str | None:
 
 
 def reset_secret_source_cache() -> None:
-    """Forget which DEEPSUCK_HOME paths have already had external secrets applied.
+    """Forget which DAG_HOME paths have already had external secrets applied.
 
     The first call to ``_apply_external_secret_sources(home_path)`` in a
     process pulls from Bitwarden (or other configured backend), records the
@@ -137,7 +137,7 @@ def _sanitize_loaded_credentials() -> None:
             "rich-text editor, or web page that substituted lookalike\n"
             "  Unicode glyphs for ASCII letters. If authentication fails "
             "(e.g. \"API key not valid\"), re-copy the key from the\n"
-            "  provider's dashboard and run `deepsuck setup` (or edit the "
+            "  provider's dashboard and run `dag setup` (or edit the "
             ".env file in a plain-text editor).",
             file=sys.stderr,
         )
@@ -168,14 +168,14 @@ def _sanitize_env_file_if_needed(path: Path) -> None:
     with ``ValueError: embedded null byte`` — typically introduced by
     copy-pasting API keys from terminals or rich-text editors.
 
-    We delegate to ``deepsuck_cli.config._sanitize_env_lines`` which
-    already knows all valid Deepsuck env-var names and can split
+    We delegate to ``dag_cli.config._sanitize_env_lines`` which
+    already knows all valid Dag env-var names and can split
     concatenated lines correctly.
     """
     if not path.exists():
         return
     try:
-        from deepsuck_cli.config import _sanitize_env_lines
+        from dag_cli.config import _sanitize_env_lines
     except ImportError:
         return  # early bootstrap — config module not available yet
 
@@ -209,22 +209,22 @@ def _sanitize_env_file_if_needed(path: Path) -> None:
         pass  # best-effort — don't block gateway startup
 
 
-def load_deepsuck_dotenv(
+def load_dag_dotenv(
     *,
-    deepsuck_home: str | os.PathLike | None = None,
+    dag_home: str | os.PathLike | None = None,
     project_env: str | os.PathLike | None = None,
 ) -> list[Path]:
-    """Load Deepsuck environment files with user config taking precedence.
+    """Load Dag environment files with user config taking precedence.
 
     Behavior:
-    - `~/.deepsuck/.env` overrides stale shell-exported values when present.
+    - `~/.dag/.env` overrides stale shell-exported values when present.
     - project `.env` acts as a dev fallback and only fills missing values when
       the user env exists.
     - if no user env exists, the project `.env` also overrides stale shell vars.
     """
     loaded: list[Path] = []
 
-    home_path = Path(deepsuck_home or os.getenv("DEEPSUCK_HOME", Path.home() / ".deepsuck"))
+    home_path = Path(dag_home or os.getenv("DAG_HOME", Path.home() / ".dag"))
     user_env = home_path / ".env"
     project_env_path = Path(project_env) if project_env else None
 
@@ -251,17 +251,17 @@ def _apply_external_secret_sources(home_path: Path) -> None:
     """Pull secrets from external sources (currently Bitwarden) into env.
 
     Runs AFTER dotenv loads so .env values are visible (we use them to
-    locate the access token) but BEFORE the rest of Deepsuck reads
+    locate the access token) but BEFORE the rest of Dag reads
     ``os.environ`` for credentials.  Any failure here is logged and
     swallowed — external secret sources must never block startup.
 
     Idempotent within a process: subsequent calls for the same
-    ``home_path`` are no-ops.  ``load_deepsuck_dotenv()`` runs at import
-    time from several hot modules (cli.py, deepsuck_cli/main.py,
+    ``home_path`` are no-ops.  ``load_dag_dotenv()`` runs at import
+    time from several hot modules (cli.py, dag_cli/main.py,
     run_agent.py, trajectory_compressor.py, ...), so without this guard
     the Bitwarden status line would print 3-5x per CLI startup.  Use
     ``reset_secret_source_cache()`` if you need to force a re-pull
-    (tests, future ``deepsuck secrets bitwarden sync`` from a long-running
+    (tests, future ``dag secrets bitwarden sync`` from a long-running
     process).
     """
     home_key = str(Path(home_path).resolve())
@@ -299,7 +299,7 @@ def _apply_external_secret_sources(home_path: Path) -> None:
         # and might have the same copy-paste corruption as a manually
         # edited .env (see #6843).
         _sanitize_loaded_credentials()
-        # Remember where these came from so the setup / `deepsuck model`
+        # Remember where these came from so the setup / `dag model`
         # flows can label detected credentials with "(from Bitwarden)" —
         # otherwise users see "credentials ✓" with no hint that the value
         # came from BSM rather than .env.

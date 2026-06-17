@@ -10,7 +10,7 @@ import logging
 import threading
 from typing import List, Optional
 
-from deepsuck_cli.dashboard_auth.base import (
+from dag_cli.dashboard_auth.base import (
     DashboardAuthProvider,
     assert_protocol_compliance,
 )

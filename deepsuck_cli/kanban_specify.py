@@ -1,6 +1,6 @@
 """Kanban triage specifier — flesh out a one-liner into a real spec.
 
-Used by ``deepsuck kanban specify [task_id | --all]``. Takes a task that
+Used by ``dag kanban specify [task_id | --all]``. Takes a task that
 lives in the Triage column (a rough idea, typically only a title), calls
 the auxiliary LLM to produce:
 
@@ -15,7 +15,7 @@ and then flips the task ``triage -> todo`` via
 Design notes
 ------------
 
-* This module intentionally mirrors ``deepsuck_cli/goals.py`` — same aux
+* This module intentionally mirrors ``dag_cli/goals.py`` — same aux
   client pattern, same "empty config => skip, don't crash" tolerance.
   Keeps the surface area tiny and the failure modes predictable.
 
@@ -38,19 +38,19 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from deepsuck_cli import kanban_db as kb
+from dag_cli import kanban_db as kb
 
 from utils import env_int
 
-DEEPSUCK_KANBAN_SPECIFY_MAX_TOKENS = max(
+DAG_KANBAN_SPECIFY_MAX_TOKENS = max(
     1500,
-    env_int("DEEPSUCK_KANBAN_SPECIFY_MAX_TOKENS", 6000),
+    env_int("DAG_KANBAN_SPECIFY_MAX_TOKENS", 6000),
 )
 
 logger = logging.getLogger(__name__)
 
 
-_SYSTEM_PROMPT = """You are the Kanban triage specifier for the Deepsuck Agent board.
+_SYSTEM_PROMPT = """You are the Kanban triage specifier for the DAG Agent board.
 A user dropped a rough idea into the Triage column. Your job is to turn it
 into a concrete, actionable task spec that an autonomous worker can pick up
 and execute without further clarification.
@@ -130,7 +130,7 @@ def _extract_json_blob(raw: str) -> Optional[dict]:
 
 
 def _profile_author() -> str:
-    """Mirror of ``deepsuck_cli.kanban._profile_author``. Kept local to
+    """Mirror of ``dag_cli.kanban._profile_author``. Kept local to
     avoid a circular import when kanban.py imports this module."""
     return (
         os.environ.get("DEEPSUCK_PROFILE")
@@ -192,7 +192,7 @@ def specify_task(
                 {"role": "user", "content": user_msg},
             ],
             temperature=0.3,
-            max_tokens=DEEPSUCK_KANBAN_SPECIFY_MAX_TOKENS,
+            max_tokens=DAG_KANBAN_SPECIFY_MAX_TOKENS,
             timeout=timeout or 120,
             extra_body=get_auxiliary_extra_body() or None,
         )

@@ -1,19 +1,19 @@
-"""``deepsuck dashboard register`` — register a self-hosted dashboard OAuth client.
+"""``dag dashboard register`` — register a self-hosted dashboard OAuth client.
 
 Automates what a user otherwise does by hand: open the Nous Portal
 ``/local-dashboards`` page in a browser, click "register", copy the
-resulting ``agent:{id}`` OAuth client ID, and paste it into ``~/.deepsuck/.env``
+resulting ``agent:{id}`` OAuth client ID, and paste it into ``~/.dag/.env``
 as ``DEEPSUCK_DASHBOARD_OAUTH_CLIENT_ID``.
 
 This command:
   1. Resolves a fresh Nous Portal access token from the existing login
-     (``~/.deepsuck/auth.json``), refreshing it if needed. Fails fast with a
-     "run `deepsuck setup`" hint when the user isn't logged in.
+     (``~/.dag/auth.json``), refreshing it if needed. Fails fast with a
+     "run `dag setup`" hint when the user isn't logged in.
   2. POSTs to ``{portal}/api/oauth/self-hosted-client`` with that bearer
      token, which creates a SELF_HOSTED agent client owned by the caller's
      org and returns the fully-formed ``agent:{id}`` client_id.
   3. Writes ``DEEPSUCK_DASHBOARD_OAUTH_CLIENT_ID`` and (if absent)
-     ``DEEPSUCK_DASHBOARD_PORTAL_URL`` into ``~/.deepsuck/.env`` idempotently.
+     ``DEEPSUCK_DASHBOARD_PORTAL_URL`` into ``~/.dag/.env`` idempotently.
   4. Prints a post-register hint explaining that the OAuth gate only engages
      on a non-loopback bind.
 
@@ -79,7 +79,7 @@ def _resolve_portal_base_url(override: Optional[str] = None) -> str:
     if isinstance(override, str) and override.strip():
         return override.rstrip("/")
     try:
-        from deepsuck_cli.auth import DEFAULT_NOUS_PORTAL_URL, get_provider_auth_state
+        from dag_cli.auth import DEFAULT_NOUS_PORTAL_URL, get_provider_auth_state
 
         state = get_provider_auth_state("nous") or {}
         base = state.get("portal_base_url")
@@ -104,7 +104,7 @@ def _register_self_hosted_client(
     When ``existing_client_id`` is provided (the client_id this install
     persisted on a prior run), it is sent so the portal updates that existing
     dashboard record in place instead of minting a duplicate — this is what
-    makes re-running ``deepsuck dashboard register`` idempotent. The portal
+    makes re-running ``dag dashboard register`` idempotent. The portal
     falls back to creating a fresh client if the id no longer resolves to a row
     in the caller's org (stale/deleted), so passing it is always safe.
 
@@ -155,7 +155,7 @@ def _register_self_hosted_client(
         if exc.code == 401:
             raise RuntimeError(
                 "Nous Portal rejected the access token (401). "
-                "Try `deepsuck auth login nous` to re-authenticate."
+                "Try `dag auth login nous` to re-authenticate."
             ) from exc
         if exc.code == 403:
             raise RuntimeError(
@@ -185,7 +185,7 @@ def _print_post_register_hint(
     public_url: str = "",
 ) -> None:
     """Print the success summary + the gate-engagement caveat."""
-    from deepsuck_cli.config import get_env_path
+    from dag_cli.config import get_env_path
 
     env_path = get_env_path()
     _cid = client_id
@@ -199,7 +199,7 @@ def _print_post_register_hint(
     print()
     print(
         "  Heads up — Nous login only *engages* on a non-loopback bind. A plain\n"
-        "  `deepsuck dashboard` (localhost) leaves the gate off and serves locally\n"
+        "  `dag dashboard` (localhost) leaves the gate off and serves locally\n"
         "  without auth, which is fine for your own machine."
     )
     print()
@@ -216,7 +216,7 @@ def _print_post_register_hint(
         print("  at its /login page.")
     else:
         print("  To require Nous login (e.g. exposing on your LAN or a public host):")
-        print("    deepsuck dashboard --host 0.0.0.0")
+        print("    dag dashboard --host 0.0.0.0")
         print("  …then log in at the dashboard's /login page.")
     print()
     print(
@@ -229,8 +229,8 @@ def _print_post_register_hint(
 
 def cmd_dashboard_register(args) -> None:
     """Register a self-hosted dashboard OAuth client with Nous Portal."""
-    from deepsuck_cli.auth import AuthError, resolve_nous_access_token
-    from deepsuck_cli.config import get_env_value, is_managed, save_env_value
+    from dag_cli.auth import AuthError, resolve_nous_access_token
+    from dag_cli.config import get_env_value, is_managed, save_env_value
 
     # Managed (Docker/hosted) installs get their dashboard OAuth client_id
     # stamped in by the orchestrator (NAS sets DEEPSUCK_DASHBOARD_OAUTH_CLIENT_ID
@@ -238,7 +238,7 @@ def cmd_dashboard_register(args) -> None:
     # mistake — and save_env_value refuses to write anyway.
     if is_managed():
         print(
-            "✗ `deepsuck dashboard register` is not available in a managed/hosted "
+            "✗ `dag dashboard register` is not available in a managed/hosted "
             "install.\n"
             "  The dashboard OAuth client is provisioned by the hosting platform."
         )
@@ -251,7 +251,7 @@ def cmd_dashboard_register(args) -> None:
     except AuthError as exc:
         if getattr(exc, "relogin_required", False):
             print("✗ You're not logged into Nous Portal.")
-            print("  Run `deepsuck setup` (or `deepsuck auth login nous`) first, then retry.")
+            print("  Run `dag setup` (or `dag auth login nous`) first, then retry.")
         else:
             print(f"✗ Could not resolve a Nous Portal access token: {exc}")
         sys.exit(1)
@@ -377,7 +377,7 @@ def cmd_dashboard_register(args) -> None:
     # Persist the dashboard public URL derived from the OAuth redirect URI.
     #
     # --redirect-uri is the full public HTTPS callback the user registered with
-    # the portal, e.g. https://deepsuck.example.com/auth/callback. At serve time
+    # the portal, e.g. https://dag.example.com/auth/callback. At serve time
     # the dashboard auth layer (dashboard_auth/routes._redirect_uri) reconstructs
     # that same callback by taking DEEPSUCK_DASHBOARD_PUBLIC_URL and appending
     # "/auth/callback" verbatim. So the value the runtime actually consumes is

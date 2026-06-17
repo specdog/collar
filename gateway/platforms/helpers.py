@@ -227,8 +227,8 @@ class ThreadParticipationTracker:
         }
 
     def _state_path(self) -> Path:
-        from deepsuck_constants import get_deepsuck_home
-        return get_deepsuck_home() / f"{self._platform}_threads.json"
+        from dag_constants import get_dag_home
+        return get_dag_home() / f"{self._platform}_threads.json"
 
     def _load(self) -> list[str]:
         path = self._state_path()

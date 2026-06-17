@@ -133,12 +133,12 @@ def _send_imap_id(imap: "imaplib.IMAP4") -> None:
     """
     try:
         try:
-            from deepsuck_cli import __version__ as _hermes_version
+            from dag_cli import __version__ as _hermes_version
         except Exception:  # noqa: BLE001 — keep ID best-effort if import fails
             _hermes_version = "0"
         imap.xatom(
             "ID",
-            f'("name" "deepsuck-agent" "version" "{_hermes_version}" '
+            f'("name" "dag-agent" "version" "{_hermes_version}" '
             '"vendor" "NousResearch" '
             '"support-email" "noreply@nousresearch.com")',
         )

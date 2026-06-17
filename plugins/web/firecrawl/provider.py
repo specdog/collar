@@ -1,4 +1,4 @@
-# stub — plugins removed in deepsuck
+# stub — plugins removed in dag
 Firecrawl = None
 _firecrawl_backend_help_suffix = ""
 def _get_firecrawl_client(): return None

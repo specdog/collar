@@ -1,6 +1,6 @@
-"""``deepsuck uninstall`` subcommand parser.
+"""``dag uninstall`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -16,8 +16,8 @@ def build_uninstall_parser(subparsers, *, cmd_uninstall: Callable) -> None:
     # =========================================================================
     uninstall_parser = subparsers.add_parser(
         "uninstall",
-        help="Uninstall Deepsuck Agent",
-        description="Remove Deepsuck Agent from your system. Can keep configs/data for reinstall.",
+        help="Uninstall DAG Agent",
+        description="Remove DAG Agent from your system. Can keep configs/data for reinstall.",
     )
     uninstall_parser.add_argument(
         "--full",

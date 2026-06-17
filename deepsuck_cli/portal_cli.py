@@ -1,10 +1,10 @@
-"""``deepsuck portal`` — the human-readable entry point for Nous Portal.
+"""``dag portal`` — the human-readable entry point for Nous Portal.
 
-Running ``deepsuck portal`` with no subcommand performs the one-shot Portal
+Running ``dag portal`` with no subcommand performs the one-shot Portal
 onboarding: OAuth login, pick a Nous model, switch the inference provider to
 Nous, and offer to enable the Tool Gateway. It is the friendly alias for
-``deepsuck auth add nous --type oauth`` (which still works), is identical to
-``deepsuck setup --portal``, and runs the same Nous flow as the first-time quick
+``dag auth add nous --type oauth`` (which still works), is identical to
+``dag setup --portal``, and runs the same Nous flow as the first-time quick
 setup.
 
 Subcommands:
@@ -15,7 +15,7 @@ Subcommands:
   tools    List Tool Gateway tools and which are active in the current config.
 
 This command is intentionally minimal — it does not duplicate functionality
-already in ``deepsuck auth`` or ``deepsuck tools``. It's the onboarding + discovery
+already in ``dag auth`` or ``dag tools``. It's the onboarding + discovery
 surface for the Portal subscription itself.
 """
 from __future__ import annotations
@@ -23,18 +23,18 @@ from __future__ import annotations
 import sys
 import webbrowser
 
-from deepsuck_cli.colors import Colors, color
-from deepsuck_cli.config import load_config
+from dag_cli.colors import Colors, color
+from dag_cli.config import load_config
 
 DEFAULT_PORTAL_URL = "https://portal.nousresearch.com"
 SUBSCRIPTION_URL = "https://portal.nousresearch.com/manage-subscription"
-DOCS_URL = "https://deepsuck-agent.nousresearch.com/docs/user-guide/features/tool-gateway"
+DOCS_URL = "https://dag-agent.nousresearch.com/docs/user-guide/features/tool-gateway"
 
 
 def _cmd_status(args) -> int:
     """Show Portal auth + Tool Gateway routing summary."""
-    from deepsuck_cli.auth import get_nous_auth_status
-    from deepsuck_cli.nous_subscription import get_nous_subscription_features
+    from dag_cli.auth import get_nous_auth_status
+    from dag_cli.nous_subscription import get_nous_subscription_features
 
     config = load_config() or {}
 
@@ -58,7 +58,7 @@ def _cmd_status(args) -> int:
     else:
         print(f"  Auth:    {color('not logged in', Colors.YELLOW)}")
         print(f"  Sign up: {SUBSCRIPTION_URL}")
-        print(f"  Login:   deepsuck portal")
+        print(f"  Login:   dag portal")
 
     # Provider selection (independent of auth)
     model_cfg = config.get("model") if isinstance(config.get("model"), dict) else {}
@@ -66,7 +66,7 @@ def _cmd_status(args) -> int:
     if provider == "nous":
         print(f"  Model:   {color('✓ using Nous as inference provider', Colors.GREEN)}")
     elif provider:
-        print(f"  Model:   currently {provider} (switch with `deepsuck model`)")
+        print(f"  Model:   currently {provider} (switch with `dag model`)")
 
     # Tool Gateway routing
     print()
@@ -120,7 +120,7 @@ def _cmd_open(args) -> int:
 
 def _cmd_tools(args) -> int:
     """List the Tool Gateway catalog + current routing."""
-    from deepsuck_cli.nous_subscription import get_nous_subscription_features
+    from dag_cli.nous_subscription import get_nous_subscription_features
 
     config = load_config() or {}
     try:
@@ -143,7 +143,7 @@ def _cmd_tools(args) -> int:
     print(color("  ────────────────────", Colors.MAGENTA))
 
     if not features.nous_auth_present:
-        print(color("  Not logged into Nous Portal — sign in with `deepsuck portal`.", Colors.YELLOW))
+        print(color("  Not logged into Nous Portal — sign in with `dag portal`.", Colors.YELLOW))
         print()
 
     label_width = max(len(label) for _, label, _ in catalog)
@@ -170,13 +170,13 @@ def _cmd_tools(args) -> int:
 def _cmd_login(args) -> int:
     """Run the one-shot Nous Portal onboarding (login + model + provider + tools).
 
-    This is the human-readable front door for `deepsuck auth add nous --type
-    oauth`. It reuses the exact wiring behind `deepsuck setup --portal` (which in
+    This is the human-readable front door for `dag auth add nous --type
+    oauth`. It reuses the exact wiring behind `dag setup --portal` (which in
     turn runs the same Nous flow as the first-time quick setup), so the
     commands stay in lockstep: device-code login, pick a Nous model, switch the
     inference provider to Nous, then offer the Tool Gateway opt-in.
     """
-    from deepsuck_cli.setup import _run_portal_one_shot
+    from dag_cli.setup import _run_portal_one_shot
 
     config = load_config() or {}
     try:
@@ -189,12 +189,12 @@ def _cmd_login(args) -> int:
 
 
 def portal_command(args) -> int:
-    """Top-level dispatch for `deepsuck portal <subcommand>`."""
+    """Top-level dispatch for `dag portal <subcommand>`."""
     sub = getattr(args, "portal_command", None)
     if sub in {None, "", "login"}:
-        # Default to the one-shot onboarding — `deepsuck portal` is the
-        # human-readable alias for `deepsuck auth add nous --type oauth` /
-        # `deepsuck setup --portal`.
+        # Default to the one-shot onboarding — `dag portal` is the
+        # human-readable alias for `dag auth add nous --type oauth` /
+        # `dag setup --portal`.
         return _cmd_login(args)
     if sub in {"info", "status"}:
         # `status` kept as a back-compat alias for the prior default.
@@ -204,20 +204,20 @@ def portal_command(args) -> int:
     if sub == "tools":
         return _cmd_tools(args)
     print(f"Unknown portal subcommand: {sub}", file=sys.stderr)
-    print("Run `deepsuck portal -h` for usage.", file=sys.stderr)
+    print("Run `dag portal -h` for usage.", file=sys.stderr)
     return 1
 
 
 def add_parser(subparsers) -> None:
-    """Register `deepsuck portal` on the given argparse subparsers object."""
+    """Register `dag portal` on the given argparse subparsers object."""
     portal_parser = subparsers.add_parser(
         "portal",
         help="Set up Nous Portal (login, model pick, Tool Gateway); see also `portal info`",
         description=(
-            "Run `deepsuck portal` with no subcommand to log in to Nous Portal "
+            "Run `dag portal` with no subcommand to log in to Nous Portal "
             "and set it up — pick a model, set Nous as your provider, and offer "
-            "the Tool Gateway (the human-readable alias for `deepsuck auth add "
-            "nous --type oauth`, identical to `deepsuck setup --portal`). "
+            "the Tool Gateway (the human-readable alias for `dag auth add "
+            "nous --type oauth`, identical to `dag setup --portal`). "
             "Subcommands: login (default), info, open, tools."
         ),
     )

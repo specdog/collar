@@ -1,5 +1,5 @@
 """
-Top-level argparse construction for the deepsuck CLI.
+Top-level argparse construction for the dag CLI.
 
 Lives in its own module so other modules (e.g. ``relaunch.py``) can
 introspect the parser to discover which flags exist without running the
@@ -14,7 +14,7 @@ import argparse
 
 
 # `--profile` / `-p` is consumed by ``main._apply_profile_override`` before
-# argparse runs (it sets ``DEEPSUCK_HOME`` and strips itself from ``sys.argv``),
+# argparse runs (it sets ``DAG_HOME`` and strips itself from ``sys.argv``),
 # so it isn't on the parser. Listed here so all "carry over on relaunch"
 # metadata lives in one file.
 PRE_ARGPARSE_INHERITED_FLAGS: list[tuple[str, bool]] = [
@@ -24,7 +24,7 @@ PRE_ARGPARSE_INHERITED_FLAGS: list[tuple[str, bool]] = [
 
 
 def _inherited_flag(parser, *args, **kwargs):
-    """Register a flag that ``deepsuck_cli.relaunch`` should carry over when
+    """Register a flag that ``dag_cli.relaunch`` should carry over when
     the CLI re-execs itself (e.g. after ``sessions browse`` picks a session,
     or after the setup wizard launches chat).
 
@@ -39,45 +39,45 @@ def _inherited_flag(parser, *args, **kwargs):
 
 _EPILOGUE = """
 Examples:
-    deepsuck                        Start interactive chat
-    deepsuck chat -q "Hello"        Single query mode
-    deepsuck --tui                  Launch the modern TUI (or set display.interface: tui)
-    deepsuck --cli                  Force the classic REPL (overrides display.interface: tui)
-    deepsuck -c                     Resume the most recent session
-    deepsuck -c "my project"        Resume a session by name (latest in lineage)
-    deepsuck --resume <session_id>  Resume a specific session by ID
-    deepsuck setup                  Run setup wizard
-    deepsuck logout                 Clear stored authentication
-    deepsuck auth add <provider>    Add a pooled credential
-    deepsuck auth list              List pooled credentials
-    deepsuck auth remove <p> <t>    Remove pooled credential by index, id, or label
-    deepsuck auth reset <provider>  Clear exhaustion status for a provider
-    deepsuck model                  Select default model
-    deepsuck fallback [list]        Show fallback provider chain
-    deepsuck fallback add           Add a fallback provider (same picker as `deepsuck model`)
-    deepsuck fallback remove        Remove a fallback provider from the chain
-    deepsuck config                 View configuration
-    deepsuck config edit            Edit config in $EDITOR
-    deepsuck config set model gpt-4 Set a config value
-    deepsuck gateway                Run messaging gateway
-    deepsuck -s deepsuck-agent-dev,github-auth
-    deepsuck -w                     Start in isolated git worktree
-    deepsuck gateway install        Install gateway background service
-    deepsuck sessions list          List past sessions
-    deepsuck sessions browse        Interactive session picker
-    deepsuck sessions rename ID T   Rename/title a session
-    deepsuck logs                   View agent.log (last 50 lines)
-    deepsuck logs -f                Follow agent.log in real time
-    deepsuck logs errors            View errors.log
-    deepsuck logs --since 1h        Lines from the last hour
-    deepsuck debug share             Upload debug report for support
-    deepsuck update                 Update to latest version
-    deepsuck dashboard              Start web UI dashboard (port 9119)
-    deepsuck dashboard --stop       Stop running dashboard processes
-    deepsuck dashboard --status     List running dashboard processes
+    dag                        Start interactive chat
+    dag chat -q "Hello"        Single query mode
+    dag --tui                  Launch the modern TUI (or set display.interface: tui)
+    dag --cli                  Force the classic REPL (overrides display.interface: tui)
+    dag -c                     Resume the most recent session
+    dag -c "my project"        Resume a session by name (latest in lineage)
+    dag --resume <session_id>  Resume a specific session by ID
+    dag setup                  Run setup wizard
+    dag logout                 Clear stored authentication
+    dag auth add <provider>    Add a pooled credential
+    dag auth list              List pooled credentials
+    dag auth remove <p> <t>    Remove pooled credential by index, id, or label
+    dag auth reset <provider>  Clear exhaustion status for a provider
+    dag model                  Select default model
+    dag fallback [list]        Show fallback provider chain
+    dag fallback add           Add a fallback provider (same picker as `dag model`)
+    dag fallback remove        Remove a fallback provider from the chain
+    dag config                 View configuration
+    dag config edit            Edit config in $EDITOR
+    dag config set model gpt-4 Set a config value
+    dag gateway                Run messaging gateway
+    dag -s dag-agent-dev,github-auth
+    dag -w                     Start in isolated git worktree
+    dag gateway install        Install gateway background service
+    dag sessions list          List past sessions
+    dag sessions browse        Interactive session picker
+    dag sessions rename ID T   Rename/title a session
+    dag logs                   View agent.log (last 50 lines)
+    dag logs -f                Follow agent.log in real time
+    dag logs errors            View errors.log
+    dag logs --since 1h        Lines from the last hour
+    dag debug share             Upload debug report for support
+    dag update                 Update to latest version
+    dag dashboard              Start web UI dashboard (port 9119)
+    dag dashboard --stop       Stop running dashboard processes
+    dag dashboard --status     List running dashboard processes
 
 For more help on a command:
-    deepsuck <command> --help
+    dag <command> --help
 """
 
 
@@ -89,8 +89,8 @@ def build_top_level_parser():
     other subparsers via ``subparsers.add_parser(...)``.
     """
     parser = argparse.ArgumentParser(
-        prog="deepsuck",
-        description="Deepsuck Agent - AI assistant with tool-calling capabilities",
+        prog="dag",
+        description="DAG Agent - AI assistant with tool-calling capabilities",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_EPILOGUE,
     )
@@ -114,7 +114,7 @@ def build_top_level_parser():
     # --model / --provider are accepted at the top level so they can pair
     # with -z without needing the `chat` subcommand.  If neither -z nor a
     # subcommand consumes them, they fall through harmlessly as None.
-    # Mirrors `deepsuck chat --model ... --provider ...` semantics.
+    # Mirrors `dag chat --model ... --provider ...` semantics.
     _inherited_flag(
         parser,
         "-m",
@@ -132,7 +132,7 @@ def build_top_level_parser():
         help=(
             "Provider override for this invocation (e.g. openrouter, anthropic). "
             "Applies to -z/--oneshot and --tui. The persistent provider lives in config.yaml "
-            "under model.provider — use `deepsuck setup` or edit the file to change it."
+            "under model.provider — use `dag setup` or edit the file to change it."
         ),
     )
     parser.add_argument(
@@ -204,7 +204,7 @@ def build_top_level_parser():
         "--ignore-user-config",
         action="store_true",
         default=False,
-        help="Ignore ~/.deepsuck/config.yaml and fall back to built-in defaults (credentials in .env are still loaded)",
+        help="Ignore ~/.dag/config.yaml and fall back to built-in defaults (credentials in .env are still loaded)",
     )
     _inherited_flag(
         parser,
@@ -251,7 +251,7 @@ def build_top_level_parser():
     chat_parser = subparsers.add_parser(
         "chat",
         help="Interactive chat with the agent",
-        description="Start an interactive chat session with Deepsuck Agent",
+        description="Start an interactive chat session with DAG Agent",
     )
     chat_parser.add_argument(
         "-q", "--query", help="Single query (non-interactive mode)"
@@ -364,7 +364,7 @@ def build_top_level_parser():
         "--ignore-user-config",
         action="store_true",
         default=argparse.SUPPRESS,
-        help="Ignore ~/.deepsuck/config.yaml and fall back to built-in defaults (credentials in .env are still loaded). Useful for isolated CI runs, reproduction, and third-party integrations.",
+        help="Ignore ~/.dag/config.yaml and fall back to built-in defaults (credentials in .env are still loaded). Useful for isolated CI runs, reproduction, and third-party integrations.",
     )
     _inherited_flag(
         chat_parser,
@@ -378,7 +378,7 @@ def build_top_level_parser():
         "--safe-mode",
         action="store_true",
         default=argparse.SUPPRESS,
-        help="Troubleshooting mode: disable ALL customizations — user config, AGENTS.md/memory injection, plugins, and MCP servers (implies --ignore-user-config and --ignore-rules). Use to isolate whether a problem comes from your setup or from Deepsuck itself.",
+        help="Troubleshooting mode: disable ALL customizations — user config, AGENTS.md/memory injection, plugins, and MCP servers (implies --ignore-user-config and --ignore-rules). Use to isolate whether a problem comes from your setup or from Dag itself.",
     )
     chat_parser.add_argument(
         "--source",

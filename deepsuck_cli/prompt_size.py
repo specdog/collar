@@ -1,4 +1,4 @@
-"""Prompt-size diagnostic: ``deepsuck prompt-size``.
+"""Prompt-size diagnostic: ``dag prompt-size``.
 
 Reports a byte/char breakdown of the system prompt the agent would build for
 a fresh session — system prompt total, the ``<available_skills>`` index,
@@ -33,7 +33,7 @@ def _build_inspection_agent(platform: str) -> Any:
     platform come from the caller so the breakdown matches a real session.
     """
     from run_agent import AIAgent
-    from deepsuck_cli.config import load_config
+    from dag_cli.config import load_config
 
     cfg = load_config()
     model_cfg = cfg.get("model", {}) if isinstance(cfg.get("model"), dict) else {}
@@ -139,7 +139,7 @@ def render_breakdown(data: Dict[str, Any]) -> str:
 
 
 def cmd_prompt_size(args: Any) -> None:
-    """Entry point for ``deepsuck prompt-size``."""
+    """Entry point for ``dag prompt-size``."""
     platform = getattr(args, "platform", "cli") or "cli"
     as_json = getattr(args, "json", False)
     try:

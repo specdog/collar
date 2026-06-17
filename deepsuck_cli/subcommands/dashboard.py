@@ -1,6 +1,6 @@
-"""``deepsuck dashboard`` subcommand parser.
+"""``dag dashboard`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -20,7 +20,7 @@ def build_dashboard_parser(
     dashboard_parser = subparsers.add_parser(
         "dashboard",
         help="Start the web UI dashboard",
-        description="Launch the Deepsuck Agent web dashboard for managing config, API keys, and sessions",
+        description="Launch the DAG Agent web dashboard for managing config, API keys, and sessions",
     )
     dashboard_parser.add_argument(
         "--port", type=int, default=9119, help="Port (default 9119, 0 for auto-assign by OS)"
@@ -69,25 +69,25 @@ def build_dashboard_parser(
     # start-a-server flags above (if both are passed, --stop / --status win
     # because they exit before the server is started).  The dashboard has
     # no service manager and no PID file, so these scan the process table
-    # for `deepsuck dashboard` cmdlines and SIGTERM them directly — the same
-    # path `deepsuck update` uses to clean up stale dashboards.
+    # for `dag dashboard` cmdlines and SIGTERM them directly — the same
+    # path `dag update` uses to clean up stale dashboards.
     dashboard_parser.add_argument(
         "--stop",
         action="store_true",
-        help="Stop all running deepsuck dashboard processes and exit",
+        help="Stop all running dag dashboard processes and exit",
     )
     dashboard_parser.add_argument(
         "--status",
         action="store_true",
-        help="List running deepsuck dashboard processes and exit",
+        help="List running dag dashboard processes and exit",
     )
-    # Backward-compat shim: older Deepsuck desktop app shells (<= 0.15.x) spawn the
-    # backend as `deepsuck dashboard --no-open --tui --host ... --port ...`. The
+    # Backward-compat shim: older Dag desktop app shells (<= 0.15.x) spawn the
+    # backend as `dag dashboard --no-open --tui --host ... --port ...`. The
     # `--tui` flag was removed from this subcommand in cae6b5486 (embedded chat is
     # always on now). When a user's CLI updates past that commit but their desktop
     # app binary has not, argparse used to hard-error with "unrecognized arguments:
     # --tui" and exit(2) — the backend died before becoming ready and the GUI just
-    # showed "Deepsuck couldn't start" with no actionable cause. Accept and silently
+    # showed "DAG couldn't start" with no actionable cause. Accept and silently
     # ignore the flag so an old app + new CLI degrades gracefully instead of
     # bricking. Hidden from --help; safe to delete once the floor app version is
     # well past 0.16.0.
@@ -98,9 +98,9 @@ def build_dashboard_parser(
     )
     dashboard_parser.set_defaults(func=cmd_dashboard)
 
-    # `deepsuck dashboard register` — register a self-hosted dashboard OAuth
-    # client with Nous Portal and write the client_id into ~/.deepsuck/.env.
-    # Nested subparser so bare `deepsuck dashboard` keeps launching the server
+    # `dag dashboard register` — register a self-hosted dashboard OAuth
+    # client with Nous Portal and write the client_id into ~/.dag/.env.
+    # Nested subparser so bare `dag dashboard` keeps launching the server
     # (set_defaults(func=cmd_dashboard) above remains the default).
     dashboard_subparsers = dashboard_parser.add_subparsers(
         dest="dashboard_subcommand"
@@ -111,8 +111,8 @@ def build_dashboard_parser(
         description=(
             "Register this install as a self-hosted dashboard with your Nous "
             "Portal account. Creates an OAuth client, writes "
-            "DEEPSUCK_DASHBOARD_OAUTH_CLIENT_ID into ~/.deepsuck/.env, and prints "
-            "how to engage the login gate. Requires being logged in (deepsuck setup)."
+            "DEEPSUCK_DASHBOARD_OAUTH_CLIENT_ID into ~/.dag/.env, and prints "
+            "how to engage the login gate. Requires being logged in (dag setup)."
         ),
     )
     dashboard_register_parser.add_argument(
@@ -126,7 +126,7 @@ def build_dashboard_parser(
         default=None,
         help=(
             "Optional public HTTPS OAuth redirect URI for the dashboard, e.g. "
-            "https://deepsuck.example.com/auth/callback. Omit for localhost-only use."
+            "https://dag.example.com/auth/callback. Omit for localhost-only use."
         ),
     )
     dashboard_register_parser.add_argument(

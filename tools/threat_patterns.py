@@ -106,9 +106,9 @@ _PATTERNS: List[Tuple[str, str, str]] = [
     # ── Persistence / SSH backdoor (strict scope — memory + skills) ──
     (r'authorized_keys', "ssh_backdoor", "strict"),
     (r'\$HOME/\.ssh|\~/\.ssh', "ssh_access", "strict"),
-    (r'\$HOME/\.deepsuck/\.env|\~/\.deepsuck/\.env', "deepsuck_env", "strict"),
+    (r'\$HOME/\.dag/\.env|\~/\.dag/\.env', "dag_env", "strict"),
     (r'(update|modify|edit|write|change|append|add\s+to)\s+.*(?:AGENTS\.md|CLAUDE\.md|\.cursorrules|\.clinerules)', "agent_config_mod", "strict"),
-    (r'(update|modify|edit|write|change|append|add\s+to)\s+.*\.deepsuck/(config\.yaml|SOUL\.md)', "deepsuck_config_mod", "strict"),
+    (r'(update|modify|edit|write|change|append|add\s+to)\s+.*\.dag/(config\.yaml|SOUL\.md)', "dag_config_mod", "strict"),
 
     # ── Hardcoded secrets ────────────────────────────────────────────
     (r'(?:api[_-]?key|token|secret|password)\s*[=:]\s*["\'][A-Za-z0-9+/=_-]{20,}', "hardcoded_secret", "strict"),

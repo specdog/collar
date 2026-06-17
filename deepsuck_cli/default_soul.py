@@ -1,4 +1,4 @@
-"""Default SOUL.dag + SOUL.dog templates seeded into DEEPSUCK_HOME on first run.
+"""Default SOUL.dag + SOUL.dog templates seeded into DAG_HOME on first run.
 
 .dag is primary (agent reads DAG-path format). .dog is the human-editable prose spec.
 .md is deprecated — never written.

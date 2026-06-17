@@ -1,20 +1,20 @@
-"""`deepsuck checkpoints` CLI subcommand.
+"""`dag checkpoints` CLI subcommand.
 
 Gives users direct visibility and control over the filesystem checkpoint
-store at ``~/.deepsuck/checkpoints/``.  Actions:
+store at ``~/.dag/checkpoints/``.  Actions:
 
-    deepsuck checkpoints               # same as `status`
-    deepsuck checkpoints status        # total size, project count, breakdown
-    deepsuck checkpoints list          # per-project checkpoint counts + workdir
-    deepsuck checkpoints prune [opts]  # force a sweep (ignores the 24h marker)
-    deepsuck checkpoints clear [-f]    # nuke the entire base (asks first)
-    deepsuck checkpoints clear-legacy  # delete just the legacy-* archives
+    dag checkpoints               # same as `status`
+    dag checkpoints status        # total size, project count, breakdown
+    dag checkpoints list          # per-project checkpoint counts + workdir
+    dag checkpoints prune [opts]  # force a sweep (ignores the 24h marker)
+    dag checkpoints clear [-f]    # nuke the entire base (asks first)
+    dag checkpoints clear-legacy  # delete just the legacy-* archives
 
 Examples::
 
-    deepsuck checkpoints
-    deepsuck checkpoints prune --retention-days 3 --max-size-mb 200
-    deepsuck checkpoints clear -f
+    dag checkpoints
+    dag checkpoints prune --retention-days 3 --max-size-mb 200
+    dag checkpoints clear -f
 
 None of these require the agent to be running.  Safe to call any time.
 """
@@ -99,7 +99,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         for arch in sorted(legacy, key=lambda a: a.get("mtime", 0), reverse=True):
             print(f"  {arch['name']:<40}  {_fmt_bytes(arch['size_bytes']):>10}")
         print()
-        print("Clear with: deepsuck checkpoints clear-legacy")
+        print("Clear with: dag checkpoints clear-legacy")
     return 0
 
 
@@ -195,8 +195,8 @@ def cmd_clear_legacy(args: argparse.Namespace) -> int:
 
 
 def register_cli(parser: argparse.ArgumentParser) -> None:
-    """Wire subcommands onto the ``deepsuck checkpoints`` parser."""
-    parser.set_defaults(func=cmd_status)  # bare `deepsuck checkpoints` → status
+    """Wire subcommands onto the ``dag checkpoints`` parser."""
+    parser.set_defaults(func=cmd_status)  # bare `dag checkpoints` → status
     subs = parser.add_subparsers(dest="checkpoints_command", metavar="COMMAND")
 
     p_status = subs.add_parser(

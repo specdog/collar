@@ -1,6 +1,6 @@
-"""``deepsuck setup`` subcommand parser.
+"""``dag setup`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -17,8 +17,8 @@ def build_setup_parser(subparsers, *, cmd_setup: Callable) -> None:
     setup_parser = subparsers.add_parser(
         "setup",
         help="Interactive setup wizard",
-        description="Configure Deepsuck Agent with an interactive wizard. "
-        "Run a specific section: deepsuck setup model|tts|terminal|gateway|tools|agent",
+        description="Configure DAG Agent with an interactive wizard. "
+        "Run a specific section: dag setup model|tts|terminal|gateway|tools|agent",
     )
     setup_parser.add_argument(
         "section",
@@ -40,7 +40,7 @@ def build_setup_parser(subparsers, *, cmd_setup: Callable) -> None:
         action="store_true",
         help="(Default on existing installs.) Re-run the full wizard, "
         "showing current values as defaults. Kept for backwards "
-        "compatibility — a bare 'deepsuck setup' now does this.",
+        "compatibility — a bare 'dag setup' now does this.",
     )
     setup_parser.add_argument(
         "--quick",

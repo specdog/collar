@@ -10,8 +10,8 @@ share the same core pipeline:
 This module ties together the foundation layers:
 
 - ``agent.models_dev``            -- models.dev catalog, ModelInfo, ProviderInfo
-- ``deepsuck_cli.providers``        -- canonical provider identity + overlays
-- ``deepsuck_cli.model_normalize``  -- per-provider name formatting
+- ``dag_cli.providers``        -- canonical provider identity + overlays
+- ``dag_cli.model_normalize``  -- per-provider name formatting
 
 Provider switching uses the ``--provider`` flag exclusively.
 No colon-based ``provider:model`` syntax — colons are reserved for
@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass
 from typing import List, NamedTuple, Optional
 
-from deepsuck_cli.providers import (
+from dag_cli.providers import (
     ProviderDef,
     custom_provider_slug,
     determine_api_mode,
@@ -33,7 +33,7 @@ from deepsuck_cli.providers import (
     is_aggregator,
     resolve_provider_full,
 )
-from deepsuck_cli.model_normalize import (
+from dag_cli.model_normalize import (
     normalize_model_for_provider,
 )
 from agent.models_dev import (
@@ -69,29 +69,29 @@ def _bare_custom_provider_def(current_base_url: str) -> Optional[ProviderDef]:
 # ---------------------------------------------------------------------------
 
 _DEEPSUCK_MODEL_WARNING = (
-    "Nous Research Deepsuck 3 & 4 models are NOT agentic and are not designed "
-    "for use with Deepsuck Agent. They lack the tool-calling capabilities "
+    "Nous Research Dag 3 & 4 models are NOT agentic and are not designed "
+    "for use with DAG Agent. They lack the tool-calling capabilities "
     "required for agent workflows. Consider using an agentic model instead "
     "(Claude, GPT, Gemini, DeepSeek, etc.)."
 )
 
-# Match only the real Nous Research Deepsuck 3 / Deepsuck 4 chat families.
-# The previous substring check (`"deepsuck" in name.lower()`) false-positived on
-# unrelated local Modelfiles like ``deepsuck-brain:qwen3-14b-ctx16k`` that just
-# happen to carry "deepsuck" in their tag but are fully tool-capable.
+# Match only the real Nous Research Dag 3 / Dag 4 chat families.
+# The previous substring check (`"dag" in name.lower()`) false-positived on
+# unrelated local Modelfiles like ``dag-brain:qwen3-14b-ctx16k`` that just
+# happen to carry "dag" in their tag but are fully tool-capable.
 #
 # Positive examples the regex must match:
-#   NousResearch/Deepsuck-3-Llama-3.1-70B, deepsuck-4-405b, openrouter/deepsuck3:70b
+#   NousResearch/Dag-3-Llama-3.1-70B, dag-4-405b, openrouter/dag3:70b
 # Negative examples it must NOT match:
-#   deepsuck-brain:qwen3-14b-ctx16k, qwen3:14b, claude-opus-4-6
+#   dag-brain:qwen3-14b-ctx16k, qwen3:14b, claude-opus-4-6
 _NOUS_DEEPSUCK_NON_AGENTIC_RE = re.compile(
-    r"(?:^|[/:])deepsuck[-_ ]?[34](?:[-_.:]|$)",
+    r"(?:^|[/:])dag[-_ ]?[34](?:[-_.:]|$)",
     re.IGNORECASE,
 )
 
 
-def is_nous_deepsuck_non_agentic(model_name: str) -> bool:
-    """Return True if *model_name* is a real Nous Deepsuck 3/4 chat model.
+def is_nous_dag_non_agentic(model_name: str) -> bool:
+    """Return True if *model_name* is a real Nous Dag 3/4 chat model.
 
     Used to decide whether to surface the non-agentic warning at startup.
     Callers in :mod:`cli.py` and here should go through this single helper
@@ -102,9 +102,9 @@ def is_nous_deepsuck_non_agentic(model_name: str) -> bool:
     return bool(_NOUS_DEEPSUCK_NON_AGENTIC_RE.search(model_name))
 
 
-def _check_deepsuck_model_warning(model_name: str) -> str:
-    """Return a warning string if *model_name* is a Nous Deepsuck 3/4 chat model."""
-    if is_nous_deepsuck_non_agentic(model_name):
+def _check_dag_model_warning(model_name: str) -> str:
+    """Return a warning string if *model_name* is a Nous Dag 3/4 chat model."""
+    if is_nous_dag_non_agentic(model_name):
         return _DEEPSUCK_MODEL_WARNING
     return ""
 
@@ -209,14 +209,14 @@ def _load_direct_aliases() -> dict[str, DirectAlias]:
             provider: custom
             base_url: "https://ollama.com/v1"
 
-    Also reads ``model.aliases`` (set by ``deepsuck config set model.aliases.xxx``)
+    Also reads ``model.aliases`` (set by ``dag config set model.aliases.xxx``)
     and converts simple string entries (``ds-flash: deepseek/deepseek-v4-flash``)
     into DirectAlias objects.  The provider is parsed from the ``provider/``
     prefix in the value; if no slash, the current provider is used.
     """
     merged = dict(_BUILTIN_DIRECT_ALIASES)
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         cfg = load_config()
 
         # --- model_aliases (dict-based format) ---
@@ -265,7 +265,7 @@ def _ensure_direct_aliases() -> None:
     """Lazy-load direct aliases on first use.
 
     Mutates the existing DIRECT_ALIASES dict in place rather than rebinding
-    the module attribute. This keeps `from deepsuck_cli.model_switch import
+    the module attribute. This keeps `from dag_cli.model_switch import
     DIRECT_ALIASES` references valid in callers — rebinding would leave them
     pointing at a stale empty dict.
     """
@@ -501,7 +501,7 @@ def resolve_alias(
     # yet synced to the registry).
     catalog = list_provider_models(current_provider)
     try:
-        from deepsuck_cli.models import _PROVIDER_MODELS
+        from dag_cli.models import _PROVIDER_MODELS
         static = _PROVIDER_MODELS.get(current_provider, [])
         if static:
             seen = {m.lower() for m in catalog}
@@ -672,13 +672,13 @@ def switch_model(
     Returns:
         ModelSwitchResult with all information the caller needs.
     """
-    from deepsuck_cli.models import (
+    from dag_cli.models import (
         copilot_model_api_mode,
         detect_provider_for_model,
         validate_requested_model,
         opencode_model_api_mode,
     )
-    from deepsuck_cli.runtime_provider import resolve_runtime_provider
+    from dag_cli.runtime_provider import resolve_runtime_provider
 
     resolved_alias = ""
     new_model = raw_input.strip()
@@ -699,15 +699,15 @@ def switch_model(
         if pdef is None:
             _switch_err = (
                 f"Unknown provider '{explicit_provider}'. "
-                f"Check 'deepsuck model' for available providers, or define it "
+                f"Check 'dag model' for available providers, or define it "
                 f"in config.yaml under 'providers:'."
             )
             # Check for common config issues that cause provider resolution failures
             try:
-                from deepsuck_cli.config import validate_config_structure
+                from dag_cli.config import validate_config_structure
                 _cfg_issues = validate_config_structure()
                 if _cfg_issues:
-                    _switch_err += "\n\nRun 'deepsuck doctor' — config issues detected:"
+                    _switch_err += "\n\nRun 'dag doctor' — config issues detected:"
                     for _ci in _cfg_issues[:3]:
                         _switch_err += f"\n  • {_ci.message}"
             except Exception:
@@ -726,8 +726,8 @@ def switch_model(
         # routes to has no credentials, do NOT silently switch them onto an
         # unauthed endpoint (the classic HTTP 401 "Missing Authentication
         # header"). Point them at the real direct provider instead.
-        from deepsuck_cli.models import _AGGREGATOR_PROVIDERS as _AGG_PROVIDERS
-        from deepsuck_cli.providers import ALIASES as _PROVIDER_ALIAS_TABLE
+        from dag_cli.models import _AGGREGATOR_PROVIDERS as _AGG_PROVIDERS
+        from dag_cli.providers import ALIASES as _PROVIDER_ALIAS_TABLE
         _explicit_norm = explicit_provider.strip().lower()
         _alias_target = _PROVIDER_ALIAS_TABLE.get(_explicit_norm)
         if (
@@ -765,7 +765,7 @@ def switch_model(
         # If no model specified, try auto-detect from endpoint
         if not new_model:
             if pdef.base_url:
-                from deepsuck_cli.runtime_provider import _auto_detect_local_model
+                from dag_cli.runtime_provider import _auto_detect_local_model
                 detected = _auto_detect_local_model(pdef.base_url)
                 if detected:
                     new_model = detected
@@ -926,7 +926,7 @@ def switch_model(
         # or hop to an aggregator. Use the pdef's endpoint directly instead.
         _user_pdef = None
         if explicit_provider and user_providers:
-            from deepsuck_cli.providers import resolve_user_provider as _ruser
+            from dag_cli.providers import resolve_user_provider as _ruser
             _user_pdef = _ruser(explicit_provider.strip().lower(), user_providers)
             if _user_pdef is None:
                 _user_pdef = _ruser(target_provider, user_providers)
@@ -1095,7 +1095,7 @@ def switch_model(
     # Anthropic SDK prepends its own /v1/messages to the base_url.  Strip the
     # trailing /v1 so the SDK constructs the correct path (e.g.
     # https://opencode.ai/zen/go/v1/messages instead of .../v1/v1/messages).
-    # Mirrors the same logic in deepsuck_cli.runtime_provider.resolve_runtime_provider;
+    # Mirrors the same logic in dag_cli.runtime_provider.resolve_runtime_provider;
     # without it, /model switches into an anthropic_messages-routed OpenCode
     # model (e.g. `/model minimax-m2.7` on opencode-go, `/model claude-sonnet-4-6`
     # on opencode-zen) hit a double /v1 and returned OpenCode's website 404 page.
@@ -1117,9 +1117,9 @@ def switch_model(
     warnings: list[str] = []
     if validation.get("message"):
         warnings.append(validation["message"])
-    deepsuck_warn = _check_deepsuck_model_warning(new_model)
-    if deepsuck_warn:
-        warnings.append(deepsuck_warn)
+    dag_warn = _check_dag_model_warning(new_model)
+    if dag_warn:
+        warnings.append(dag_warn)
 
     # --- Build result ---
     return ModelSwitchResult(
@@ -1176,7 +1176,7 @@ def prewarm_picker_cache_async() -> Optional["_threading.Thread"]:
 
     def _warm() -> None:
         try:
-            from deepsuck_cli.inventory import load_picker_context
+            from dag_cli.inventory import load_picker_context
 
             ctx = load_picker_context()
             # Calling this is what populates cached_provider_model_ids() ->
@@ -1211,7 +1211,7 @@ def list_authenticated_providers(
 ) -> List[dict]:
     """Detect which providers have credentials and list their curated models.
 
-    Uses the curated model lists from deepsuck_cli/models.py (OPENROUTER_MODELS,
+    Uses the curated model lists from dag_cli/models.py (OPENROUTER_MODELS,
     _PROVIDER_MODELS) — NOT the full models.dev catalog.  These are hand-picked
     agentic models that work well as agent backends.
 
@@ -1235,8 +1235,8 @@ def list_authenticated_providers(
         fetch_models_dev,
         get_provider_info as _mdev_pinfo,
     )
-    from deepsuck_cli.auth import PROVIDER_REGISTRY
-    from deepsuck_cli.models import (
+    from dag_cli.auth import PROVIDER_REGISTRY
+    from dag_cli.models import (
         OPENROUTER_MODELS, _PROVIDER_MODELS,
         _MODELS_DEV_PREFERRED, _merge_with_models_dev, cached_provider_model_ids,
         get_curated_nous_model_ids,
@@ -1262,7 +1262,7 @@ def list_authenticated_providers(
         static inference_base_url so the dedup matches what a user typing
         that URL into custom_providers would actually hit."""
         try:
-            from deepsuck_cli.auth import PROVIDER_REGISTRY as _reg
+            from dag_cli.auth import PROVIDER_REGISTRY as _reg
         except Exception:
             return
         pcfg = _reg.get(slug)
@@ -1318,18 +1318,18 @@ def list_authenticated_providers(
 
     data = fetch_models_dev()
 
-    # Build curated model lists keyed by deepsuck provider ID
+    # Build curated model lists keyed by dag provider ID
     curated: dict[str, list[str]] = dict(_PROVIDER_MODELS)
     curated["openrouter"] = [mid for mid, _ in OPENROUTER_MODELS]
     # "nous" pulls from the remote model-catalog manifest published at
-    # https://deepsuck-agent.nousresearch.com/docs/api/model-catalog.json so
+    # https://dag-agent.nousresearch.com/docs/api/model-catalog.json so
     # newly added Portal models surface in the /model picker without
-    # requiring a Deepsuck release. Falls back to the in-repo
+    # requiring a Dag release. Falls back to the in-repo
     # _PROVIDER_MODELS["nous"] snapshot when the manifest is unreachable.
     curated["nous"] = get_curated_nous_model_ids()
     # Ollama Cloud uses dynamic discovery (no static curated list)
     if "ollama-cloud" not in curated:
-        from deepsuck_cli.models import fetch_ollama_cloud_models
+        from dag_cli.models import fetch_ollama_cloud_models
         curated["ollama-cloud"] = fetch_ollama_cloud_models()
     # LM Studio has no static catalog — probe its native /api/v1/models
     # endpoint live so the picker reflects whatever the user has loaded.
@@ -1340,8 +1340,8 @@ def list_authenticated_providers(
     if "lmstudio" not in curated and (
         os.environ.get("LM_API_KEY") or os.environ.get("LM_BASE_URL") or current_provider.strip().lower() == "lmstudio"
     ):
-        from deepsuck_cli.models import fetch_lmstudio_models
-        from deepsuck_cli.auth import AuthError
+        from dag_cli.models import fetch_lmstudio_models
+        from dag_cli.auth import AuthError
         is_current_lmstudio = current_provider.strip().lower() == "lmstudio"
         lm_base = (
             os.environ.get("LM_BASE_URL")
@@ -1360,10 +1360,10 @@ def list_authenticated_providers(
             live = [current_model]
         curated["lmstudio"] = live
 
-    # --- 1. Check Deepsuck-mapped providers ---
-    from deepsuck_cli.models import _AGGREGATOR_PROVIDERS as _AGG_PROVIDERS
-    from deepsuck_cli.providers import ALIASES as _PROVIDER_ALIAS_TABLE
-    for deepsuck_id, mdev_id in PROVIDER_TO_MODELS_DEV.items():
+    # --- 1. Check Dag-mapped providers ---
+    from dag_cli.models import _AGGREGATOR_PROVIDERS as _AGG_PROVIDERS
+    from dag_cli.providers import ALIASES as _PROVIDER_ALIAS_TABLE
+    for dag_id, mdev_id in PROVIDER_TO_MODELS_DEV.items():
         # Skip vendor names that are merely aliases routing through an
         # aggregator (e.g. bare "openai" → "openrouter"). These are NOT
         # directly-routable providers: emitting them as their own picker
@@ -1372,10 +1372,10 @@ def list_authenticated_providers(
         # switching a user off their real provider onto an endpoint they
         # may have no key for (HTTP 401). The user's real provider (e.g.
         # openai-api, or a providers.openai config row) covers this vendor.
-        _alias_target = _PROVIDER_ALIAS_TABLE.get(deepsuck_id)
+        _alias_target = _PROVIDER_ALIAS_TABLE.get(dag_id)
         if (
             _alias_target
-            and _alias_target != deepsuck_id
+            and _alias_target != dag_id
             and _alias_target in _AGG_PROVIDERS
         ):
             continue
@@ -1391,7 +1391,7 @@ def list_authenticated_providers(
         # Prefer auth.py PROVIDER_REGISTRY for env var names — it's our
         # source of truth.  models.dev can have wrong mappings (e.g.
         # minimax-cn → MINIMAX_API_KEY instead of MINIMAX_CN_API_KEY).
-        pconfig = PROVIDER_REGISTRY.get(deepsuck_id)
+        pconfig = PROVIDER_REGISTRY.get(dag_id)
         # Skip non-API-key auth providers here — they are handled in
         # section 2 (DEEPSUCK_OVERLAYS) with proper auth store checking.
         if pconfig and pconfig.auth_type != "api_key":
@@ -1407,9 +1407,9 @@ def list_authenticated_providers(
         has_creds = any(os.environ.get(ev) for ev in env_vars)
         if not has_creds:
             try:
-                from deepsuck_cli.auth import _load_auth_store
+                from dag_cli.auth import _load_auth_store
                 store = _load_auth_store()
-                if store and store.get("credential_pool", {}).get(deepsuck_id):
+                if store and store.get("credential_pool", {}).get(dag_id):
                     has_creds = True
             except Exception:
                 pass
@@ -1417,18 +1417,18 @@ def list_authenticated_providers(
             continue
 
         # Unified pathway: route through cached_provider_model_ids() so the
-        # /model picker sees the SAME list `deepsuck model` would build, with
+        # /model picker sees the SAME list `dag model` would build, with
         # disk caching to keep the picker open snappy. Falls back to the
         # curated static list when the live fetcher returns nothing.
-        model_ids = cached_provider_model_ids(deepsuck_id)
+        model_ids = cached_provider_model_ids(dag_id)
         if not model_ids:
-            model_ids = curated.get(deepsuck_id, [])
-            if deepsuck_id in _MODELS_DEV_PREFERRED:
-                model_ids = _merge_with_models_dev(deepsuck_id, model_ids)
+            model_ids = curated.get(dag_id, [])
+            if dag_id in _MODELS_DEV_PREFERRED:
+                model_ids = _merge_with_models_dev(dag_id, model_ids)
         total = len(model_ids)
         top = model_ids[:max_models]
 
-        slug = deepsuck_id
+        slug = dag_id
         pinfo = _mdev_pinfo(mdev_id)
         display_name = pinfo.name if pinfo else mdev_id
 
@@ -1445,33 +1445,33 @@ def list_authenticated_providers(
         seen_mdev_ids.add(mdev_id)
         _record_builtin_endpoint(slug)
 
-    # --- 2. Check Deepsuck-only providers (nous, openai-codex, copilot, opencode-go) ---
-    from deepsuck_cli.providers import DEEPSUCK_OVERLAYS
-    from deepsuck_cli.auth import PROVIDER_REGISTRY as _auth_registry
+    # --- 2. Check Dag-only providers (nous, openai-codex, copilot, opencode-go) ---
+    from dag_cli.providers import DEEPSUCK_OVERLAYS
+    from dag_cli.auth import PROVIDER_REGISTRY as _auth_registry
 
-    # Build reverse mapping: models.dev ID → Deepsuck provider ID.
+    # Build reverse mapping: models.dev ID → Dag provider ID.
     # DEEPSUCK_OVERLAYS keys may be models.dev IDs (e.g. "github-copilot")
-    # while _PROVIDER_MODELS and config.yaml use Deepsuck IDs ("copilot").
-    _mdev_to_deepsuck = {v: k for k, v in PROVIDER_TO_MODELS_DEV.items()}
+    # while _PROVIDER_MODELS and config.yaml use Dag IDs ("copilot").
+    _mdev_to_dag = {v: k for k, v in PROVIDER_TO_MODELS_DEV.items()}
 
     for pid, overlay in DEEPSUCK_OVERLAYS.items():
         if pid.lower() in seen_slugs:
             continue
 
-        # Resolve Deepsuck slug — e.g. "github-copilot" → "copilot"
-        deepsuck_slug = _mdev_to_deepsuck.get(pid, pid)
-        if deepsuck_slug.lower() in seen_slugs:
+        # Resolve Dag slug — e.g. "github-copilot" → "copilot"
+        dag_slug = _mdev_to_dag.get(pid, pid)
+        if dag_slug.lower() in seen_slugs:
             continue
 
         # Check if credentials exist
         has_creds = False
         if overlay.auth_type == "aws_sdk":
-            has_creds = _has_aws_sdk_creds_for_listing(deepsuck_slug)
+            has_creds = _has_aws_sdk_creds_for_listing(dag_slug)
         elif overlay.extra_env_vars:
             has_creds = any(os.environ.get(ev) for ev in overlay.extra_env_vars)
         # Also check api_key_env_vars from PROVIDER_REGISTRY for api_key auth_type
         if not has_creds and overlay.auth_type == "api_key":
-            for _key in (pid, deepsuck_slug):
+            for _key in (pid, dag_slug):
                 pcfg = _auth_registry.get(_key)
                 if pcfg and pcfg.api_key_env_vars:
                     if any(os.environ.get(ev) for ev in pcfg.api_key_env_vars):
@@ -1483,10 +1483,10 @@ def list_authenticated_providers(
         # OAuth via external credential files).
         if not has_creds:
             try:
-                from deepsuck_cli.auth import _load_auth_store
+                from dag_cli.auth import _load_auth_store
                 store = _load_auth_store()
                 providers_store = store.get("providers", {})
-                if store and (pid in providers_store or deepsuck_slug in providers_store):
+                if store and (pid in providers_store or dag_slug in providers_store):
                     has_creds = True
             except Exception as exc:
                 logger.debug("Auth store check failed for %s: %s", pid, exc)
@@ -1497,11 +1497,11 @@ def list_authenticated_providers(
         if not has_creds:
             try:
                 from agent.credential_pool import load_pool
-                pool = load_pool(deepsuck_slug)
+                pool = load_pool(dag_slug)
                 if pool.has_credentials():
                     has_creds = True
             except Exception as exc:
-                logger.debug("Credential pool check failed for %s: %s", deepsuck_slug, exc)
+                logger.debug("Credential pool check failed for %s: %s", dag_slug, exc)
         # Fallback: check external credential files directly.
         # The credential pool gates anthropic behind
         # is_provider_explicitly_configured() to prevent auxiliary tasks
@@ -1509,15 +1509,15 @@ def list_authenticated_providers(
         # But the /model picker is discovery-oriented — we WANT to show
         # providers the user can switch to, even if they aren't currently
         # configured.
-        if not has_creds and deepsuck_slug == "anthropic":
+        if not has_creds and dag_slug == "anthropic":
             try:
                 from agent.anthropic_adapter import (
                     read_claude_code_credentials,
-                    read_deepsuck_oauth_credentials,
+                    read_dag_oauth_credentials,
                 )
-                deepsuck_creds = read_deepsuck_oauth_credentials()
+                dag_creds = read_dag_oauth_credentials()
                 cc_creds = read_claude_code_credentials()
-                if (deepsuck_creds and deepsuck_creds.get("accessToken")) or \
+                if (dag_creds and dag_creds.get("accessToken")) or \
                    (cc_creds and cc_creds.get("accessToken")):
                     has_creds = True
             except Exception as exc:
@@ -1525,7 +1525,7 @@ def list_authenticated_providers(
         if not has_creds:
             continue
 
-        if deepsuck_slug in {"openai-codex", "copilot", "copilot-acp"}:
+        if dag_slug in {"openai-codex", "copilot", "copilot-acp"}:
             # Use live OAuth-backed discovery so the gateway /model picker
             # matches what the user's authenticated Codex/Copilot backend
             # actually serves — including ChatGPT-Pro-only Codex slugs
@@ -1533,19 +1533,19 @@ def list_authenticated_providers(
             # catalog. ``cached_provider_model_ids()`` falls back to the
             # curated list when the live endpoint is unreachable, so this
             # is safe for unauthenticated and offline cases too.
-            model_ids = cached_provider_model_ids(deepsuck_slug)
+            model_ids = cached_provider_model_ids(dag_slug)
         # For aws_sdk providers (bedrock), use live discovery so the list
         # reflects the active region (eu.*, ap.*) not the static us.* list.
         elif overlay.auth_type == "aws_sdk":
             try:
-                _ids = cached_provider_model_ids(deepsuck_slug)
-                model_ids = _ids if _ids else (curated.get(deepsuck_slug, []) or curated.get(pid, []))
+                _ids = cached_provider_model_ids(dag_slug)
+                model_ids = _ids if _ids else (curated.get(dag_slug, []) or curated.get(pid, []))
             except Exception:
-                model_ids = curated.get(deepsuck_slug, []) or curated.get(pid, [])
-        elif deepsuck_slug == "nous":
+                model_ids = curated.get(dag_slug, []) or curated.get(pid, [])
+        elif dag_slug == "nous":
             # Nous serves a large live /v1/models catalog (vendor-prefixed
             # models from many providers, returned alphabetically). The
-            # `deepsuck model` picker deliberately shows ONLY the curated agentic
+            # `dag model` picker deliberately shows ONLY the curated agentic
             # list — augmented with the Portal's free/paid recommendations so
             # newly-launched models surface without a CLI release — in curated
             # order. Mirror that exactly (see _model_flow_nous in main.py) so
@@ -1555,13 +1555,13 @@ def list_authenticated_providers(
             # recommendations (e.g. stepfun/step-3.7-flash:free).
             model_ids = curated.get("nous", [])
             try:
-                from deepsuck_cli.models import (
+                from dag_cli.models import (
                     get_pricing_for_provider as _nous_pricing,
                     check_nous_free_tier as _nous_free,
                     union_with_portal_free_recommendations as _union_free,
                     union_with_portal_paid_recommendations as _union_paid,
                 )
-                from deepsuck_cli.auth import get_provider_auth_state as _nous_state
+                from dag_cli.auth import get_provider_auth_state as _nous_state
 
                 _pricing = _nous_pricing("nous") or {}
                 _portal = ""
@@ -1583,33 +1583,33 @@ def list_authenticated_providers(
             # Unified pathway — see Section 1 rationale. Fall back to the
             # curated dict (with models.dev merge for preferred providers)
             # when the live fetcher comes up empty.
-            model_ids = cached_provider_model_ids(deepsuck_slug)
+            model_ids = cached_provider_model_ids(dag_slug)
             if not model_ids:
-                model_ids = curated.get(deepsuck_slug, []) or curated.get(pid, [])
-                if deepsuck_slug in _MODELS_DEV_PREFERRED:
-                    model_ids = _merge_with_models_dev(deepsuck_slug, model_ids)
+                model_ids = curated.get(dag_slug, []) or curated.get(pid, [])
+                if dag_slug in _MODELS_DEV_PREFERRED:
+                    model_ids = _merge_with_models_dev(dag_slug, model_ids)
         total = len(model_ids)
         top = model_ids[:max_models]
 
         results.append({
-            "slug": deepsuck_slug,
-            "name": get_label(deepsuck_slug),
-            "is_current": deepsuck_slug == current_provider or pid == current_provider,
+            "slug": dag_slug,
+            "name": get_label(dag_slug),
+            "is_current": dag_slug == current_provider or pid == current_provider,
             "is_user_defined": False,
             "models": top,
             "total_models": total,
-            "source": "deepsuck",
+            "source": "dag",
         })
         seen_slugs.add(pid.lower())
-        seen_slugs.add(deepsuck_slug.lower())
-        _record_builtin_endpoint(deepsuck_slug)
+        seen_slugs.add(dag_slug.lower())
+        _record_builtin_endpoint(dag_slug)
 
     # --- 2b. Cross-check canonical provider list ---
     # Catches providers that are in CANONICAL_PROVIDERS but weren't found
     # in PROVIDER_TO_MODELS_DEV or DEEPSUCK_OVERLAYS (keeps /model in sync
-    # with `deepsuck model`).
+    # with `dag model`).
     try:
-        from deepsuck_cli.models import CANONICAL_PROVIDERS as _canon_provs
+        from dag_cli.models import CANONICAL_PROVIDERS as _canon_provs
     except ImportError:
         _canon_provs = []
 
@@ -1625,7 +1625,7 @@ def list_authenticated_providers(
         # Also check auth store and credential pool
         if not _cp_has_creds:
             try:
-                from deepsuck_cli.auth import _load_auth_store
+                from dag_cli.auth import _load_auth_store
                 _cp_store = _load_auth_store()
                 _cp_providers_store = _cp_store.get("providers", {})
                 if _cp_store and _cp.slug in _cp_providers_store:
@@ -1695,7 +1695,7 @@ def list_authenticated_providers(
             if ep_name.lower() in seen_slugs:
                 continue
             display_name = ep_cfg.get("name", "") or ep_name
-            # ``base_url`` is Deepsuck's canonical write key (matches
+            # ``base_url`` is Dag's canonical write key (matches
             # custom_providers and _save_custom_provider); ``api`` / ``url``
             # remain as fallbacks for hand-edited / legacy configs.
             api_url = (
@@ -1713,8 +1713,8 @@ def list_authenticated_providers(
             if default_model:
                 models_list.append(default_model)
             # Also include the full models list from config.
-            # Deepsuck writes ``models:`` as a dict keyed by model id
-            # (see deepsuck_cli/main.py::_save_custom_provider); older
+            # DAG writes ``models:`` as a dict keyed by model id
+            # (see dag_cli/main.py::_save_custom_provider); older
             # configs or hand-edited files may still use a list.
             cfg_models = ep_cfg.get("models", [])
             if isinstance(cfg_models, dict):
@@ -1748,7 +1748,7 @@ def list_authenticated_providers(
                 discover = discover.lower() not in {"false", "no", "0"}
             if api_url and api_key and discover:
                 try:
-                    from deepsuck_cli.models import fetch_api_models
+                    from dag_cli.models import fetch_api_models
                     live_models = fetch_api_models(api_key, api_url)
                     if live_models:
                         models_list = live_models
@@ -1869,7 +1869,7 @@ def list_authenticated_providers(
             if group_key not in groups:
                 # Strip per-model suffix so "Ollama — GLM 5.1" becomes
                 # "Ollama" for the grouped row. Em dash is the convention
-                # Deepsuck's own writer uses; a hyphen variant is accepted
+                # Dag's own writer uses; a hyphen variant is accepted
                 # for hand-edited configs.
                 display_name = raw_name
                 for sep in ("—", " - "):
@@ -1896,10 +1896,10 @@ def list_authenticated_providers(
                     groups[group_key]["discover_models"] = False
 
             # The singular ``model:`` field only holds the currently
-            # active model. Deepsuck's own writer (main.py::_save_custom_provider)
+            # active model. Dag's own writer (main.py::_save_custom_provider)
             # stores every configured model as a dict under ``models:``;
             # downstream readers (agent/models_dev.py, gateway/run.py,
-            # run_agent.py, deepsuck_cli/config.py) already consume that dict.
+            # run_agent.py, dag_cli/config.py) already consume that dict.
             default_model = (entry.get("model") or "").strip()
             if default_model and default_model not in groups[group_key]["models"]:
                 groups[group_key]["models"].append(default_model)
@@ -1994,7 +1994,7 @@ def list_authenticated_providers(
             )
             if should_probe:
                 try:
-                    from deepsuck_cli.models import fetch_api_models
+                    from dag_cli.models import fetch_api_models
 
                     live_models = fetch_api_models(api_key, api_url)
                     if live_models:
@@ -2041,7 +2041,7 @@ def list_picker_providers(
     current install:
 
     - OpenRouter's model list is replaced with the output of
-      :func:`deepsuck_cli.models.fetch_openrouter_models`, which filters the
+      :func:`dag_cli.models.fetch_openrouter_models`, which filters the
       curated ``OPENROUTER_MODELS`` snapshot against the live OpenRouter
       catalog.  IDs the live catalog no longer carries drop out, so the
       picker never offers a model the user can't call.
@@ -2053,7 +2053,7 @@ def list_picker_providers(
     The typed ``/model <name>`` path is unaffected -- only the interactive
     picker payload is narrowed.
     """
-    from deepsuck_cli.models import fetch_openrouter_models
+    from dag_cli.models import fetch_openrouter_models
 
     providers = list_authenticated_providers(
         current_provider=current_provider,

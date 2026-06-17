@@ -1,6 +1,6 @@
-"""Shared curses-based UI components for Deepsuck CLI.
+"""Shared curses-based UI components for Dag CLI.
 
-Used by `deepsuck tools` and `deepsuck skills` for interactive checklists.
+Used by `dag tools` and `dag skills` for interactive checklists.
 Provides a curses multi-select with keyboard navigation, plus a
 text-based numbered fallback for terminals without curses support.
 """
@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Set
 
-from deepsuck_cli.colors import Colors, color
+from dag_cli.colors import Colors, color
 
 
 def _query_matches(label: str, query: str) -> bool:

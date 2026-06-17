@@ -4,8 +4,8 @@ import sys, json
 from pathlib import Path
 from datetime import datetime
 
-M = Path.home() / ".deepsuck" / "metrics"
-R = Path.home() / ".deepsuck" / "intel-reports"; R.mkdir(parents=True, exist_ok=True)
+M = Path.home() / ".dag" / "metrics"
+R = Path.home() / ".dag" / "intel-reports"; R.mkdir(parents=True, exist_ok=True)
 
 if __name__ == "__main__":
     try: p = json.loads(sys.stdin.read())

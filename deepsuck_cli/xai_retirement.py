@@ -2,9 +2,9 @@
 
 Source: https://docs.x.ai/developers/migration/may-15-retirement
 
-Pure logic: walks a Deepsuck config dict, returns issues for any reference
+Pure logic: walks a Dag config dict, returns issues for any reference
 to a retired xAI model. No I/O, no CLI dependencies — testable in isolation
-and reusable from both `deepsuck doctor` and a future `deepsuck migrate xai`.
+and reusable from both `dag doctor` and a future `dag migrate xai`.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ _RETIRED_MODELS: Dict[str, Dict[str, Optional[str]]] = {
 
 @dataclass(frozen=True)
 class RetirementIssue:
-    """A reference to a retired xAI model found in a Deepsuck config."""
+    """A reference to a retired xAI model found in a Dag config."""
 
     config_path: str            # e.g. "principal.model" or "auxiliary.vision.model"
     current_model: str          # exact value found in config (preserves casing/prefix)
@@ -60,7 +60,7 @@ def _looks_like_xai(model_id: Optional[str]) -> bool:
 
 
 def find_retired_xai_refs(config: Dict[str, Any]) -> List[RetirementIssue]:
-    """Walk all model slots in a Deepsuck config and return retirement issues.
+    """Walk all model slots in a Dag config and return retirement issues.
 
     Slots scanned:
       - ``principal.model``

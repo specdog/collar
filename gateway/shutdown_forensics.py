@@ -168,7 +168,7 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
     # _PLANNED_STOP_MARKER_FILENAME); we use string literals here so the
     # signal-handler path stays import-light.
     try:
-        hermes_home_str = os.environ.get("DEEPSUCK_HOME")
+        hermes_home_str = os.environ.get("DAG_HOME")
         if hermes_home_str:
             takeover_path = Path(hermes_home_str) / ".gateway-takeover.json"
             if takeover_path.exists():
@@ -323,7 +323,7 @@ def check_systemd_timing_alignment(drain_timeout: float) -> Optional[Dict[str, A
     """At startup, sanity-check that systemd's TimeoutStopSec >= drain_timeout.
 
     When the gateway is run under a stale systemd unit file (e.g. the user
-    upgraded deepsuck-agent but never re-ran ``deepsuck setup`` to regenerate
+    upgraded dag-agent but never re-ran ``dag setup`` to regenerate
     the unit), ``TimeoutStopSec`` can be smaller than the configured
     ``restart_drain_timeout``.  Result: SIGTERM arrives, the drain starts,
     and systemd SIGKILLs the cgroup mid-drain — looks like a phantom kill

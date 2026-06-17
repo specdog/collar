@@ -1,12 +1,12 @@
 """
-Deepsuck Agent — Web UI server.
+DAG Agent — Web UI server.
 
 Provides a FastAPI backend serving the Vite/React frontend and REST API
 endpoints for managing configuration, environment variables, and sessions.
 
 Usage:
-    python -m deepsuck_cli.main web          # Start on http://127.0.0.1:9119
-    python -m deepsuck_cli.main web --port 8080
+    python -m dag_cli.main web          # Start on http://127.0.0.1:9119
+    python -m dag_cli.main web --port 8080
 """
 
 from contextlib import asynccontextmanager, contextmanager
@@ -43,14 +43,14 @@ PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from deepsuck_cli import __version__, __release_date__
-from deepsuck_cli.config import (
+from dag_cli import __version__, __release_date__
+from dag_cli.config import (
     cfg_get,
     DEFAULT_CONFIG,
     OPTIONAL_ENV_VARS,
     get_config_path,
     get_env_path,
-    get_deepsuck_home,
+    get_dag_home,
     load_config,
     load_env,
     save_config,
@@ -73,7 +73,7 @@ try:
     from pydantic import BaseModel
 except ImportError:
     # First try lazy-installing the dashboard extras. Only the user actually
-    # running `deepsuck dashboard` needs fastapi+uvicorn; lazy install keeps
+    # running `dag dashboard` needs fastapi+uvicorn; lazy install keeps
     # them out of every other install path. After install, re-import.
     try:
         from tools.lazy_deps import ensure as _lazy_ensure
@@ -107,14 +107,14 @@ _log = logging.getLogger(__name__)
 def _start_desktop_cron_ticker(stop_event: "threading.Event", interval: int = 60) -> None:
     """Tick the cron scheduler from inside the desktop dashboard backend.
 
-    The scheduler tick loop normally lives in ``deepsuck gateway run`` — but the
-    desktop app spawns a ``deepsuck dashboard`` backend, not a gateway, so a cron
+    The scheduler tick loop normally lives in ``dag gateway run`` — but the
+    desktop app spawns a ``dag dashboard`` backend, not a gateway, so a cron
     a user creates in the app would never fire. We run a minimal ticker here
     (no live adapters; delivery falls back to the per-platform send path).
 
     Cross-process safe: ``cron.scheduler.tick`` takes the ``cron/.tick.lock``
     file lock, so this never double-fires alongside a real gateway on the same
-    DEEPSUCK_HOME — whichever process grabs the lock first wins the tick.
+    DAG_HOME — whichever process grabs the lock first wins the tick.
     """
     from cron.scheduler import tick as cron_tick
 
@@ -134,7 +134,7 @@ async def _lifespan(app: "FastAPI"):
     app.state.event_lock = asyncio.Lock()
 
     # Desktop-spawned backends (DEEPSUCK_DESKTOP=1) fire cron jobs themselves,
-    # since the app has no gateway running the scheduler. Server `deepsuck
+    # since the app has no gateway running the scheduler. Server `dag
     # dashboard` is unaffected — it relies on its own gateway.
     cron_stop: "threading.Event | None" = None
     cron_thread: "threading.Thread | None" = None
@@ -172,7 +172,7 @@ def _get_event_state(app: "FastAPI"):
         return app.state.event_channels, app.state.event_lock
 
 
-app = FastAPI(title="Deepsuck Agent", version=__version__, lifespan=_lifespan)
+app = FastAPI(title="DAG Agent", version=__version__, lifespan=_lifespan)
 
 # ---------------------------------------------------------------------------
 # Session token for protecting sensitive endpoints (reveal).
@@ -183,7 +183,7 @@ app = FastAPI(title="Deepsuck Agent", version=__version__, lifespan=_lifespan)
 # injected into the SPA HTML so only the legitimate web UI can use it.
 # ---------------------------------------------------------------------------
 _SESSION_TOKEN = os.environ.get("DEEPSUCK_DASHBOARD_SESSION_TOKEN") or secrets.token_urlsafe(32)
-_SESSION_HEADER_NAME = "X-Deepsuck-Session-Token"
+_SESSION_HEADER_NAME = "X-Dag-Session-Token"
 
 # In-browser Chat tab (/chat, /api/pty, /api/ws, …).  Always enabled: the
 # desktop app and the dashboard's own Chat tab both drive the agent over the
@@ -213,7 +213,7 @@ app.add_middleware(
 # Endpoints that do NOT require the session token.  Everything else under
 # /api/ is gated by the auth middleware below.
 #
-# This list is defined in ``deepsuck_cli.dashboard_auth.public_paths`` so the
+# This list is defined in ``dag_cli.dashboard_auth.public_paths`` so the
 # OAuth gate middleware can honour the same allowlist — keeping the two
 # gates in lockstep avoids drift like the wildcard-subdomain regression
 # where ``/api/status`` was public under the legacy gate but 401'd under
@@ -222,7 +222,7 @@ app.add_middleware(
 # Keep the upstream list minimal — only truly non-sensitive, read-only
 # endpoints belong there.
 # ---------------------------------------------------------------------------
-from deepsuck_cli.dashboard_auth.public_paths import (
+from dag_cli.dashboard_auth.public_paths import (
     PUBLIC_API_PATHS as _PUBLIC_API_PATHS,
 )
 
@@ -254,7 +254,7 @@ def _require_token(request: Request) -> None:
 
     * **Loopback / ``--insecure`` mode** (``auth_required`` False): the
       ephemeral ``_SESSION_TOKEN`` is injected into the SPA HTML and echoed
-      back via ``X-Deepsuck-Session-Token`` (or the legacy ``Bearer`` header).
+      back via ``X-Dag-Session-Token`` (or the legacy ``Bearer`` header).
       Validate it here.
     * **Gated / OAuth mode** (``auth_required`` True): ``_SESSION_TOKEN`` is
       NOT injected (the SPA authenticates with a session cookie), so there is
@@ -389,7 +389,7 @@ async def host_header_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def _dashboard_auth_gate(request: Request, call_next):
-    from deepsuck_cli.dashboard_auth.middleware import gated_auth_middleware
+    from dag_cli.dashboard_auth.middleware import gated_auth_middleware
     return await gated_auth_middleware(request, call_next)
 
 
@@ -512,7 +512,7 @@ _SCHEMA_OVERRIDES: Dict[str, Dict[str, Any]] = {
     "updates.non_interactive_local_changes": {
         "type": "select",
         "description": (
-            "When the chat app / gateway updates Deepsuck (no terminal prompt), "
+            "When the chat app / gateway updates Dag (no terminal prompt), "
             "what to do with uncommitted local source edits. 'stash' keeps them "
             "and re-applies them after the update; 'discard' throws them away. "
             "Terminal updates always ask, regardless of this setting."
@@ -731,7 +731,7 @@ class ModelAssignment(BaseModel):
     # Optional API key for a custom/local endpoint. Persisted to
     # ``model.api_key`` (where the runtime resolver reads it) so a self-hosted
     # endpoint that requires auth works from the GUI — mirrors the key the
-    # ``deepsuck model`` custom flow collects. Honored only on the main slot for
+    # ``dag model`` custom flow collects. Honored only on the main slot for
     # custom/local providers.
     api_key: str = ""
     confirm_expensive_model: bool = False
@@ -743,7 +743,7 @@ def _normalize_main_model_assignment(provider: str, model: str) -> tuple[str, st
 
     The Models page has two assignment paths and only one of them was safe:
 
-    - The "Change" picker sends a real Deepsuck provider slug — fine.
+    - The "Change" picker sends a real Dag provider slug — fine.
     - The per-card "Use as → Main model" menu sends ``entry.provider``
       from the analytics rows, falling back to the model's VENDOR prefix
       (``modelVendor("anthropic/claude-opus-4.6") == "anthropic"``) when
@@ -756,8 +756,8 @@ def _normalize_main_model_assignment(provider: str, model: str) -> tuple[str, st
 
     Two repairs, both at this single chokepoint so every caller inherits:
 
-    1. Vendor-name → Deepsuck-provider mapping: when the provider string is
-       not a known Deepsuck provider/alias (e.g. ``moonshotai``, ``x-ai`` is
+    1. Vendor-name → Dag-provider mapping: when the provider string is
+       not a known Dag provider/alias (e.g. ``moonshotai``, ``x-ai`` is
        known but ``poolside`` isn't) but the model is a vendor-prefixed
        aggregator slug, keep the user's CURRENT aggregator if they're on
        one, else fall back to openrouter.
@@ -765,8 +765,8 @@ def _normalize_main_model_assignment(provider: str, model: str) -> tuple[str, st
        ``normalize_model_for_provider`` (e.g. ``anthropic/claude-opus-4.6``
        on native anthropic → ``claude-opus-4-6``).
     """
-    from deepsuck_cli.models import _KNOWN_PROVIDER_NAMES, normalize_provider
-    from deepsuck_cli.model_normalize import normalize_model_for_provider
+    from dag_cli.models import _KNOWN_PROVIDER_NAMES, normalize_provider
+    from dag_cli.model_normalize import normalize_model_for_provider
 
     prov_in = (provider or "").strip()
     model_in = (model or "").strip()
@@ -784,7 +784,7 @@ def _normalize_main_model_assignment(provider: str, model: str) -> tuple[str, st
             )
         except Exception:
             cur_provider = ""
-        from deepsuck_cli.models import _AGGREGATOR_PROVIDERS
+        from dag_cli.models import _AGGREGATOR_PROVIDERS
         if cur_provider and normalize_provider(cur_provider) in _AGGREGATOR_PROVIDERS:
             canonical = normalize_provider(cur_provider)
             prov_in = cur_provider
@@ -1124,7 +1124,7 @@ def _media_serve_roots() -> list[Path]:
     key or a screenshot outside the cache) merely because the suffix passes the
     allowlist.
     """
-    home = get_deepsuck_home()
+    home = get_dag_home()
     roots = [home / "images", home / "screenshots", home / "cache"]
     out: list[Path] = []
     for root in roots:
@@ -1211,14 +1211,14 @@ def _local_dashboard_request(request: Request) -> bool:
     return host in local_hosts or client_host in local_hosts
 
 
-def _default_deepsuck_root_is_opt_data() -> bool:
-    raw = os.environ.get("DEEPSUCK_HOME", "").strip()
+def _default_dag_root_is_opt_data() -> bool:
+    raw = os.environ.get("DAG_HOME", "").strip()
     if not raw:
         return False
     try:
-        from deepsuck_constants import get_default_deepsuck_root
+        from dag_constants import get_default_dag_root
 
-        root = get_default_deepsuck_root().expanduser().resolve(strict=False)
+        root = get_default_dag_root().expanduser().resolve(strict=False)
     except (OSError, RuntimeError):
         root = Path(raw).expanduser().resolve(strict=False)
     return root == _HOSTED_MANAGED_FILES_ROOT
@@ -1233,9 +1233,9 @@ def _managed_files_policy(request: Request, *, create_root: bool = True) -> Mana
     # Remote/OAuth access does not imply a hosted container. Users can expose a
     # local dashboard through the auth gate (for example a macOS launchd install)
     # and still expect the Files page to browse their local home directory. Lock
-    # to /opt/data only when the installation's Deepsuck root is actually /opt/data
+    # to /opt/data only when the installation's Dag root is actually /opt/data
     # (the container/hosted layout) or when DEEPSUCK_DASHBOARD_FILES_ROOT is set.
-    if _default_deepsuck_root_is_opt_data():
+    if _default_dag_root_is_opt_data():
         root = _ensure_managed_root(_HOSTED_MANAGED_FILES_ROOT) if create_root else _HOSTED_MANAGED_FILES_ROOT
         return ManagedFilesPolicy(default_path=root, locked_root=root, can_change_path=False)
 
@@ -1617,7 +1617,7 @@ async def get_status():
 
     active_sessions = 0
     try:
-        from deepsuck_state import SessionDB
+        from dag_state import SessionDB
         db = SessionDB()
         try:
             sessions = db.list_sessions_rich(limit=50)
@@ -1633,13 +1633,13 @@ async def get_status():
         pass
 
     # Dashboard auth gate (Phase 7): surface whether the gate is engaged
-    # and which providers are registered so ``deepsuck status`` and the
+    # and which providers are registered so ``dag status`` and the
     # SPA's StatusPage can show "OAuth gate ON via Nous Research" or
     # "loopback only — no auth gate" with no extra round trips.
     auth_required = bool(getattr(app.state, "auth_required", False))
     auth_providers: list[str] = []
     try:
-        from deepsuck_cli.dashboard_auth import list_providers as _list_providers
+        from dag_cli.dashboard_auth import list_providers as _list_providers
         auth_providers = [p.name for p in _list_providers()]
     except Exception:
         # Module not importable yet (early startup) — leave as [].
@@ -1676,7 +1676,7 @@ async def get_status():
     # envelope — the same loopback/gated split ``should_require_auth`` draws.
     if not auth_required:
         status.update({
-            "deepsuck_home": str(get_deepsuck_home()),
+            "dag_home": str(get_dag_home()),
             "config_path": str(get_config_path()),
             "env_path": str(get_env_path()),
             "gateway_pid": gateway_pid,
@@ -1735,7 +1735,7 @@ async def get_system_stats():
 
     OS / Python / host identity from stdlib; CPU / memory / disk / uptime from
     psutil when available, with graceful degradation when it isn't.  Read-only
-    and non-sensitive (no env values, no paths beyond the deepsuck home root).
+    and non-sensitive (no env values, no paths beyond the dag home root).
     """
     import platform as _platform
 
@@ -1750,7 +1750,7 @@ async def get_system_stats():
         "hostname": _platform.node(),
         "python_version": _platform.python_version(),
         "python_impl": _platform.python_implementation(),
-        "deepsuck_version": __version__,
+        "dag_version": __version__,
         "cpu_count": os.cpu_count(),
     }
 
@@ -1766,7 +1766,7 @@ async def get_system_stats():
             "percent": vm.percent,
         }
         try:
-            du = psutil.disk_usage(str(get_deepsuck_home()))
+            du = psutil.disk_usage(str(get_dag_home()))
             info["disk"] = {
                 "total": du.total,
                 "used": du.used,
@@ -1815,7 +1815,7 @@ async def get_system_stats():
 #
 # The curator periodically reviews skills (archive stale, prune, pin).  The
 # dashboard surfaces its state and the pause/resume/run-now controls that
-# `deepsuck curator` exposes.
+# `dag curator` exposes.
 # ---------------------------------------------------------------------------
 
 
@@ -1856,7 +1856,7 @@ async def set_curator_paused(body: CuratorPause):
 async def run_curator():
     """Trigger a curator review now (backgrounded; tail via action status)."""
     try:
-        proc = _spawn_deepsuck_action(["curator", "run"], "curator-run")
+        proc = _spawn_dag_action(["curator", "run"], "curator-run")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to run curator: {exc}")
     return {"ok": True, "pid": proc.pid, "name": "curator-run"}
@@ -1880,7 +1880,7 @@ async def get_portal_status():
     cfg = load_config() or {}
     auth: Dict[str, Any] = {}
     try:
-        from deepsuck_cli.auth import get_nous_auth_status
+        from dag_cli.auth import get_nous_auth_status
 
         auth = get_nous_auth_status() or {}
     except Exception:
@@ -1888,7 +1888,7 @@ async def get_portal_status():
 
     features = []
     try:
-        from deepsuck_cli.nous_subscription import get_nous_subscription_features
+        from dag_cli.nous_subscription import get_nous_subscription_features
 
         feats = get_nous_subscription_features(cfg)
         if feats is not None:
@@ -1926,7 +1926,7 @@ async def get_portal_status():
 @app.post("/api/ops/prompt-size")
 async def run_prompt_size():
     try:
-        proc = _spawn_deepsuck_action(["prompt-size"], "prompt-size")
+        proc = _spawn_dag_action(["prompt-size"], "prompt-size")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed: {exc}")
     return {"ok": True, "pid": proc.pid, "name": "prompt-size"}
@@ -1935,7 +1935,7 @@ async def run_prompt_size():
 @app.post("/api/ops/dump")
 async def run_dump():
     try:
-        proc = _spawn_deepsuck_action(["dump"], "dump")
+        proc = _spawn_dag_action(["dump"], "dump")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed: {exc}")
     return {"ok": True, "pid": proc.pid, "name": "dump"}
@@ -1944,7 +1944,7 @@ async def run_dump():
 @app.post("/api/ops/config-migrate")
 async def run_config_migrate():
     try:
-        proc = _spawn_deepsuck_action(["config", "migrate"], "config-migrate")
+        proc = _spawn_dag_action(["config", "migrate"], "config-migrate")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed: {exc}")
     return {"ok": True, "pid": proc.pid, "name": "config-migrate"}
@@ -1970,7 +1970,7 @@ async def run_debug_share_endpoint(body: DebugShareRequest | None = None):
     dashboard renders those as real, copyable links instead of scraping a log
     tail. Pastes auto-delete after 6 hours (handled inside the share core).
     """
-    from deepsuck_cli.debug import build_debug_share
+    from dag_cli.debug import build_debug_share
 
     req = body or DebugShareRequest()
     try:
@@ -2001,18 +2001,18 @@ async def run_debug_share_endpoint(body: DebugShareRequest | None = None):
 # Both commands are spawned as detached subprocesses so the HTTP request
 # returns immediately.  stdin is closed (``DEVNULL``) so any stray ``input()``
 # calls fail fast with EOF rather than hanging forever.  stdout/stderr are
-# streamed to a per-action log file under ``~/.deepsuck/logs/<action>.log`` so
+# streamed to a per-action log file under ``~/.dag/logs/<action>.log`` so
 # the dashboard can tail them back to the user.
 # ---------------------------------------------------------------------------
 
-_ACTION_LOG_DIR: Path = get_deepsuck_home() / "logs"
+_ACTION_LOG_DIR: Path = get_dag_home() / "logs"
 
 # Short ``name`` (from the URL) → absolute log file path.
 _ACTION_LOG_FILES: Dict[str, str] = {
     "gateway-restart": "gateway-restart.log",
     "gateway-start": "gateway-start.log",
     "gateway-stop": "gateway-stop.log",
-    "deepsuck-update": "deepsuck-update.log",
+    "dag-update": "dag-update.log",
     "doctor": "action-doctor.log",
     "security-audit": "action-security-audit.log",
     "backup": "action-backup.log",
@@ -2053,10 +2053,10 @@ def _record_completed_action(name: str, message: str, exit_code: int = 1) -> Non
     _ACTION_RESULTS[name] = {"exit_code": exit_code, "pid": None}
 
 
-def _spawn_deepsuck_action(subcommand: List[str], name: str) -> subprocess.Popen:
-    """Spawn ``deepsuck <subcommand>`` detached and record the Popen handle.
+def _spawn_dag_action(subcommand: List[str], name: str) -> subprocess.Popen:
+    """Spawn ``dag <subcommand>`` detached and record the Popen handle.
 
-    Uses the running interpreter's ``deepsuck_cli.main`` module so the action
+    Uses the running interpreter's ``dag_cli.main`` module so the action
     inherits the same venv/PYTHONPATH the web server is using.
     """
     log_file_name = _ACTION_LOG_FILES[name]
@@ -2067,7 +2067,7 @@ def _spawn_deepsuck_action(subcommand: List[str], name: str) -> subprocess.Popen
         f"\n=== {name} started {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n".encode()
     )
 
-    cmd = [sys.executable, "-m", "deepsuck_cli.main", *subcommand]
+    cmd = [sys.executable, "-m", "dag_cli.main", *subcommand]
 
     popen_kwargs: Dict[str, Any] = {
         "cwd": str(PROJECT_ROOT),
@@ -2109,12 +2109,12 @@ def _tail_lines(path: Path, n: int) -> List[str]:
 
 
 def _spawn_gateway_restart() -> Tuple[subprocess.Popen, bool]:
-    """Spawn ``deepsuck gateway restart``, reusing an in-flight restart.
+    """Spawn ``dag gateway restart``, reusing an in-flight restart.
 
     Multiple dashboard paths can request a restart in quick succession
     (restart button double-click, or a stale cached frontend firing its own
     restart after the server already auto-restarted post-onboarding). Two
-    concurrent ``deepsuck gateway restart`` children race each other on the
+    concurrent ``dag gateway restart`` children race each other on the
     manual kill-and-start path, so reuse the live one instead.
 
     Returns ``(proc, reused)``.
@@ -2122,7 +2122,7 @@ def _spawn_gateway_restart() -> Tuple[subprocess.Popen, bool]:
     existing = _ACTION_PROCS.get("gateway-restart")
     if existing is not None and existing.poll() is None:
         return existing, True
-    return _spawn_deepsuck_action(["gateway", "restart"], "gateway-restart"), False
+    return _spawn_dag_action(["gateway", "restart"], "gateway-restart"), False
 
 
 def _restart_gateway_after_webhook_enable() -> dict[str, Any]:
@@ -2149,7 +2149,7 @@ def _restart_gateway_after_webhook_enable() -> dict[str, Any]:
 
 @app.post("/api/gateway/restart")
 async def restart_gateway():
-    """Kick off a ``deepsuck gateway restart`` in the background."""
+    """Kick off a ``dag gateway restart`` in the background."""
     try:
         proc, _reused = _spawn_gateway_restart()
     except Exception as exc:
@@ -2162,31 +2162,31 @@ async def restart_gateway():
     }
 
 
-@app.post("/api/deepsuck/update")
-async def update_deepsuck():
-    """Kick off ``deepsuck update`` in the background."""
+@app.post("/api/dag/update")
+async def update_dag():
+    """Kick off ``dag update`` in the background."""
     install_method = detect_install_method(PROJECT_ROOT)
     if install_method == "docker":
         message = format_docker_update_message()
-        _record_completed_action("deepsuck-update", message, exit_code=1)
+        _record_completed_action("dag-update", message, exit_code=1)
         return {
             "ok": False,
             "pid": None,
-            "name": "deepsuck-update",
+            "name": "dag-update",
             "error": "docker_update_unsupported",
             "message": message,
             "update_command": recommended_update_command_for_method(install_method),
         }
 
     try:
-        proc = _spawn_deepsuck_action(["update"], "deepsuck-update")
+        proc = _spawn_dag_action(["update"], "dag-update")
     except Exception as exc:
-        _log.exception("Failed to spawn deepsuck update")
+        _log.exception("Failed to spawn dag update")
         raise HTTPException(status_code=500, detail=f"Failed to start update: {exc}")
     return {
         "ok": True,
         "pid": proc.pid,
-        "name": "deepsuck-update",
+        "name": "dag-update",
     }
 
 
@@ -2238,17 +2238,17 @@ def _recent_upstream_commits(n: int = 20) -> List[Dict[str, Any]]:
         return []
 
 
-@app.get("/api/deepsuck/update/check")
-async def check_deepsuck_update(force: bool = False):
-    """Report whether a Deepsuck update is available, without applying it.
+@app.get("/api/dag/update/check")
+async def check_dag_update(force: bool = False):
+    """Report whether a Dag update is available, without applying it.
 
     Powers the dashboard's "check before you update" flow: the System page
     shows the commit-behind count and asks the user to confirm before
-    ``POST /api/deepsuck/update`` actually runs ``deepsuck update``.
+    ``POST /api/dag/update`` actually runs ``dag update``.
 
     Returns:
         install_method: 'git' | 'pip' | 'docker' | 'nixos' | 'homebrew' | ...
-        current_version: installed Deepsuck version string
+        current_version: installed Dag version string
         behind: commits behind upstream (>=1), 0 if up to date,
                 -1 if behind by an unknown count (nix/pypi), or null if the
                 check could not run (offline, no remote, etc.)
@@ -2285,11 +2285,11 @@ async def check_deepsuck_update(force: bool = False):
     # caches the result for 6h. ``force`` busts the cache so the "Check now"
     # button reflects reality immediately.
     try:
-        from deepsuck_cli.banner import check_for_updates
+        from dag_cli.banner import check_for_updates
 
         if force:
             try:
-                (get_deepsuck_home() / ".update_check").unlink()
+                (get_dag_home() / ".update_check").unlink()
             except OSError:
                 pass
 
@@ -2352,7 +2352,7 @@ async def transcribe_audio_upload(payload: AudioTranscriptionRequest):
     try:
         suffix = _audio_extension_for_mime(mime_type)
         with tempfile.NamedTemporaryFile(
-            prefix="deepsuck-desktop-voice-",
+            prefix="dag-desktop-voice-",
             suffix=suffix,
             delete=False,
         ) as tmp:
@@ -2456,7 +2456,7 @@ async def speak_text(payload: TTSSpeakRequest):
     Used by the desktop voice-conversation mode to play back assistant
     responses without exposing the on-disk file path. Reuses the
     existing TTS provider chain (Edge / OpenAI / ElevenLabs / etc.)
-    configured in ``~/.deepsuck/config.yaml`` under ``tts.``.
+    configured in ``~/.dag/config.yaml`` under ``tts.``.
     """
     text = (payload.text or "").strip()
     if not text:
@@ -2662,8 +2662,8 @@ async def get_profiles_sessions(
     if order not in ("created", "recent"):
         raise HTTPException(status_code=400, detail="order must be one of: created, recent")
 
-    from deepsuck_state import SessionDB
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_state import SessionDB
+    from dag_cli import profiles as profiles_mod
 
     targets: List[Tuple[str, Path]] = []
     if profile and profile != "all":
@@ -2863,7 +2863,7 @@ async def search_sessions(q: str = "", limit: int = 20, profile: Optional[str] =
                 seen[root] = payload
 
             # Direct ID matches first: users often paste a session id from CLI,
-            # logs, or another Deepsuck surface. FTS can't find those unless the
+            # logs, or another Dag surface. FTS can't find those unless the
             # id happens to appear in message text. search_sessions_by_id is
             # SQL-bounded, so this stays cheap even with thousands of sessions.
             for row in db.search_sessions_by_id(q, limit=safe_limit, include_archived=True):
@@ -2923,7 +2923,7 @@ async def search_sessions(q: str = "", limit: int = 20, profile: Optional[str] =
 def _normalize_config_for_web(config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize config for the web UI.
 
-    Deepsuck supports ``model`` as either a bare string (``"anthropic/claude-sonnet-4"``)
+    Dag supports ``model`` as either a bare string (``"anthropic/claude-sonnet-4"``)
     or a dict (``{default: ..., provider: ..., base_url: ...}``).  The schema is built
     from DEFAULT_CONFIG where ``model`` is a string, but user configs often have the
     dict form.  Normalize to the string form so the frontend schema matches.
@@ -3060,7 +3060,7 @@ def get_model_info(profile: Optional[str] = None):
 # ---------------------------------------------------------------------------
 
 # Canonical auxiliary task slots. Keep in sync with DEFAULT_CONFIG["auxiliary"]
-# in deepsuck_cli/config.py — listed here for deterministic ordering in the UI.
+# in dag_cli/config.py — listed here for deterministic ordering in the UI.
 _AUX_TASK_SLOTS: Tuple[str, ...] = (
     "vision",
     "web_extract",
@@ -3090,12 +3090,12 @@ def get_model_options(profile: Optional[str] = None):
     reads the SAME profile /api/model/set writes.
     """
     try:
-        from deepsuck_cli.inventory import build_models_payload, load_picker_context
+        from dag_cli.inventory import build_models_payload, load_picker_context
 
         # include_unconfigured + picker_hints + canonical_order mirror the
         # tui_gateway `model.options` JSON-RPC handler exactly, so every GUI
         # surface fed by this endpoint (Settings → Model, the first-run
-        # onboarding picker) sees the SAME full provider universe `deepsuck model`
+        # onboarding picker) sees the SAME full provider universe `dag model`
         # exposes — not just the authenticated subset. Unconfigured providers
         # come back as skeleton rows carrying `authenticated=False` +
         # `auth_type`/`key_env`/`warning` so the GUI can render a setup
@@ -3121,7 +3121,7 @@ def get_model_options(profile: Optional[str] = None):
 def get_recommended_default_model(provider: str = ""):
     """Return the recommended default model for a freshly-authenticated provider.
 
-    Mirrors the model-curation `deepsuck model` does so GUI onboarding lands on a
+    Mirrors the model-curation `dag model` does so GUI onboarding lands on a
     sensible default instead of blindly taking the first curated entry. For
     Nous this honors the user's free/paid tier: free users get a free model,
     paid users get the full curated default. For any other provider it falls
@@ -3135,7 +3135,7 @@ def get_recommended_default_model(provider: str = ""):
 
     if slug == "nous":
         try:
-            from deepsuck_cli.models import (
+            from dag_cli.models import (
                 get_curated_nous_model_ids,
                 get_pricing_for_provider,
                 check_nous_free_tier,
@@ -3143,7 +3143,7 @@ def get_recommended_default_model(provider: str = ""):
                 union_with_portal_free_recommendations,
                 union_with_portal_paid_recommendations,
             )
-            from deepsuck_cli.auth import get_provider_auth_state
+            from dag_cli.auth import get_provider_auth_state
 
             model_ids = get_curated_nous_model_ids()
             pricing = get_pricing_for_provider("nous") or {}
@@ -3176,7 +3176,7 @@ def get_recommended_default_model(provider: str = ""):
 
     # Non-Nous: first curated model for the provider, matching prior behaviour.
     try:
-        from deepsuck_cli.inventory import build_models_payload, load_picker_context
+        from dag_cli.inventory import build_models_payload, load_picker_context
 
         payload = build_models_payload(load_picker_context(), max_models=50)
         for row in payload.get("providers", []):
@@ -3244,7 +3244,7 @@ def get_auxiliary_models(profile: Optional[str] = None):
 async def set_model_assignment(body: ModelAssignment, profile: Optional[str] = None):
     """Assign a model to the main slot or an auxiliary task slot.
 
-    Writes to ``~/.deepsuck/config.yaml`` — applies to **new** sessions only.
+    Writes to ``~/.dag/config.yaml`` — applies to **new** sessions only.
     The currently running chat PTY (if any) is not affected; use the
     ``/model`` slash command inside a chat to hot-swap that specific session.
     """
@@ -3265,7 +3265,7 @@ async def set_model_assignment(body: ModelAssignment, profile: Optional[str] = N
         # event-loop thread could cross-restore the module globals).
         if model and not body.confirm_expensive_model:
             try:
-                from deepsuck_cli.model_cost_guard import expensive_model_warning
+                from dag_cli.model_cost_guard import expensive_model_warning
 
                 # Pricing lookup can hit models.dev / a /models endpoint on a
                 # cache miss — keep it off the event loop.
@@ -3322,7 +3322,7 @@ def _apply_model_assignment_sync(
         cfg["model"] = model_cfg
 
         # When switching the main provider to Nous, mirror the CLI's
-        # post-model-selection behaviour (deepsuck_cli/main.py
+        # post-model-selection behaviour (dag_cli/main.py
         # prompt_enable_tool_gateway / tools_config apply_nous_managed_defaults):
         # auto-route any *unconfigured* tools through the Nous Tool Gateway.
         # This is purely additive — apply_nous_managed_defaults skips every
@@ -3333,8 +3333,8 @@ def _apply_model_assignment_sync(
         gateway_tools: list[str] = []
         if provider.strip().lower() == "nous":
             try:
-                from deepsuck_cli.nous_subscription import apply_nous_managed_defaults
-                from deepsuck_cli.tools_config import _get_platform_tools
+                from dag_cli.nous_subscription import apply_nous_managed_defaults
+                from dag_cli.tools_config import _get_platform_tools
 
                 enabled = _get_platform_tools(
                     cfg, "cli", include_default_mcp_servers=False
@@ -3353,14 +3353,14 @@ def _apply_model_assignment_sync(
         save_config(cfg)
 
         # Register a named ``custom_providers`` entry for a custom/local
-        # endpoint, mirroring the ``deepsuck model`` custom flow
+        # endpoint, mirroring the ``dag model`` custom flow
         # (_save_custom_provider). Without this the endpoint only lives in
         # ``model.*`` and the picker has no proper ready row for it — the
         # GUI then surfaces a "needs setup" dead-end on the bare ``custom``
         # provider. Dedups by base_url, so re-saving is idempotent.
         if provider.strip().lower() in {"custom", "local"} and base_url:
             try:
-                from deepsuck_cli.main import _auto_provider_name, _save_custom_provider
+                from dag_cli.main import _auto_provider_name, _save_custom_provider
 
                 _save_custom_provider(
                     base_url,
@@ -3725,14 +3725,14 @@ async def reveal_env_var(
 _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "telegram": {
         "name": "Telegram",
-        "description": "Run Deepsuck from Telegram DMs, groups, and topics.",
+        "description": "Run Dag from Telegram DMs, groups, and topics.",
         "docs_url": "https://core.telegram.org/bots/features#botfather",
         "env_vars": ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS", "TELEGRAM_PROXY"),
         "required_env": ("TELEGRAM_BOT_TOKEN",),
     },
     "discord": {
         "name": "Discord",
-        "description": "Connect Deepsuck to Discord DMs, channels, and threads.",
+        "description": "Connect Dag to Discord DMs, channels, and threads.",
         "docs_url": "https://discord.com/developers/applications",
         "env_vars": (
             "DISCORD_BOT_TOKEN",
@@ -3743,21 +3743,21 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "slack": {
         "name": "Slack",
-        "description": "Use Deepsuck from Slack via Socket Mode.",
+        "description": "Use Dag from Slack via Socket Mode.",
         "docs_url": "https://api.slack.com/apps",
         "env_vars": ("SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"),
         "required_env": ("SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"),
     },
     "mattermost": {
         "name": "Mattermost",
-        "description": "Connect Deepsuck to Mattermost channels and direct messages.",
+        "description": "Connect Dag to Mattermost channels and direct messages.",
         "docs_url": "https://mattermost.com/deploy/",
         "env_vars": ("MATTERMOST_URL", "MATTERMOST_TOKEN", "MATTERMOST_ALLOWED_USERS"),
         "required_env": ("MATTERMOST_URL", "MATTERMOST_TOKEN"),
     },
     "matrix": {
         "name": "Matrix",
-        "description": "Use Deepsuck in Matrix rooms and direct messages.",
+        "description": "Use Dag in Matrix rooms and direct messages.",
         "docs_url": "https://matrix.org/ecosystem/servers/",
         "env_vars": (
             "MATRIX_HOMESERVER",
@@ -3776,22 +3776,22 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "whatsapp": {
         "name": "WhatsApp",
-        "description": "Use Deepsuck through the bundled WhatsApp bridge with QR-based auth.",
+        "description": "Use Dag through the bundled WhatsApp bridge with QR-based auth.",
         "docs_url": "https://github.com/tulir/whatsmeow",
         "env_vars": ("WHATSAPP_ENABLED", "WHATSAPP_MODE", "WHATSAPP_ALLOWED_USERS"),
         "required_env": (),
     },
     "homeassistant": {
         "name": "Home Assistant",
-        "description": "Control your smart home from Deepsuck via Home Assistant.",
+        "description": "Control your smart home from Dag via Home Assistant.",
         "docs_url": "https://www.home-assistant.io/docs/authentication/",
         "env_vars": ("HASS_URL", "HASS_TOKEN"),
         "required_env": ("HASS_URL", "HASS_TOKEN"),
     },
     "email": {
         "name": "Email",
-        "description": "Talk to Deepsuck through an IMAP/SMTP mailbox.",
-        "docs_url": "https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/",
+        "description": "Talk to Dag through an IMAP/SMTP mailbox.",
+        "docs_url": "https://dag-agent.nousresearch.com/docs/user-guide/messaging/",
         "env_vars": (
             "EMAIL_ADDRESS",
             "EMAIL_PASSWORD",
@@ -3814,14 +3814,14 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "dingtalk": {
         "name": "DingTalk",
-        "description": "Connect Deepsuck to DingTalk groups (钉钉).",
+        "description": "Connect Dag to DingTalk groups (钉钉).",
         "docs_url": "https://open.dingtalk.com/document/orgapp/the-robot-development-process",
         "env_vars": ("DINGTALK_CLIENT_ID", "DINGTALK_CLIENT_SECRET"),
         "required_env": ("DINGTALK_CLIENT_ID", "DINGTALK_CLIENT_SECRET"),
     },
     "feishu": {
         "name": "Feishu / Lark",
-        "description": "Use Deepsuck inside Feishu / Lark.",
+        "description": "Use Dag inside Feishu / Lark.",
         "docs_url": "https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/intro",
         "env_vars": (
             "FEISHU_APP_ID",
@@ -3858,13 +3858,13 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "weixin": {
         "name": "Weixin / WeChat (Personal)",
         "description": "Connect a personal WeChat account through Tencent's iLink Bot API.",
-        "docs_url": "https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/weixin/",
+        "docs_url": "https://dag-agent.nousresearch.com/docs/user-guide/messaging/weixin/",
         "env_vars": ("WEIXIN_ACCOUNT_ID", "WEIXIN_TOKEN", "WEIXIN_BASE_URL"),
         "required_env": ("WEIXIN_ACCOUNT_ID", "WEIXIN_TOKEN"),
     },
     "bluebubbles": {
         "name": "BlueBubbles (iMessage)",
-        "description": "Use Deepsuck through iMessage via a BlueBubbles server.",
+        "description": "Use Dag through iMessage via a BlueBubbles server.",
         "docs_url": "https://bluebubbles.app/",
         "env_vars": (
             "BLUEBUBBLES_SERVER_URL",
@@ -3875,21 +3875,21 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "qqbot": {
         "name": "QQ Bot",
-        "description": "Connect Deepsuck to a QQ Bot from the QQ Open Platform.",
+        "description": "Connect Dag to a QQ Bot from the QQ Open Platform.",
         "docs_url": "https://q.qq.com",
         "env_vars": ("QQ_APP_ID", "QQ_CLIENT_SECRET", "QQ_ALLOWED_USERS"),
         "required_env": ("QQ_APP_ID", "QQ_CLIENT_SECRET"),
     },
     "yuanbao": {
         "name": "Yuanbao (元宝)",
-        "description": "Connect Deepsuck to Tencent Yuanbao.",
+        "description": "Connect Dag to Tencent Yuanbao.",
         "docs_url": "",
         "required_env": (),
     },
     "api_server": {
         "name": "API server",
-        "description": "Expose Deepsuck as an OpenAI-compatible HTTP API for tools like Open WebUI.",
-        "docs_url": "https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/",
+        "description": "Expose Dag as an OpenAI-compatible HTTP API for tools like Open WebUI.",
+        "docs_url": "https://dag-agent.nousresearch.com/docs/user-guide/messaging/",
         "env_vars": (
             "API_SERVER_ENABLED",
             "API_SERVER_KEY",
@@ -3902,7 +3902,7 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "webhook": {
         "name": "Webhooks",
         "description": "Receive events from GitHub, GitLab, and other webhook sources.",
-        "docs_url": "https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/webhooks/",
+        "docs_url": "https://dag-agent.nousresearch.com/docs/user-guide/messaging/webhooks/",
         "env_vars": ("WEBHOOK_ENABLED", "WEBHOOK_PORT", "WEBHOOK_SECRET"),
         "required_env": (),
     },
@@ -4029,11 +4029,11 @@ _MESSAGING_ENV_FALLBACKS: dict[str, dict[str, Any]] = {
         "password": True,
     },
     "WEIXIN_ACCOUNT_ID": {
-        "description": "iLink Bot account ID obtained through QR login in deepsuck gateway setup",
+        "description": "iLink Bot account ID obtained through QR login in dag gateway setup",
         "prompt": "iLink Bot account ID",
     },
     "WEIXIN_TOKEN": {
-        "description": "iLink Bot token obtained through QR login in deepsuck gateway setup",
+        "description": "iLink Bot token obtained through QR login in dag gateway setup",
         "prompt": "iLink Bot token",
         "password": True,
     },
@@ -4373,8 +4373,8 @@ def _write_platform_enabled(platform_id: str, enabled: bool) -> None:
     save_config(config)
 
 
-_TELEGRAM_ONBOARDING_DEFAULT_URL = "https://setup.deepsuck-agent.nousresearch.com"
-_TELEGRAM_ONBOARDING_USER_AGENT = f"DeepsuckDashboard/{__version__}"
+_TELEGRAM_ONBOARDING_DEFAULT_URL = "https://setup.dag-agent.nousresearch.com"
+_TELEGRAM_ONBOARDING_USER_AGENT = f"DAGDashboard/{__version__}"
 _TELEGRAM_USER_ID_RE = re.compile(r"^\d+$")
 
 
@@ -4528,7 +4528,7 @@ async def _telegram_onboarding_request(
 
 @app.post("/api/messaging/telegram/onboarding/start")
 async def start_telegram_onboarding(body: TelegramOnboardingStart):
-    bot_name = (body.bot_name or "Deepsuck Agent").strip() or "Deepsuck Agent"
+    bot_name = (body.bot_name or "DAG Agent").strip() or "DAG Agent"
     payload = await _telegram_onboarding_request(
         "POST",
         "/v1/telegram/pairings",
@@ -4642,7 +4642,7 @@ def _restart_gateway_after_telegram_onboarding() -> dict[str, Any]:
     """Best-effort gateway restart after saving Telegram QR onboarding.
 
     The QR flow naturally pulls users into Telegram on another device. If the
-    saved token waits on a separate dashboard restart click, Deepsuck appears
+    saved token waits on a separate dashboard restart click, Dag appears
     broken from the chat side. Keep the config save authoritative, but report
     restart failures so the UI can fall back to the existing manual banner.
     """
@@ -4743,7 +4743,7 @@ async def get_messaging_platforms(profile: Optional[str] = None):
     # Profile-scoped so the dashboard's global profile switcher shows the
     # TARGET profile's channel credentials/state, not the root install's.
     # Inside _profile_scope, load_env()/read_runtime_status()/get_running_pid()
-    # all resolve against the requested profile's DEEPSUCK_HOME.
+    # all resolve against the requested profile's DAG_HOME.
     with _profile_scope(profile) as scoped_dir:
         env_on_disk = load_env()
         runtime = read_runtime_status()
@@ -4860,7 +4860,7 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
 # connected, plus a disconnect button. The actual login flow (PKCE for
 # Anthropic, device-code for Nous/Codex) still runs in the CLI for now;
 # Phase 2 will add in-browser flows. For unconnected providers we return
-# the canonical ``deepsuck auth add <provider>`` command so the dashboard
+# the canonical ``dag auth add <provider>`` command so the dashboard
 # can surface a one-click copy.
 
 
@@ -4893,12 +4893,12 @@ def _anthropic_oauth_status() -> Dict[str, Any]:
     """Status for the "Anthropic API Key" catalog entry.
 
     Two sources, in priority order:
-    1. ``~/.deepsuck/.anthropic_oauth.json`` — Deepsuck-managed PKCE flow (what
+    1. ``~/.dag/.anthropic_oauth.json`` — Dag-managed PKCE flow (what
        this entry's Connect button writes)
     2. ``ANTHROPIC_API_KEY`` → ``ANTHROPIC_TOKEN`` → ``CLAUDE_CODE_OAUTH_TOKEN``
        env vars (registry order) — from ``.env``, the shell, or an external
        secret source like Bitwarden (whose keys are injected into the process
-       env during ``load_deepsuck_dotenv()``, so the same check covers them)
+       env during ``load_dag_dotenv()``, so the same check covers them)
 
     Claude Code's ``~/.claude/.credentials.json`` is deliberately NOT read
     here — it has its own dedicated catalog entry (``claude-code`` →
@@ -4907,43 +4907,43 @@ def _anthropic_oauth_status() -> Dict[str, Any]:
     """
     try:
         from agent.anthropic_adapter import (
-            read_deepsuck_oauth_credentials,
+            read_dag_oauth_credentials,
             _DEEPSUCK_OAUTH_FILE,
         )
     except ImportError:
-        read_deepsuck_oauth_credentials = None  # type: ignore
+        read_dag_oauth_credentials = None  # type: ignore
         _DEEPSUCK_OAUTH_FILE = None  # type: ignore
 
-    deepsuck_creds = None
-    if read_deepsuck_oauth_credentials:
+    dag_creds = None
+    if read_dag_oauth_credentials:
         try:
-            deepsuck_creds = read_deepsuck_oauth_credentials()
+            dag_creds = read_dag_oauth_credentials()
         except Exception:
-            deepsuck_creds = None
-    if deepsuck_creds and deepsuck_creds.get("accessToken"):
+            dag_creds = None
+    if dag_creds and dag_creds.get("accessToken"):
         return {
             "logged_in": True,
-            "source": "deepsuck_pkce",
-            "source_label": f"Deepsuck PKCE ({_DEEPSUCK_OAUTH_FILE})",
-            "token_preview": _truncate_token(deepsuck_creds.get("accessToken")),
-            "expires_at": deepsuck_creds.get("expiresAt"),
-            "has_refresh_token": bool(deepsuck_creds.get("refreshToken")),
+            "source": "dag_pkce",
+            "source_label": f"DAG PKCE ({_DEEPSUCK_OAUTH_FILE})",
+            "token_preview": _truncate_token(dag_creds.get("accessToken")),
+            "expires_at": dag_creds.get("expiresAt"),
+            "has_refresh_token": bool(dag_creds.get("refreshToken")),
         }
 
     # Env-var / secret-source path. ``get_env_value`` checks the process
     # environment first (where Bitwarden-sourced secrets land) then .env.
     env_var_order: tuple = ("ANTHROPIC_API_KEY", "ANTHROPIC_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN")
     try:
-        from deepsuck_cli.auth import PROVIDER_REGISTRY
+        from dag_cli.auth import PROVIDER_REGISTRY
         env_var_order = PROVIDER_REGISTRY["anthropic"].api_key_env_vars
     except (ImportError, KeyError):
         pass
     try:
-        from deepsuck_cli.config import get_env_value
+        from dag_cli.config import get_env_value
     except ImportError:
         get_env_value = None  # type: ignore
     try:
-        from deepsuck_cli.env_loader import format_secret_source_suffix
+        from dag_cli.env_loader import format_secret_source_suffix
     except ImportError:
         format_secret_source_suffix = None  # type: ignore
 
@@ -4967,8 +4967,8 @@ def _claude_code_only_status() -> Dict[str, Any]:
     """Surface Claude Code CLI credentials as their own provider entry.
 
     Independent of the Anthropic entry above so users can see whether their
-    Claude Code subscription tokens are actively flowing into Deepsuck even
-    when they also have a separate Deepsuck-managed PKCE login.
+    Claude Code subscription tokens are actively flowing into Dag even
+    when they also have a separate Dag-managed PKCE login.
     """
     try:
         from agent.anthropic_adapter import read_claude_code_credentials
@@ -4999,7 +4999,7 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         "id": "nous",
         "name": "Nous Portal",
         "flow": "device_code",
-        "cli_command": "deepsuck auth add nous",
+        "cli_command": "dag auth add nous",
         "docs_url": "https://portal.nousresearch.com",
         "status_fn": None,  # dispatched via auth.get_nous_auth_status
     },
@@ -5007,7 +5007,7 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         "id": "openai-codex",
         "name": "OpenAI OAuth (ChatGPT)",
         "flow": "device_code",
-        "cli_command": "deepsuck auth add openai-codex",
+        "cli_command": "dag auth add openai-codex",
         "docs_url": "https://platform.openai.com/docs",
         "status_fn": None,  # dispatched via auth.get_codex_auth_status
     },
@@ -5015,7 +5015,7 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         "id": "qwen-oauth",
         "name": "Qwen (via Qwen CLI)",
         "flow": "external",
-        "cli_command": "deepsuck auth add qwen-oauth",
+        "cli_command": "dag auth add qwen-oauth",
         "docs_url": "https://github.com/QwenLM/qwen-code",
         "status_fn": None,  # dispatched via auth.get_qwen_auth_status
     },
@@ -5028,7 +5028,7 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         # as Nous's device-code flow; the PKCE bit is a security
         # extension that doesn't change the operator experience.
         "flow": "device_code",
-        "cli_command": "deepsuck auth add minimax-oauth",
+        "cli_command": "dag auth add minimax-oauth",
         "docs_url": "https://www.minimax.io",
         "status_fn": None,  # dispatched via auth.get_minimax_oauth_auth_status
     },
@@ -5039,8 +5039,8 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         # callback server, the client opens the browser, and the redirect
         # lands back on the loopback listener — no code to copy/paste.
         "flow": "loopback",
-        "cli_command": "deepsuck auth add xai-oauth",
-        "docs_url": "https://deepsuck-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+        "cli_command": "dag auth add xai-oauth",
+        "docs_url": "https://dag-agent.nousresearch.com/docs/guides/xai-grok-oauth",
         "status_fn": None,  # dispatched via auth.get_xai_oauth_auth_status
     },
     # ── Anthropic / Claude entries sit at the bottom: the API-key path
@@ -5050,7 +5050,7 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         "id": "anthropic",
         "name": "Anthropic API Key",
         "flow": "pkce",
-        "cli_command": "deepsuck auth add anthropic",
+        "cli_command": "dag auth add anthropic",
         "docs_url": "https://docs.claude.com/en/api/getting-started",
         "status_fn": _anthropic_oauth_status,
     },
@@ -5073,7 +5073,7 @@ def _resolve_provider_status(provider_id: str, status_fn) -> Dict[str, Any]:
         except Exception as e:
             return {"logged_in": False, "error": str(e)}
     try:
-        from deepsuck_cli import auth as hauth
+        from dag_cli import auth as hauth
         if provider_id == "nous":
             raw = hauth.get_nous_auth_status()
             return {
@@ -5155,7 +5155,7 @@ async def list_oauth_providers():
         docs_url        external docs/portal link for the "Learn more" link
         status:
           logged_in        bool — currently has usable creds
-          source           short slug ("deepsuck_pkce", "claude_code", ...)
+          source           short slug ("dag_pkce", "claude_code", ...)
           source_label     human-readable origin (file path, env var name)
           token_preview    last N chars of the token, never the full token
           expires_at       ISO timestamp string or null
@@ -5207,7 +5207,7 @@ async def disconnect_oauth_provider(provider_id: str, request: Request):
             detail=f"{provider['name']} cannot be disconnected automatically. {disconnect_hint}",
         )
 
-    # Anthropic clears only the Deepsuck-managed PKCE file and auth-store entry.
+    # Anthropic clears only the Dag-managed PKCE file and auth-store entry.
     # The separate claude-code catalog row is external/read-only and rejected
     # above so we never pretend to remove ~/.claude/* credentials owned by the CLI.
     if provider_id == "anthropic":
@@ -5221,7 +5221,7 @@ async def disconnect_oauth_provider(provider_id: str, request: Request):
             pass
         # Also clear the credential pool entry if present.
         try:
-            from deepsuck_cli.auth import clear_provider_auth
+            from dag_cli.auth import clear_provider_auth
             cleared = clear_provider_auth("anthropic") or cleared
         except Exception:
             pass
@@ -5229,7 +5229,7 @@ async def disconnect_oauth_provider(provider_id: str, request: Request):
         return {"ok": bool(cleared), "provider": provider_id}
 
     try:
-        from deepsuck_cli.auth import clear_provider_auth, invalidate_nous_auth_status_cache
+        from dag_cli.auth import clear_provider_auth, invalidate_nous_auth_status_cache
         cleared = clear_provider_auth(provider_id)
         if provider_id == "nous":
             invalidate_nous_auth_status_cache()
@@ -5254,7 +5254,7 @@ async def disconnect_oauth_provider(provider_id: str, request: Request):
 #     2. UI opens auth_url in a new tab. User authorizes, copies code.
 #     3. POST /api/providers/oauth/anthropic/submit { session_id, code }
 #          → server exchanges (code + verifier) → tokens at console.anthropic.com
-#          → persists to ~/.deepsuck/.anthropic_oauth.json AND credential pool
+#          → persists to ~/.dag/.anthropic_oauth.json AND credential pool
 #          → returns { ok: true, status: "approved" }
 #
 #   Device code (Nous, OpenAI Codex):
@@ -5294,7 +5294,7 @@ _oauth_sessions: Dict[str, Dict[str, Any]] = {}
 _oauth_sessions_lock = threading.Lock()
 
 # Import OAuth constants from canonical source instead of duplicating.
-# Guarded so deepsuck web still starts if anthropic_adapter is unavailable;
+# Guarded so dag web still starts if anthropic_adapter is unavailable;
 # Phase 2 endpoints will return 501 in that case.
 try:
     from agent.anthropic_adapter import (
@@ -5336,10 +5336,10 @@ def _new_oauth_session(provider_id: str, flow: str) -> tuple[str, Dict[str, Any]
 
 
 def _save_anthropic_oauth_creds(access_token: str, refresh_token: str, expires_at_ms: int) -> None:
-    """Persist Anthropic PKCE creds to both Deepsuck file AND credential pool.
+    """Persist Anthropic PKCE creds to both Dag file AND credential pool.
 
     Mirrors what auth_commands.add_command does so the dashboard flow leaves
-    the system in the same state as ``deepsuck auth add anthropic``.
+    the system in the same state as ``dag auth add anthropic``.
     """
     from agent.anthropic_adapter import _DEEPSUCK_OAUTH_FILE
     payload = {
@@ -5459,7 +5459,7 @@ def _submit_anthropic_pkce(session_id: str, code_input: str) -> Dict[str, Any]:
         data=exchange_data,
         headers={
             "Content-Type": "application/json",
-            "User-Agent": "deepsuck-dashboard/1.0",
+            "User-Agent": "dag-dashboard/1.0",
         },
         method="POST",
     )
@@ -5503,7 +5503,7 @@ async def _start_device_code_flow(provider_id: str) -> Dict[str, Any]:
     so the UI can render the verification page link + user code.
     """
     if provider_id == "nous":
-        from deepsuck_cli.auth import (
+        from dag_cli.auth import (
             _request_device_code,
             PROVIDER_REGISTRY,
         )
@@ -5596,7 +5596,7 @@ async def _start_device_code_flow(provider_id: str) -> Dict[str, Any]:
         # flow; the PKCE bit (verifier + challenge from
         # _minimax_pkce_pair) is a security extension that binds the
         # token exchange to the original session.
-        from deepsuck_cli.auth import (
+        from dag_cli.auth import (
             _minimax_pkce_pair,
             _minimax_request_user_code,
             MINIMAX_OAUTH_CLIENT_ID,
@@ -5673,7 +5673,7 @@ async def _start_device_code_flow(provider_id: str) -> Dict[str, Any]:
 # binds a 127.0.0.1 callback server, the client opens the authorize URL in
 # the browser, and the redirect lands back on the loopback listener. The
 # background worker waits for that callback, exchanges the code, and persists
-# the tokens exactly like `deepsuck auth add xai-oauth`.
+# the tokens exactly like `dag auth add xai-oauth`.
 _XAI_LOOPBACK_TIMEOUT_SECONDS = 300.0
 
 
@@ -5684,7 +5684,7 @@ def _start_xai_loopback_flow() -> Dict[str, Any]:
     background worker that waits for the redirect and finishes the exchange.
     Returns the authorize URL for the client to open in the browser.
     """
-    from deepsuck_cli import auth as hauth
+    from dag_cli import auth as hauth
 
     discovery = hauth._xai_oauth_discovery()
     server, thread, callback_result, redirect_uri = hauth._xai_start_callback_server()
@@ -5743,7 +5743,7 @@ def _xai_loopback_worker(session_id: str) -> None:
     """Wait for the xAI loopback callback, exchange the code, persist tokens."""
     from datetime import datetime, timezone
 
-    from deepsuck_cli import auth as hauth
+    from dag_cli import auth as hauth
 
     with _oauth_sessions_lock:
         sess = _oauth_sessions.get(session_id)
@@ -5840,7 +5840,7 @@ def _xai_loopback_worker(session_id: str) -> None:
 def _add_xai_oauth_pool_entry(
     access_token: str, refresh_token: str, base_url: str, last_refresh: str
 ) -> None:
-    """Mirror `deepsuck auth add xai-oauth`'s credential-pool insert.
+    """Mirror `dag auth add xai-oauth`'s credential-pool insert.
 
     Best-effort: the auth-store write in _save_xai_oauth_tokens is the source
     of truth for runtime resolution; the pool entry only matters for the
@@ -5884,7 +5884,7 @@ def _add_xai_oauth_pool_entry(
 
 def _nous_poller(session_id: str) -> None:
     """Background poller that drives a Nous device-code flow to completion."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         _poll_for_token,
         refresh_nous_oauth_from_state,
     )
@@ -5933,7 +5933,7 @@ def _nous_poller(session_id: str) -> None:
             timeout_seconds=15.0,
             force_refresh=False,
         )
-        from deepsuck_cli.auth import persist_nous_credentials
+        from dag_cli.auth import persist_nous_credentials
         persist_nous_credentials(full_state)
         with _oauth_sessions_lock:
             sess["status"] = "approved"
@@ -5954,9 +5954,9 @@ def _minimax_poller(session_id: str) -> None:
     auth_state dict that ``_minimax_oauth_login`` (the CLI flow) builds
     and persists via ``_minimax_save_auth_state`` — so the dashboard
     path leaves the system in the same state as
-    ``deepsuck auth add minimax-oauth``.
+    ``dag auth add minimax-oauth``.
     """
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         _minimax_poll_token,
         _minimax_resolve_token_expiry_unix,
         _minimax_save_auth_state,
@@ -6045,7 +6045,7 @@ def _codex_full_login_worker(session_id: str) -> None:
     """
     try:
         import httpx
-        from deepsuck_cli.auth import (
+        from dag_cli.auth import (
             CODEX_OAUTH_CLIENT_ID,
             CODEX_OAUTH_TOKEN_URL,
             DEFAULT_CODEX_BASE_URL,
@@ -6128,7 +6128,7 @@ def _codex_full_login_worker(session_id: str) -> None:
         if not access_token:
             raise RuntimeError("token exchange did not return access_token")
 
-        from deepsuck_cli.auth import _save_codex_tokens
+        from dag_cli.auth import _save_codex_tokens
 
         _save_codex_tokens({
             "access_token": access_token,
@@ -6272,7 +6272,7 @@ def _session_latest_descendant(session_id: str):
     /model may create child sessions. Dashboard refresh should continue the
     newest child instead of reopening the old parent.
     """
-    from deepsuck_state import SessionDB
+    from dag_state import SessionDB
 
     def row_get(row, key, index):
         if isinstance(row, dict):
@@ -6453,7 +6453,7 @@ async def delete_empty_sessions_endpoint(profile: Optional[str] = None):
 
 @app.get("/api/sessions/stats")
 async def get_session_stats(profile: Optional[str] = None):
-    """Session-store statistics for the Sessions page (mirrors `deepsuck sessions stats`).
+    """Session-store statistics for the Sessions page (mirrors `dag sessions stats`).
 
     Registered before ``/api/sessions/{session_id}`` so the literal ``stats``
     path isn't captured as a session id by the parameterized route.
@@ -6490,7 +6490,7 @@ def _open_session_db_for_profile(profile: Optional[str]):
     ``state.db`` directly so the primary backend can serve cross-profile reads
     (transcripts, detail) without spawning that profile's backend.
     """
-    from deepsuck_state import SessionDB
+    from dag_state import SessionDB
     if not profile:
         return SessionDB()
     _name, home = _cron_profile_home(profile)
@@ -6619,10 +6619,10 @@ class SessionPrune(BaseModel):
 
 @app.post("/api/sessions/prune")
 async def prune_sessions_endpoint(body: SessionPrune):
-    """Delete ended sessions older than N days (mirrors `deepsuck sessions prune`)."""
+    """Delete ended sessions older than N days (mirrors `dag sessions prune`)."""
     if body.older_than_days < 1:
         raise HTTPException(status_code=400, detail="older_than_days must be >= 1")
-    profile_home = _cron_profile_home(body.profile)[1] if body.profile else get_deepsuck_home()
+    profile_home = _cron_profile_home(body.profile)[1] if body.profile else get_dag_home()
     db = _open_session_db_for_profile(body.profile)
     try:
         sessions_dir = profile_home / "sessions"
@@ -6649,17 +6649,17 @@ async def get_logs(
     component: Optional[str] = None,
     search: Optional[str] = None,
 ):
-    from deepsuck_cli.logs import _read_tail, LOG_FILES
+    from dag_cli.logs import _read_tail, LOG_FILES
 
     log_name = LOG_FILES.get(file)
     if not log_name:
         raise HTTPException(status_code=400, detail=f"Unknown log file: {file}")
-    log_path = get_deepsuck_home() / "logs" / log_name
+    log_path = get_dag_home() / "logs" / log_name
     if not log_path.exists():
         return {"file": file, "lines": []}
 
     try:
-        from deepsuck_logging import COMPONENT_PREFIXES
+        from dag_logging import COMPONENT_PREFIXES
     except ImportError:
         COMPONENT_PREFIXES = {}
 
@@ -6716,7 +6716,7 @@ _CRON_PROFILE_LOCK = threading.RLock()
 
 def _cron_profile_dicts() -> List[Dict[str, Any]]:
     """Return dashboard profile records, falling back to a directory scan."""
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         return [_profile_to_dict(p) for p in profiles_mod.list_profiles()]
     except Exception:
@@ -6725,8 +6725,8 @@ def _cron_profile_dicts() -> List[Dict[str, Any]]:
 
 
 def _cron_profile_home(profile: Optional[str]) -> Tuple[str, Path]:
-    """Resolve a profile query value to (profile_name, DEEPSUCK_HOME)."""
-    from deepsuck_cli import profiles as profiles_mod
+    """Resolve a profile query value to (profile_name, DAG_HOME)."""
+    from dag_cli import profiles as profiles_mod
 
     raw = (profile or "default").strip() or "default"
     try:
@@ -6743,7 +6743,7 @@ def _annotate_cron_job(job: Dict[str, Any], profile: str, home: Path) -> Dict[st
     annotated = dict(job)
     annotated["profile"] = profile
     annotated["profile_name"] = profile
-    annotated["deepsuck_home"] = str(home)
+    annotated["dag_home"] = str(home)
     annotated["is_default_profile"] = profile == "default"
     return annotated
 
@@ -6752,7 +6752,7 @@ def _call_cron_for_profile(profile: Optional[str], func_name: str, *args, **kwar
     """Run cron.jobs helpers against the selected profile's cron directory.
 
     cron.jobs keeps CRON_DIR/JOBS_FILE/OUTPUT_DIR as module globals resolved
-    from the process DEEPSUCK_HOME at import time. The dashboard is a single
+    from the process DAG_HOME at import time. The dashboard is a single
     process that can inspect many profiles, so temporarily retarget those
     globals while holding a lock and restore them immediately after the call.
     """
@@ -7044,8 +7044,8 @@ async def instantiate_blueprint(body: AutomationBlueprintInstantiate, profile: s
 # ---------------------------------------------------------------------------
 # MCP server endpoints — list / add / remove / test.
 #
-# Wraps the same config data layer the CLI uses (deepsuck_cli.mcp_config), so
-# servers managed here show up under `deepsuck mcp list` and vice versa.  Secrets
+# Wraps the same config data layer the CLI uses (dag_cli.mcp_config), so
+# servers managed here show up under `dag mcp list` and vice versa.  Secrets
 # in stdio `env` blocks are redacted on read; the agent picks them up from
 # config.yaml at session start exactly as with CLI-added servers.
 # ---------------------------------------------------------------------------
@@ -7092,7 +7092,7 @@ def _mcp_server_summary(name: str, cfg: Dict[str, Any]) -> Dict[str, Any]:
 
 @app.get("/api/mcp/servers")
 async def list_mcp_servers(profile: Optional[str] = None):
-    from deepsuck_cli.mcp_config import _get_mcp_servers
+    from dag_cli.mcp_config import _get_mcp_servers
 
     with _profile_scope(profile):
         servers = _get_mcp_servers()
@@ -7105,7 +7105,7 @@ async def list_mcp_servers(profile: Optional[str] = None):
 
 @app.post("/api/mcp/servers")
 async def add_mcp_server(body: MCPServerCreate, profile: Optional[str] = None):
-    from deepsuck_cli.mcp_config import _get_mcp_servers, _save_mcp_server
+    from dag_cli.mcp_config import _get_mcp_servers, _save_mcp_server
 
     name = (body.name or "").strip()
     if not name:
@@ -7150,7 +7150,7 @@ async def add_mcp_server(body: MCPServerCreate, profile: Optional[str] = None):
 
 @app.delete("/api/mcp/servers/{name}")
 async def remove_mcp_server(name: str, profile: Optional[str] = None):
-    from deepsuck_cli.mcp_config import _remove_mcp_server
+    from dag_cli.mcp_config import _remove_mcp_server
 
     with _profile_scope(profile):
         removed = _remove_mcp_server(name)
@@ -7162,7 +7162,7 @@ async def remove_mcp_server(name: str, profile: Optional[str] = None):
 @app.post("/api/mcp/servers/{name}/test")
 async def test_mcp_server(name: str, profile: Optional[str] = None):
     """Connect to the server, list its tools, disconnect.  Returns tool list."""
-    from deepsuck_cli.mcp_config import _get_mcp_servers, _probe_single_server
+    from dag_cli.mcp_config import _get_mcp_servers, _probe_single_server
 
     with _profile_scope(profile):
         servers = _get_mcp_servers()
@@ -7178,7 +7178,7 @@ async def test_mcp_server(name: str, profile: Optional[str] = None):
         # keeps the lock-protected SKILLS_DIR swap balanced per-thread.)
         # The probe's dedicated MCP event-loop thread is covered too:
         # _run_on_mcp_loop wraps scheduled coroutines with the caller's
-        # DEEPSUCK_HOME override (see mcp_tool._wrap_with_home_override), so
+        # DAG_HOME override (see mcp_tool._wrap_with_home_override), so
         # OAuth token stores resolve against the selected profile as well.
         with _profile_scope(profile):
             return _probe_single_server(name, servers[name])
@@ -7232,12 +7232,12 @@ async def list_mcp_catalog(profile: Optional[str] = None):
 
     Each entry reports whether it's already installed and enabled so the UI
     can show install / enabled state inline.  This is the same catalog
-    `deepsuck mcp catalog` / `deepsuck mcp install` read.  ``profile`` scopes
+    `dag mcp catalog` / `dag mcp install` read.  ``profile`` scopes
     the installed/enabled annotations (the catalog itself is repo-shipped
     and identical for every profile).
     """
     try:
-        from deepsuck_cli import mcp_catalog
+        from dag_cli import mcp_catalog
     except Exception as exc:
         _log.exception("mcp_catalog import failed")
         raise HTTPException(status_code=500, detail=f"Catalog unavailable: {exc}")
@@ -7302,7 +7302,7 @@ async def install_mcp_catalog_entry(body: MCPCatalogInstall, profile: Optional[s
     Entries that need a git bootstrap (``needs_install``) are installed via
     the CLI action path because the clone can take time.
     """
-    from deepsuck_cli import mcp_catalog
+    from dag_cli import mcp_catalog
 
     name = (body.name or "").strip()
     entry = mcp_catalog.get_entry(name)
@@ -7320,10 +7320,10 @@ async def install_mcp_catalog_entry(body: MCPCatalogInstall, profile: Optional[s
 
     # Git-bootstrap entries can take a while to clone — run via the background
     # action path so the request returns immediately and the UI can tail logs.
-    # The -p subprocess rebinds DEEPSUCK_HOME-derived paths in the child.
+    # The -p subprocess rebinds DAG_HOME-derived paths in the child.
     if entry.install is not None:
         try:
-            proc = _spawn_deepsuck_action(
+            proc = _spawn_dag_action(
                 _profile_cli_args(effective_profile) + ["mcp", "install", name],
                 "mcp-install",
             )
@@ -7436,7 +7436,7 @@ async def clear_pending_pairing():
 # ---------------------------------------------------------------------------
 # Webhook subscription endpoints — list / subscribe / remove.
 #
-# Wraps the same JSON store the CLI uses (deepsuck_cli.webhook); the webhook
+# Wraps the same JSON store the CLI uses (dag_cli.webhook); the webhook
 # adapter hot-reloads it without a gateway restart.  Per-route HMAC secrets
 # are redacted on read and surfaced once on create.
 # ---------------------------------------------------------------------------
@@ -7475,7 +7475,7 @@ def _webhook_route_summary(name: str, route: Dict[str, Any], base_url: str) -> D
 
 @app.get("/api/webhooks")
 async def list_webhooks():
-    import deepsuck_cli.webhook as wh
+    import dag_cli.webhook as wh
 
     base_url = wh._get_webhook_base_url()
     subs = wh._load_subscriptions()
@@ -7515,7 +7515,7 @@ async def create_webhook(body: WebhookCreate):
     import re as _re
     import secrets as _secrets
     import time as _time
-    import deepsuck_cli.webhook as wh
+    import dag_cli.webhook as wh
 
     if not wh._is_webhook_enabled():
         raise HTTPException(
@@ -7564,7 +7564,7 @@ async def create_webhook(body: WebhookCreate):
 
 @app.delete("/api/webhooks/{name}")
 async def delete_webhook(name: str):
-    import deepsuck_cli.webhook as wh
+    import dag_cli.webhook as wh
 
     key = (name or "").strip().lower()
     subs = wh._load_subscriptions()
@@ -7588,7 +7588,7 @@ async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
     gateway hot-reloads the subscriptions file, so this takes effect on the
     next event without a restart.
     """
-    import deepsuck_cli.webhook as wh
+    import dag_cli.webhook as wh
 
     key = (name or "").strip().lower()
     subs = wh._load_subscriptions()
@@ -7604,7 +7604,7 @@ async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
 #
 # restart + update already exist above; these complete the lifecycle so a
 # remote admin can bring the gateway up or down without shell access.  Both
-# spawn the real `deepsuck gateway <verb>` so behaviour matches the CLI exactly.
+# spawn the real `dag gateway <verb>` so behaviour matches the CLI exactly.
 # Status is already surfaced by /api/status (gateway_running/state/platforms).
 # ---------------------------------------------------------------------------
 
@@ -7612,7 +7612,7 @@ async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
 @app.post("/api/gateway/start")
 async def start_gateway():
     try:
-        proc = _spawn_deepsuck_action(["gateway", "start"], "gateway-start")
+        proc = _spawn_dag_action(["gateway", "start"], "gateway-start")
     except Exception as exc:
         _log.exception("Failed to spawn gateway start")
         raise HTTPException(status_code=500, detail=f"Failed to start gateway: {exc}")
@@ -7622,7 +7622,7 @@ async def start_gateway():
 @app.post("/api/gateway/stop")
 async def stop_gateway():
     try:
-        proc = _spawn_deepsuck_action(["gateway", "stop"], "gateway-stop")
+        proc = _spawn_dag_action(["gateway", "stop"], "gateway-stop")
     except Exception as exc:
         _log.exception("Failed to spawn gateway stop")
         raise HTTPException(status_code=500, detail=f"Failed to stop gateway: {exc}")
@@ -7669,7 +7669,7 @@ def _pool_entry_summary(entry: Any, index: int) -> Dict[str, Any]:
 @app.get("/api/credentials/pool")
 async def list_credential_pool():
     from agent.credential_pool import load_pool
-    from deepsuck_cli.auth import read_credential_pool
+    from dag_cli.auth import read_credential_pool
 
     providers = []
     # read_credential_pool(None) lists every provider that has pooled entries;
@@ -7749,7 +7749,7 @@ async def remove_credential_pool_entry(provider: str, index: int):
 #
 # Selecting a provider only writes config.memory.provider (full interactive
 # provider setup, with its API-key prompts, stays on the CLI via
-# `deepsuck memory setup`).  The dashboard covers the common admin actions:
+# `dag memory setup`).  The dashboard covers the common admin actions:
 # see which provider is active, switch the built-in store on/off, and wipe
 # built-in memory files.
 # ---------------------------------------------------------------------------
@@ -7787,7 +7787,7 @@ async def get_memory_status():
         _log.exception("discover_memory_providers failed")
 
     # Built-in memory file sizes (so the UI can show what a reset would erase).
-    mem_dir = get_deepsuck_home() / "memories"
+    mem_dir = get_dag_home() / "memories"
     files = {}
     for fname, key in (("MEMORY.md", "memory"), ("USER.md", "user")):
         path = mem_dir / fname
@@ -7813,7 +7813,7 @@ async def set_memory_provider(body: MemoryProviderSelect):
         if provider not in valid:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unknown memory provider '{provider}'. Run `deepsuck memory setup` to configure a new one.",
+                detail=f"Unknown memory provider '{provider}'. Run `dag memory setup` to configure a new one.",
             )
 
     cfg = load_config()
@@ -7830,7 +7830,7 @@ async def reset_memory(body: MemoryReset):
     if target not in {"all", "memory", "user"}:
         raise HTTPException(status_code=400, detail="target must be all, memory, or user")
 
-    mem_dir = get_deepsuck_home() / "memories"
+    mem_dir = get_dag_home() / "memories"
     deleted = []
     targets = []
     if target in {"all", "memory"}:
@@ -7864,7 +7864,7 @@ async def reset_memory(body: MemoryReset):
 @app.post("/api/ops/doctor")
 async def run_doctor():
     try:
-        proc = _spawn_deepsuck_action(["doctor"], "doctor")
+        proc = _spawn_dag_action(["doctor"], "doctor")
     except Exception as exc:
         _log.exception("Failed to spawn doctor")
         raise HTTPException(status_code=500, detail=f"Failed to run doctor: {exc}")
@@ -7874,7 +7874,7 @@ async def run_doctor():
 @app.post("/api/ops/security-audit")
 async def run_security_audit():
     try:
-        proc = _spawn_deepsuck_action(["security", "audit"], "security-audit")
+        proc = _spawn_dag_action(["security", "audit"], "security-audit")
     except Exception as exc:
         _log.exception("Failed to spawn security audit")
         raise HTTPException(status_code=500, detail=f"Failed to run security audit: {exc}")
@@ -7892,7 +7892,7 @@ async def run_backup(body: BackupRequest):
     if body.output:
         args.append(body.output.strip())
     try:
-        proc = _spawn_deepsuck_action(args, "backup")
+        proc = _spawn_dag_action(args, "backup")
     except Exception as exc:
         _log.exception("Failed to spawn backup")
         raise HTTPException(status_code=500, detail=f"Failed to run backup: {exc}")
@@ -7901,7 +7901,7 @@ async def run_backup(body: BackupRequest):
 
 class ImportRequest(BaseModel):
     archive: str
-    # Pass --force to `deepsuck import`. The spawned action runs with
+    # Pass --force to `dag import`. The spawned action runs with
     # stdin=DEVNULL, so the CLI's interactive "Continue? [y/N]" overwrite
     # prompt hits EOF and auto-aborts ("Aborted.", exit 1) whenever the
     # target already has a config — which it always does when the dashboard
@@ -7922,7 +7922,7 @@ async def run_import(body: ImportRequest):
     if body.force:
         args.append("--force")
     try:
-        proc = _spawn_deepsuck_action(args, "import")
+        proc = _spawn_dag_action(args, "import")
     except Exception as exc:
         _log.exception("Failed to spawn import")
         raise HTTPException(status_code=500, detail=f"Failed to run import: {exc}")
@@ -7937,11 +7937,11 @@ async def list_hooks():
     currently executable, plus the set of valid hook events so the create
     form can offer them.
     """
-    from deepsuck_cli.config import load_config as _load_config
+    from dag_cli.config import load_config as _load_config
     from agent import shell_hooks
 
     try:
-        from deepsuck_cli.plugins import VALID_HOOKS
+        from dag_cli.plugins import VALID_HOOKS
         valid_events = sorted(VALID_HOOKS)
     except Exception:
         valid_events = []
@@ -8005,7 +8005,7 @@ async def create_hook(body: HookCreate):
         raise HTTPException(status_code=400, detail="event and command are required")
 
     try:
-        from deepsuck_cli.plugins import VALID_HOOKS
+        from dag_cli.plugins import VALID_HOOKS
         if event not in VALID_HOOKS:
             raise HTTPException(
                 status_code=400,
@@ -8090,11 +8090,11 @@ async def delete_hook(body: HookDelete):
 @app.get("/api/ops/checkpoints")
 async def list_checkpoints():
     """List the /rollback shadow store checkpoints (read-only)."""
-    # Checkpoints live under <deepsuck_home>/checkpoints/.  Surface a count +
+    # Checkpoints live under <dag_home>/checkpoints/.  Surface a count +
     # total size so the dashboard can show what a prune would reclaim; the
     # actual prune is a spawned action so confirmation/pruning logic stays
     # in one place (the CLI).
-    cp_dir = get_deepsuck_home() / "checkpoints"
+    cp_dir = get_dag_home() / "checkpoints"
     sessions = []
     total_bytes = 0
     if cp_dir.is_dir():
@@ -8122,7 +8122,7 @@ async def list_checkpoints():
 @app.post("/api/ops/checkpoints/prune")
 async def prune_checkpoints():
     try:
-        proc = _spawn_deepsuck_action(["checkpoints", "prune"], "checkpoints-prune")
+        proc = _spawn_dag_action(["checkpoints", "prune"], "checkpoints-prune")
     except Exception as exc:
         _log.exception("Failed to spawn checkpoints prune")
         raise HTTPException(status_code=500, detail=f"Failed to prune checkpoints: {exc}")
@@ -8147,7 +8147,7 @@ class SkillInstallRequest(BaseModel):
 def _profile_cli_args(profile: Optional[str]) -> List[str]:
     """Return ``["-p", <name>]`` for a validated non-default profile.
 
-    Hub install/uninstall/update run in a fresh ``deepsuck`` subprocess, and
+    Hub install/uninstall/update run in a fresh ``dag`` subprocess, and
     ``_apply_profile_override()`` reads ``-p`` from argv in the child — the
     only mechanism that reaches import-time-bound globals like
     ``skills_hub.SKILLS_DIR``. Empty/"current" means the dashboard's own
@@ -8156,7 +8156,7 @@ def _profile_cli_args(profile: Optional[str]) -> List[str]:
     requested = (profile or "").strip()
     if not requested or requested.lower() == "current":
         return []
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     _resolve_profile_dir(requested)
     return ["-p", profiles_mod.normalize_profile_name(requested)]
 
@@ -8167,7 +8167,7 @@ async def install_skill_hub(body: SkillInstallRequest, profile: Optional[str] = 
     if not identifier:
         raise HTTPException(status_code=400, detail="identifier is required")
     try:
-        proc = _spawn_deepsuck_action(
+        proc = _spawn_dag_action(
             _profile_cli_args(body.profile or profile)
             + ["skills", "install", identifier, "--yes"],
             "skills-install",
@@ -8191,7 +8191,7 @@ async def uninstall_skill_hub(body: SkillUninstallRequest, profile: Optional[str
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
     try:
-        proc = _spawn_deepsuck_action(
+        proc = _spawn_dag_action(
             _profile_cli_args(body.profile or profile) + ["skills", "uninstall", name, "--yes"],
             "skills-uninstall",
         )
@@ -8213,7 +8213,7 @@ async def update_skills_hub(
 ):
     try:
         effective = (body.profile if body else None) or profile
-        proc = _spawn_deepsuck_action(
+        proc = _spawn_dag_action(
             _profile_cli_args(effective) + ["skills", "update"], "skills-update"
         )
     except HTTPException:
@@ -8224,11 +8224,11 @@ async def update_skills_hub(
     return {"ok": True, "pid": proc.pid, "name": "skills-update"}
 
 
-# Human-readable labels for each hub source id (matches `deepsuck skills search`
+# Human-readable labels for each hub source id (matches `dag skills search`
 # provenance).  Keep in sync with create_source_router()'s source list.
 _SKILL_HUB_SOURCE_LABELS = {
     "official": "Official (Nous)",
-    "deepsuck-index": "Deepsuck Index",
+    "dag-index": "DAG Index",
     "skills-sh": "skills.sh",
     "well-known": "Well-Known",
     "url": "Direct URL",
@@ -8313,7 +8313,7 @@ async def list_skills_hub_sources(profile: Optional[str] = None):
                     entry["rate_limited"] = bool(getattr(src, "is_rate_limited", False))
                 except Exception:
                     entry["rate_limited"] = False
-            if sid == "deepsuck-index":
+            if sid == "dag-index":
                 try:
                     index_available = bool(getattr(src, "is_available", False))
                 except Exception:
@@ -8408,7 +8408,7 @@ async def preview_skill_hub(identifier: str = ""):
         raise HTTPException(status_code=400, detail="identifier is required")
 
     def _run():
-        from deepsuck_cli.skills_hub import _resolve_source_meta_and_bundle
+        from dag_cli.skills_hub import _resolve_source_meta_and_bundle
         from tools.skills_hub import create_source_router
 
         sources = create_source_router()
@@ -8472,7 +8472,7 @@ async def scan_skill_hub(identifier: str = ""):
     def _run():
         import shutil as _shutil
 
-        from deepsuck_cli.skills_hub import _resolve_source_meta_and_bundle
+        from dag_cli.skills_hub import _resolve_source_meta_and_bundle
         from tools.skills_hub import create_source_router, quarantine_bundle
         from tools.skills_guard import scan_skill, should_allow_install
 
@@ -8573,8 +8573,8 @@ class ProfileCreate(BaseModel):
     # Empty list = leave the seeded bundle untouched (legacy behaviour).
     keep_skills: List[str] = []
     # Skills-hub identifiers to install into the new profile. Installed async
-    # via a subprocess scoped to the profile (`deepsuck -p <name> skills install`)
-    # because skills_hub.SKILLS_DIR is import-time-bound and the DEEPSUCK_HOME
+    # via a subprocess scoped to the profile (`dag -p <name> skills install`)
+    # because skills_hub.SKILLS_DIR is import-time-bound and the DAG_HOME
     # override can't redirect it. Returns spawned PIDs for the UI to poll.
     hub_skills: List[str] = []
 
@@ -8638,7 +8638,7 @@ def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
             return default
 
     profiles: List[Dict[str, Any]] = []
-    default_home = profiles_mod._get_default_deepsuck_home()
+    default_home = profiles_mod._get_default_dag_home()
     if default_home.is_dir():
         model, provider = _safe(lambda: profiles_mod._read_config_model(default_home), (None, None))
         profiles.append({
@@ -8686,7 +8686,7 @@ def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
 
 def _resolve_profile_dir(name: str) -> Path:
     """Validate ``name`` and resolve to its directory or raise an HTTPException."""
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         profiles_mod.validate_profile_name(name)
     except ValueError as e:
@@ -8699,35 +8699,35 @@ def _resolve_profile_dir(name: str) -> Path:
 def _profile_setup_command(name: str) -> str:
     """Return the shell command used to configure a profile in the CLI."""
     _resolve_profile_dir(name)
-    return "deepsuck setup" if name == "default" else f"{name} setup"
+    return "dag setup" if name == "default" else f"{name} setup"
 
 
 def _write_profile_model(profile_dir: Path, provider: str, model: str) -> None:
     """Write the main model assignment into a specific profile's config.yaml.
 
     Scopes ``load_config``/``save_config`` to ``profile_dir`` via the
-    context-local DEEPSUCK_HOME override so the write lands in the target
+    context-local DAG_HOME override so the write lands in the target
     profile's config rather than the dashboard process's active profile.
     Clears any stale ``base_url`` / ``context_length`` the same way
     ``POST /api/model/set`` does, since the new model may differ.
     """
-    from deepsuck_constants import set_deepsuck_home_override, reset_deepsuck_home_override
+    from dag_constants import set_dag_home_override, reset_dag_home_override
 
-    token = set_deepsuck_home_override(str(profile_dir))
+    token = set_dag_home_override(str(profile_dir))
     try:
         provider, model = _normalize_main_model_assignment(provider, model)
         cfg = load_config()
         cfg["model"] = _apply_main_model_assignment(cfg.get("model", {}), provider, model)
         save_config(cfg)
     finally:
-        reset_deepsuck_home_override(token)
+        reset_dag_home_override(token)
 
 
 def _write_profile_mcp_servers(profile_dir: Path, servers: List["MCPServerCreate"]) -> int:
     """Write MCP server entries into a specific profile's config.yaml.
 
     Scopes ``load_config``/``save_config`` to ``profile_dir`` via the
-    context-local DEEPSUCK_HOME override (same mechanism as
+    context-local DAG_HOME override (same mechanism as
     ``_write_profile_model``) so the entries land in the target profile's
     config rather than the dashboard process's active profile.
 
@@ -8735,11 +8735,11 @@ def _write_profile_mcp_servers(profile_dir: Path, servers: List["MCPServerCreate
     but batched so the whole profile-create write is a single config save.
     Returns the number of servers written.
     """
-    from deepsuck_constants import set_deepsuck_home_override, reset_deepsuck_home_override
-    from deepsuck_cli.mcp_security import validate_mcp_server_entry
+    from dag_constants import set_dag_home_override, reset_dag_home_override
+    from dag_cli.mcp_security import validate_mcp_server_entry
 
     written = 0
-    token = set_deepsuck_home_override(str(profile_dir))
+    token = set_dag_home_override(str(profile_dir))
     try:
         cfg = load_config()
         mcp = cfg.setdefault("mcp_servers", {})
@@ -8776,7 +8776,7 @@ def _write_profile_mcp_servers(profile_dir: Path, servers: List["MCPServerCreate
             cfg.pop("mcp_servers", None)
             save_config(cfg)
     finally:
-        reset_deepsuck_home_override(token)
+        reset_dag_home_override(token)
     return written
 
 
@@ -8788,15 +8788,15 @@ def _disable_unselected_skills(profile_dir: Path, keep: List[str]) -> int:
     uses "replace" semantics: the user picks exactly which seeded built-in /
     optional skills stay active, and everything else gets added to the disabled
     list. (Hub skills are installed separately via subprocess and are active on
-    install.) Scoped to the profile via the DEEPSUCK_HOME override. Returns the
+    install.) Scoped to the profile via the DAG_HOME override. Returns the
     number of skills newly disabled.
     """
-    from deepsuck_constants import set_deepsuck_home_override, reset_deepsuck_home_override
-    from deepsuck_cli.skills_config import get_disabled_skills, save_disabled_skills
+    from dag_constants import set_dag_home_override, reset_dag_home_override
+    from dag_cli.skills_config import get_disabled_skills, save_disabled_skills
 
     keep_set = {s.strip() for s in keep if s and s.strip()}
     disabled_count = 0
-    token = set_deepsuck_home_override(str(profile_dir))
+    token = set_dag_home_override(str(profile_dir))
     try:
         installed: List[str] = []
         skills_root = profile_dir / "skills"
@@ -8812,13 +8812,13 @@ def _disable_unselected_skills(profile_dir: Path, keep: List[str]) -> int:
         if disabled_count:
             save_disabled_skills(cfg, disabled)
     finally:
-        reset_deepsuck_home_override(token)
+        reset_dag_home_override(token)
     return disabled_count
 
 
 @app.get("/api/profiles")
 async def list_profiles_endpoint():
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         return {"profiles": [_profile_to_dict(p) for p in profiles_mod.list_profiles()]}
     except Exception:
@@ -8828,7 +8828,7 @@ async def list_profiles_endpoint():
 
 @app.post("/api/profiles")
 async def create_profile_endpoint(body: ProfileCreate):
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     explicit_source = (body.clone_from or "").strip()
     if explicit_source:
         # Duplicating a specific profile: clone its config/skills/SOUL (or full
@@ -8908,14 +8908,14 @@ async def create_profile_endpoint(body: ProfileCreate):
 
     # Optional skills-hub installs. Spawned async, scoped to the new profile
     # via `-p <name>` (a fresh subprocess re-binds skills_hub.SKILLS_DIR to the
-    # profile's DEEPSUCK_HOME at import). Returns PIDs for the UI to poll.
+    # profile's DAG_HOME at import). Returns PIDs for the UI to poll.
     hub_installs: List[Dict[str, Any]] = []
     for identifier in body.hub_skills:
         ident = (identifier or "").strip()
         if not ident:
             continue
         try:
-            proc = _spawn_deepsuck_action(
+            proc = _spawn_dag_action(
                 ["-p", body.name, "skills", "install", ident, "--yes"],
                 "skills-install",
             )
@@ -8944,11 +8944,11 @@ async def get_active_profile_endpoint():
     """Return the sticky active profile and the profile this dashboard
     process is currently running as.
 
-    ``active`` is the sticky default written by ``deepsuck profile use`` —
+    ``active`` is the sticky default written by ``dag profile use`` —
     the profile new CLI invocations pick up. ``current`` is the profile
-    the running dashboard/gateway is scoped to (derived from DEEPSUCK_HOME).
+    the running dashboard/gateway is scoped to (derived from DAG_HOME).
     """
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         active = profiles_mod.get_active_profile() or "default"
     except Exception:
@@ -8962,12 +8962,12 @@ async def get_active_profile_endpoint():
 
 @app.post("/api/profiles/active")
 async def set_active_profile_endpoint(body: ProfileActiveUpdate):
-    """Set the sticky active profile (mirrors ``deepsuck profile use``).
+    """Set the sticky active profile (mirrors ``dag profile use``).
 
     Note: this does not retarget the already-running dashboard process —
     it changes which profile subsequent CLI commands and gateways use.
     """
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         profiles_mod.set_active_profile(body.name)
     except FileNotFoundError as e:
@@ -9041,7 +9041,7 @@ async def open_profile_terminal_endpoint(name: str):
 
 @app.patch("/api/profiles/{name}")
 async def rename_profile_endpoint(name: str, body: ProfileRename):
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         path = profiles_mod.rename_profile(name, body.new_name)
     except FileNotFoundError as e:
@@ -9059,7 +9059,7 @@ async def delete_profile_endpoint(name: str):
     """Delete a profile. The dashboard collects the user's confirmation in
     its own dialog before this request, so we always pass ``yes=True`` to
     skip the CLI's interactive prompt."""
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     try:
         path = profiles_mod.delete_profile(name, yes=True)
     except FileNotFoundError as e:
@@ -9102,7 +9102,7 @@ async def update_profile_description_endpoint(name: str, body: ProfileDescriptio
     user-authored description (``description_auto: false``) so the
     auto-describer won't overwrite it on a sweep.
     """
-    from deepsuck_cli import profiles as profiles_mod
+    from dag_cli import profiles as profiles_mod
     profile_dir = _resolve_profile_dir(name)
     text = (body.description or "").strip()
     try:
@@ -9122,7 +9122,7 @@ async def update_profile_model_endpoint(name: str, body: ProfileModelUpdate):
     """Set the main model (``model.default`` + ``model.provider``) for a
     specific profile's config.yaml, without touching the dashboard's own
     active profile. Mirrors ``POST /api/model/set`` (main scope) but scoped
-    to the named profile via the DEEPSUCK_HOME override.
+    to the named profile via the DAG_HOME override.
     """
     profile_dir = _resolve_profile_dir(name)
     provider = (body.provider or "").strip()
@@ -9140,7 +9140,7 @@ async def update_profile_model_endpoint(name: str, body: ProfileModelUpdate):
 @app.post("/api/profiles/{name}/describe-auto")
 async def describe_profile_auto_endpoint(name: str, body: ProfileDescribeAuto):
     """Auto-generate a profile's description via the auxiliary LLM
-    (``auxiliary.profile_describer``). Mirrors ``deepsuck profile describe
+    (``auxiliary.profile_describer``). Mirrors ``dag profile describe
     <name> --auto``.
 
     A failed generation (no aux client, LLM error, …) is returned as
@@ -9149,7 +9149,7 @@ async def describe_profile_auto_endpoint(name: str, body: ProfileDescribeAuto):
     """
     _resolve_profile_dir(name)
     try:
-        from deepsuck_cli import profile_describer
+        from dag_cli import profile_describer
         outcome = profile_describer.describe_profile(name, overwrite=bool(body.overwrite))
     except Exception as e:
         _log.exception("POST /api/profiles/%s/describe-auto failed", name)
@@ -9187,8 +9187,8 @@ def _profile_scope(profile: Optional[str]):
 
     Two seams must be redirected for skills/toolsets endpoints:
 
-    1. ``load_config``/``save_config`` resolve ``get_deepsuck_home()`` at call
-       time — the context-local override from ``set_deepsuck_home_override``
+    1. ``load_config``/``save_config`` resolve ``get_dag_home()`` at call
+       time — the context-local override from ``set_dag_home_override``
        reaches them (same pattern as ``_write_profile_model``).
     2. ``tools.skills_tool`` and ``tools.skill_manager_tool`` bind
        ``SKILLS_DIR`` at import time, so the override CANNOT reach them.
@@ -9198,46 +9198,46 @@ def _profile_scope(profile: Optional[str]):
 
     ``profile`` of None/""/"current" means "the dashboard's own profile" —
     config resolution is untouched, but the skill-module globals are still
-    retargeted to the *current* ``get_deepsuck_home()`` so writes land in the
+    retargeted to the *current* ``get_dag_home()`` so writes land in the
     live home even when the import-time binding is stale (e.g. the process
-    imported the modules before a DEEPSUCK_HOME override, or under test
+    imported the modules before a DAG_HOME override, or under test
     isolation).
     """
     requested = (profile or "").strip()
 
-    from deepsuck_constants import (
-        get_deepsuck_home,
-        set_deepsuck_home_override,
-        reset_deepsuck_home_override,
+    from dag_constants import (
+        get_dag_home,
+        set_dag_home_override,
+        reset_dag_home_override,
     )
     from tools import skills_tool as _skills_tool
     from tools import skill_manager_tool as _skill_mgr
 
     token = None
     if not requested or requested.lower() == "current":
-        profile_dir = get_deepsuck_home()
+        profile_dir = get_dag_home()
     else:
         profile_dir = _resolve_profile_dir(requested)
-        token = set_deepsuck_home_override(str(profile_dir))
+        token = set_dag_home_override(str(profile_dir))
 
     with _SKILLS_PROFILE_LOCK:
-        old_home = _skills_tool.DEEPSUCK_HOME
+        old_home = _skills_tool.DAG_HOME
         old_skills_dir = _skills_tool.SKILLS_DIR
-        old_mgr_home = _skill_mgr.DEEPSUCK_HOME
+        old_mgr_home = _skill_mgr.DAG_HOME
         old_mgr_skills_dir = _skill_mgr.SKILLS_DIR
-        _skills_tool.DEEPSUCK_HOME = profile_dir
+        _skills_tool.DAG_HOME = profile_dir
         _skills_tool.SKILLS_DIR = profile_dir / "skills"
-        _skill_mgr.DEEPSUCK_HOME = profile_dir
+        _skill_mgr.DAG_HOME = profile_dir
         _skill_mgr.SKILLS_DIR = profile_dir / "skills"
         try:
             yield profile_dir if token is not None else None
         finally:
-            _skills_tool.DEEPSUCK_HOME = old_home
+            _skills_tool.DAG_HOME = old_home
             _skills_tool.SKILLS_DIR = old_skills_dir
-            _skill_mgr.DEEPSUCK_HOME = old_mgr_home
+            _skill_mgr.DAG_HOME = old_mgr_home
             _skill_mgr.SKILLS_DIR = old_mgr_skills_dir
             if token is not None:
-                reset_deepsuck_home_override(token)
+                reset_dag_home_override(token)
 
 
 class SkillToggle(BaseModel):
@@ -9249,7 +9249,7 @@ class SkillToggle(BaseModel):
 @app.get("/api/skills")
 async def get_skills(profile: Optional[str] = None):
     from tools.skills_tool import _find_all_skills
-    from deepsuck_cli.skills_config import get_disabled_skills
+    from dag_cli.skills_config import get_disabled_skills
     with _profile_scope(profile):
         config = load_config()
         disabled = get_disabled_skills(config)
@@ -9261,7 +9261,7 @@ async def get_skills(profile: Optional[str] = None):
 
 @app.put("/api/skills/toggle")
 async def toggle_skill(body: SkillToggle, profile: Optional[str] = None):
-    from deepsuck_cli.skills_config import get_disabled_skills, save_disabled_skills
+    from dag_cli.skills_config import get_disabled_skills, save_disabled_skills
     with _profile_scope(body.profile or profile):
         config = load_config()
         disabled = get_disabled_skills(config)
@@ -9354,7 +9354,7 @@ async def update_skill_content(body: SkillContentUpdate):
 
 @app.get("/api/tools/toolsets")
 async def get_toolsets(profile: Optional[str] = None):
-    from deepsuck_cli.tools_config import (
+    from dag_cli.tools_config import (
         _get_effective_configurable_toolsets,
         _get_platform_tools,
         _toolset_has_keys,
@@ -9398,11 +9398,11 @@ async def toggle_toolset(name: str, body: ToolsetToggle, profile: Optional[str] 
     """Enable/disable a configurable toolset for the desktop (cli) platform.
 
     Persists to ``platform_toolsets.cli`` via the same ``_save_platform_tools``
-    helper the CLI ``deepsuck tools`` picker uses, so the GUI and CLI stay in
+    helper the CLI ``dag tools`` picker uses, so the GUI and CLI stay in
     lockstep. Scoped to ``body.profile`` when provided. Returns 400 for
     unknown toolset keys.
     """
-    from deepsuck_cli.tools_config import (
+    from dag_cli.tools_config import (
         _get_effective_configurable_toolsets,
         _get_platform_tools,
         _save_platform_tools,
@@ -9429,19 +9429,19 @@ async def toggle_toolset(name: str, body: ToolsetToggle, profile: Optional[str] 
 async def get_toolset_config(name: str, profile: Optional[str] = None):
     """Return the provider matrix + key status for a toolset's config panel.
 
-    Surfaces the same provider rows the CLI ``deepsuck tools`` picker shows
+    Surfaces the same provider rows the CLI ``dag tools`` picker shows
     (via ``_visible_providers``), each with its ``env_vars`` annotated with
     current ``is_set`` state so the GUI can render provider selection + key
     entry. Toolsets without a ``TOOL_CATEGORIES`` entry return an empty
     provider list and ``has_category: false``. Returns 400 for unknown keys.
     """
-    from deepsuck_cli.tools_config import (
+    from dag_cli.tools_config import (
         TOOL_CATEGORIES,
         _get_effective_configurable_toolsets,
         _is_provider_active,
         _visible_providers,
     )
-    from deepsuck_cli.config import get_env_value
+    from dag_cli.config import get_env_value
 
     valid = {ts_key for ts_key, _, _ in _get_effective_configurable_toolsets()}
     if name not in valid:
@@ -9500,12 +9500,12 @@ async def select_toolset_provider(
     """Persist a provider selection for a toolset (no key prompting).
 
     Delegates to ``apply_provider_selection`` — the shared, non-interactive
-    core extracted from the CLI configurator — so the GUI and ``deepsuck tools``
+    core extracted from the CLI configurator — so the GUI and ``dag tools``
     write identical config keys (``web.backend``, ``tts.provider``, etc.).
     API keys and post-setup flows are handled by separate endpoints. Returns
     400 for unknown toolset or provider names.
     """
-    from deepsuck_cli.tools_config import (
+    from dag_cli.tools_config import (
         apply_provider_selection,
         _get_effective_configurable_toolsets,
     )
@@ -9533,20 +9533,20 @@ class ToolsetEnvUpdate(BaseModel):
 async def save_toolset_env(name: str, body: ToolsetEnvUpdate, profile: Optional[str] = None):
     """Persist API keys for a toolset's provider env vars.
 
-    Writes each ``key: value`` to ``~/.deepsuck/.env`` via ``save_env_value`` —
-    the same store ``deepsuck tools`` writes when it prompts for keys. Keys are
+    Writes each ``key: value`` to ``~/.dag/.env`` via ``save_env_value`` —
+    the same store ``dag tools`` writes when it prompts for keys. Keys are
     validated against the env-var allowlist for the toolset's category (the
     union of every visible provider's ``env_vars``), so the GUI can't write an
     arbitrary env var through this endpoint. A blank value is treated as
     "leave unchanged" and skipped. Returns the saved/skipped key lists and the
     refreshed ``is_set`` status. Returns 400 for unknown toolset or env keys.
     """
-    from deepsuck_cli.tools_config import (
+    from dag_cli.tools_config import (
         TOOL_CATEGORIES,
         _get_effective_configurable_toolsets,
         _visible_providers,
     )
-    from deepsuck_cli.config import get_env_value, save_env_value
+    from dag_cli.config import get_env_value, save_env_value
 
     valid_ts = {ts_key for ts_key, _, _ in _get_effective_configurable_toolsets()}
     if name not in valid_ts:
@@ -9598,18 +9598,18 @@ async def run_toolset_post_setup(
     Post-setup hooks (npm install for browser/Camofox, pip install for
     KittenTTS/Piper/ddgs, cua-driver fetch, etc.) are long-running and
     text-output, so this follows the spawn-action pattern: it launches
-    ``deepsuck tools post-setup <key>`` and the frontend tails the log via
+    ``dag tools post-setup <key>`` and the frontend tails the log via
     ``GET /api/actions/tools-post-setup/status``. The ``key`` is validated
     against the declared post-setup allowlist before spawning. Returns 400
     for unknown toolset or post-setup key.
 
-    ``profile`` spawns the hook as ``deepsuck -p <profile> tools post-setup``.
+    ``profile`` spawns the hook as ``dag -p <profile> tools post-setup``.
     Most hooks install machine-level artifacts (repo node_modules, shared
     pip packages) where the scope is inert, but hooks that read config or
-    write per-profile state must see the same DEEPSUCK_HOME the rest of the
+    write per-profile state must see the same DAG_HOME the rest of the
     drawer's writes targeted — so the scope is threaded for consistency.
     """
-    from deepsuck_cli.tools_config import (
+    from dag_cli.tools_config import (
         _get_effective_configurable_toolsets,
         valid_post_setup_keys,
     )
@@ -9624,7 +9624,7 @@ async def run_toolset_post_setup(
         )
 
     try:
-        proc = _spawn_deepsuck_action(
+        proc = _spawn_dag_action(
             _profile_cli_args(body.profile or profile)
             + ["tools", "post-setup", body.key],
             "tools-post-setup",
@@ -9909,7 +9909,7 @@ async def get_models_analytics(days: int = 30, profile: Optional[str] = None):
 # ---------------------------------------------------------------------------
 # /api/pty — PTY-over-WebSocket bridge for the dashboard "Chat" tab.
 #
-# The endpoint spawns the same ``deepsuck --tui`` binary the CLI uses, behind
+# The endpoint spawns the same ``dag --tui`` binary the CLI uses, behind
 # a POSIX pseudo-terminal, and forwards bytes + resize escapes across a
 # WebSocket.  The browser renders the ANSI through xterm.js (see
 # web/src/pages/ChatPage.tsx).
@@ -9926,7 +9926,7 @@ async def get_models_analytics(days: int = 30, profile: Optional[str] = None):
 # so the /api/pty WebSocket handler needs no platform guards.
 if sys.platform.startswith("win"):
     try:
-        from deepsuck_cli.win_pty_bridge import WinPtyBridge as PtyBridge, PtyUnavailableError
+        from dag_cli.win_pty_bridge import WinPtyBridge as PtyBridge, PtyUnavailableError
         _PTY_BRIDGE_AVAILABLE = True
     except ImportError:  # pragma: no cover - pywinpty missing
         PtyBridge = None  # type: ignore[assignment]
@@ -9937,7 +9937,7 @@ if sys.platform.startswith("win"):
             pass
 else:
     try:
-        from deepsuck_cli.pty_bridge import PtyBridge, PtyUnavailableError
+        from dag_cli.pty_bridge import PtyBridge, PtyUnavailableError
         _PTY_BRIDGE_AVAILABLE = True
     except ImportError:  # pragma: no cover - dev env without ptyprocess
         PtyBridge = None  # type: ignore[assignment]
@@ -10119,8 +10119,8 @@ def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
     if auth_required:
         # Lazy import — keeps this function importable in test harnesses
         # that don't bring in the dashboard_auth layer.
-        from deepsuck_cli.dashboard_auth.audit import AuditEvent, audit_log
-        from deepsuck_cli.dashboard_auth.ws_tickets import (
+        from dag_cli.dashboard_auth.audit import AuditEvent, audit_log
+        from dag_cli.dashboard_auth.ws_tickets import (
             TicketInvalid,
             consume_internal_credential,
             consume_ticket,
@@ -10185,12 +10185,12 @@ def _resolve_chat_argv(
 ) -> tuple[list[str], Optional[str], Optional[dict]]:
     """Resolve the argv + cwd + env for the chat PTY.
 
-    Default: whatever ``deepsuck --tui`` would run.  Tests monkeypatch this
+    Default: whatever ``dag --tui`` would run.  Tests monkeypatch this
     function to inject a tiny fake command (``cat``, ``sh -c 'printf …'``)
     so nothing has to build Node or the TUI bundle.
 
     Session resume is propagated via the ``DEEPSUCK_TUI_RESUME`` env var —
-    matching what ``deepsuck_cli.main._launch_tui`` does for the CLI path.
+    matching what ``dag_cli.main._launch_tui`` does for the CLI path.
     Appending ``--resume <id>`` to argv doesn't work because ``ui-tui`` does
     not parse its argv.
 
@@ -10203,16 +10203,16 @@ def _resolve_chat_argv(
     dashboard's ``/api/pub`` endpoint (see :func:`pub_ws`).
 
     `profile` (when set) scopes the ENTIRE chat to that profile by pointing
-    ``DEEPSUCK_HOME`` at the profile dir in the child env. Every spawned
+    ``DAG_HOME`` at the profile dir in the child env. Every spawned
     process (the TUI and the ``tui_gateway.entry`` it launches) resolves
-    ``get_deepsuck_home()`` from that env var at its own import, so the child
+    ``get_dag_home()`` from that env var at its own import, so the child
     binds the profile's config, skills, memory, and state.db from the start
-    — the same propagation ``deepsuck -p <name>`` performs. The in-process
+    — the same propagation ``dag -p <name>`` performs. The in-process
     ``DEEPSUCK_TUI_GATEWAY_URL`` attach is SKIPPED for scoped chats: the
     dashboard's in-memory gateway runs under the dashboard's own profile,
     so a profile-scoped chat must spawn its own gateway subprocess.
     """
-    from deepsuck_cli.main import PROJECT_ROOT, _make_tui_argv
+    from dag_cli.main import PROJECT_ROOT, _make_tui_argv
 
     profile_dir: Optional[Path] = None
     requested = (profile or "").strip()
@@ -10222,7 +10222,7 @@ def _resolve_chat_argv(
     argv, cwd = _make_tui_argv(PROJECT_ROOT / "ui-tui", tui_dev=False)
     env = os.environ.copy()
     try:
-        from deepsuck_cli.config import apply_terminal_config_to_env
+        from dag_cli.config import apply_terminal_config_to_env
         apply_terminal_config_to_env(env=env)
     except Exception:
         _log.debug("Failed to apply terminal config bridge for dashboard chat", exc_info=True)
@@ -10237,7 +10237,7 @@ def _resolve_chat_argv(
     env.setdefault("DEEPSUCK_TUI_INLINE", "1")
 
     if profile_dir is not None:
-        env["DEEPSUCK_HOME"] = str(profile_dir)
+        env["DAG_HOME"] = str(profile_dir)
 
     if resume:
         latest_resume, _latest_path = _session_latest_descendant(resume)
@@ -10251,7 +10251,7 @@ def _resolve_chat_argv(
     # Profile-scoped chats must NOT attach to the dashboard's in-memory
     # gateway — it runs under the dashboard's own profile. Without the
     # attach URL, gatewayClient spawns its own `tui_gateway.entry`, which
-    # inherits the profile DEEPSUCK_HOME set above.
+    # inherits the profile DAG_HOME set above.
     if profile_dir is None:
         if gateway_ws_url := _build_gateway_ws_url():
             env["DEEPSUCK_TUI_GATEWAY_URL"] = gateway_ws_url
@@ -10283,7 +10283,7 @@ def _build_gateway_ws_url() -> Optional[str]:
     )
 
     if getattr(app.state, "auth_required", False):
-        from deepsuck_cli.dashboard_auth.ws_tickets import internal_ws_credential
+        from dag_cli.dashboard_auth.ws_tickets import internal_ws_credential
 
         qs = urllib.parse.urlencode({"internal": internal_ws_credential()})
     else:
@@ -10317,7 +10317,7 @@ def _build_sidecar_url(channel: str) -> Optional[str]:
     if getattr(app.state, "auth_required", False):
         # Gated mode — use the internal credential so the WS upgrade survives
         # _ws_auth_ok and the child can reconnect.
-        from deepsuck_cli.dashboard_auth.ws_tickets import internal_ws_credential
+        from dag_cli.dashboard_auth.ws_tickets import internal_ws_credential
 
         qs = urllib.parse.urlencode(
             {"internal": internal_ws_credential(), "channel": channel}
@@ -10409,7 +10409,7 @@ async def pty_ws(ws: WebSocket) -> None:
         await ws.send_text(
             "\r\n\x1b[31mChat unavailable: the embedded terminal requires a "
             "POSIX PTY, which native Windows Python doesn't provide.\x1b[0m\r\n"
-            "\x1b[33mInstall Deepsuck inside WSL2 to use the dashboard's /chat "
+            "\x1b[33mInstall Dag inside WSL2 to use the dashboard's /chat "
             "tab — the rest of the dashboard works here.\x1b[0m\r\n"
         )
         await ws.close(code=1011)
@@ -10619,12 +10619,12 @@ async def events_ws(ws: WebSocket) -> None:
 def _normalise_prefix(raw: Optional[str]) -> str:
     """Normalise an X-Forwarded-Prefix header value.
 
-    Thin re-export of :func:`deepsuck_cli.dashboard_auth.prefix.normalise_prefix`
+    Thin re-export of :func:`dag_cli.dashboard_auth.prefix.normalise_prefix`
     — the single source of truth lives in the dashboard_auth package so
     the gate middleware, the OAuth routes, the cookie helpers, and the
     SPA mount all agree on validation rules.
     """
-    from deepsuck_cli.dashboard_auth.prefix import normalise_prefix
+    from dag_cli.dashboard_auth.prefix import normalise_prefix
     return normalise_prefix(raw)
 
 
@@ -10636,8 +10636,8 @@ def mount_spa(application: FastAPI):
     separate (unauthenticated) token-dispensing endpoint.
 
     When served behind a path-prefix reverse proxy (e.g.
-    ``mission-control.tilos.com/deepsuck/*`` -> local Caddy -> :9119), the
-    proxy injects ``X-Forwarded-Prefix: /deepsuck`` on every request. We
+    ``mission-control.tilos.com/dag/*`` -> local Caddy -> :9119), the
+    proxy injects ``X-Forwarded-Prefix: /dag`` on every request. We
     rewrite the served ``index.html`` so absolute asset URLs (``/assets/...``)
     and the SPA's runtime ``__DEEPSUCK_BASE_PATH__`` honour that prefix
     without rebuilding the bundle.
@@ -10656,7 +10656,7 @@ def mount_spa(application: FastAPI):
     def _serve_index(prefix: str = ""):
         """Return index.html with the session token + base-path injected.
 
-        ``prefix`` is the normalised ``X-Forwarded-Prefix`` (e.g. ``/deepsuck``)
+        ``prefix`` is the normalised ``X-Forwarded-Prefix`` (e.g. ``/dag``)
         or empty string when served at root.
 
         When the OAuth auth gate is active (``app.state.auth_required``),
@@ -10679,7 +10679,7 @@ def mount_spa(application: FastAPI):
             )
         else:
             bootstrap_script = (
-                f'<script>window.__DEEPSUCK_SESSION_TOKEN__="{_SESSION_TOKEN}";'
+                f'<script>window.__DAG_SESSION_TOKEN__="{_SESSION_TOKEN}";'
                 f"window.__DEEPSUCK_DASHBOARD_EMBEDDED_CHAT__={chat_js};"
                 f'window.__DEEPSUCK_BASE_PATH__="{prefix}";'
                 f"window.__DEEPSUCK_AUTH_REQUIRED__={gated_js};"
@@ -10703,8 +10703,8 @@ def mount_spa(application: FastAPI):
     # When served behind a path-prefix proxy, the built CSS contains
     # absolute ``url(/fonts/...)`` and ``url(/ds-assets/...)`` references.
     # Browsers resolve those against the document origin, which means
-    # under ``/deepsuck`` they'd hit ``mission-control.tilos.com/fonts/...``
-    # (the MC Pages app), not the Deepsuck backend. Intercept CSS asset
+    # under ``/dag`` they'd hit ``mission-control.tilos.com/fonts/...``
+    # (the MC Pages app), not the Dag backend. Intercept CSS asset
     # requests BEFORE the StaticFiles mount and rewrite the absolute paths
     # when a prefix is in play.
     @application.get("/assets/{filename}.css")
@@ -10758,8 +10758,8 @@ def mount_spa(application: FastAPI):
 # Built-in dashboard themes — label + description only.  The actual color
 # definitions live in the frontend (web/src/themes/presets.ts).
 _BUILTIN_DASHBOARD_THEMES = [
-    {"name": "default",       "label": "Deepsuck Teal",         "description": "Classic dark teal — the canonical Deepsuck look"},
-    {"name": "default-large", "label": "Deepsuck Teal (Large)", "description": "Deepsuck Teal with bigger fonts and roomier spacing"},
+    {"name": "default",       "label": "DAG Teal",         "description": "Classic dark teal — the canonical Dag look"},
+    {"name": "default-large", "label": "DAG Teal (Large)", "description": "DAG Teal with bigger fonts and roomier spacing"},
     {"name": "nous-blue",     "label": "Nous Blue",           "description": "Light mode — vivid Nous-blue accents on cream canvas"},
     {"name": "midnight",      "label": "Midnight",            "description": "Deep blue-violet with cool accents"},
     {"name": "ember",     "label": "Ember",          "description": "Warm crimson and bronze — forge vibes"},
@@ -10929,7 +10929,7 @@ def _normalise_theme_definition(data: Dict[str, Any]) -> Optional[Dict[str, Any]
     # tag on theme apply.  Clipped to _THEME_CUSTOM_CSS_MAX to keep the
     # payload bounded.  We intentionally do NOT parse/sanitise the CSS
     # here — the dashboard is localhost-only and themes are user-authored
-    # YAML in ~/.deepsuck/, same trust level as the config file itself.
+    # YAML in ~/.dag/, same trust level as the config file itself.
     custom_css_val = data.get("customCSS")
     custom_css: Optional[str] = None
     if isinstance(custom_css_val, str) and custom_css_val.strip():
@@ -10984,13 +10984,13 @@ def _normalise_theme_definition(data: Dict[str, Any]) -> Optional[Dict[str, Any]
 
 
 def _discover_user_themes() -> list:
-    """Scan ~/.deepsuck/dashboard-themes/*.yaml for user-created themes.
+    """Scan ~/.dag/dashboard-themes/*.yaml for user-created themes.
 
     Returns a list of fully-normalised theme definitions ready to ship
     to the frontend, so the client can apply them without a secondary
     round-trip or a built-in stub.
     """
-    themes_dir = get_deepsuck_home() / "dashboard-themes"
+    themes_dir = get_dag_home() / "dashboard-themes"
     if not themes_dir.is_dir():
         return []
     result = []
@@ -11011,7 +11011,7 @@ async def get_dashboard_themes():
 
     Built-in entries ship name/label/description only (the frontend owns
     their full definitions in `web/src/themes/presets.ts`).  User themes
-    from `~/.deepsuck/dashboard-themes/*.yaml` ship with their full
+    from `~/.dag/dashboard-themes/*.yaml` ship with their full
     normalised definition under `definition`, so the client can apply
     them without a stub.
     """
@@ -11141,18 +11141,18 @@ def _safe_plugin_api_relpath(api_field: Any, *, dashboard_dir: Path) -> Optional
 def _discover_dashboard_plugins() -> list:
     """Scan plugins/*/dashboard/manifest.json for dashboard extensions.
 
-    Checks three plugin sources (same as deepsuck_cli.plugins):
-    1. User plugins:    ~/.deepsuck/plugins/<name>/dashboard/manifest.json
+    Checks three plugin sources (same as dag_cli.plugins):
+    1. User plugins:    ~/.dag/plugins/<name>/dashboard/manifest.json
     2. Bundled plugins: <repo>/plugins/<name>/dashboard/manifest.json  (memory/, etc.)
-    3. Project plugins: ./.deepsuck/plugins/  (only if DEEPSUCK_ENABLE_PROJECT_PLUGINS)
+    3. Project plugins: ./.dag/plugins/  (only if DEEPSUCK_ENABLE_PROJECT_PLUGINS)
     """
     plugins = []
     seen_names: set = set()
 
-    from deepsuck_cli.plugins import get_bundled_plugins_dir
+    from dag_cli.plugins import get_bundled_plugins_dir
     bundled_root = get_bundled_plugins_dir()
     search_dirs = [
-        (get_deepsuck_home() / "plugins", "user"),
+        (get_dag_home() / "plugins", "user"),
         (bundled_root / "memory", "bundled"),
         (bundled_root, "bundled"),
     ]
@@ -11164,9 +11164,9 @@ def _discover_dashboard_plugins() -> list:
     # the manifest's ``api`` field (now patched below), this turned the
     # opt-in into a sticky always-on switch.  Use the shared truthy
     # semantics (``1`` / ``true`` / ``yes`` / ``on``) so the gate matches
-    # ``deepsuck_cli/plugins.py`` and the documented user contract.
+    # ``dag_cli/plugins.py`` and the documented user contract.
     if env_var_enabled("DEEPSUCK_ENABLE_PROJECT_PLUGINS"):
-        search_dirs.append((Path.cwd() / ".deepsuck" / "plugins", "project"))
+        search_dirs.append((Path.cwd() / ".dag" / "plugins", "project"))
 
     for plugins_root, source in search_dirs:
         if not plugins_root.is_dir():
@@ -11290,7 +11290,7 @@ def _strip_dashboard_manifest(p: Dict[str, Any]) -> Dict[str, Any]:
 
 def _merged_plugins_hub() -> Dict[str, Any]:
     """Agent discovery + dashboard manifests + optional provider picker metadata."""
-    from deepsuck_cli.plugins_cmd import (
+    from dag_cli.plugins_cmd import (
         _discover_all_plugins,
         _get_current_context_engine,
         _get_current_memory_provider,
@@ -11311,7 +11311,7 @@ def _merged_plugins_hub() -> Dict[str, Any]:
     config = load_config()
     hidden_plugins: list = cfg_get(config, "dashboard", "hidden_plugins", default=[]) or []
 
-    plugins_root_resolved = (get_deepsuck_home() / "plugins").resolve()
+    plugins_root_resolved = (get_dag_home() / "plugins").resolve()
     rows: List[Dict[str, Any]] = []
 
     for name, version, description, source, dir_str, key in _discover_all_plugins():
@@ -11355,7 +11355,7 @@ def _merged_plugins_hub() -> Dict[str, Any]:
                     entry = registry.get_entry(tname)
                     if entry and entry.check_fn and not entry.check_fn():
                         auth_required = True
-                        auth_command = f"deepsuck auth {name}"
+                        auth_command = f"dag auth {name}"
                         break
             except Exception:
                 pass
@@ -11423,7 +11423,7 @@ async def get_plugins_hub(request: Request):
 @app.post("/api/dashboard/agent-plugins/install")
 async def post_agent_plugin_install(request: Request, body: _AgentPluginInstallBody):
     _require_token(request)
-    from deepsuck_cli.plugins_cmd import dashboard_install_plugin
+    from dag_cli.plugins_cmd import dashboard_install_plugin
 
     result = dashboard_install_plugin(
         body.identifier.strip(),
@@ -11453,7 +11453,7 @@ def _validate_plugin_name(name: str) -> str:
 async def post_agent_plugin_enable(request: Request, name: str):
     _require_token(request)
     name = _validate_plugin_name(name)
-    from deepsuck_cli.plugins_cmd import dashboard_set_agent_plugin_enabled
+    from dag_cli.plugins_cmd import dashboard_set_agent_plugin_enabled
 
     result = dashboard_set_agent_plugin_enabled(name, enabled=True)
     if not result.get("ok"):
@@ -11465,7 +11465,7 @@ async def post_agent_plugin_enable(request: Request, name: str):
 async def post_agent_plugin_disable(request: Request, name: str):
     _require_token(request)
     name = _validate_plugin_name(name)
-    from deepsuck_cli.plugins_cmd import dashboard_set_agent_plugin_enabled
+    from dag_cli.plugins_cmd import dashboard_set_agent_plugin_enabled
 
     result = dashboard_set_agent_plugin_enabled(name, enabled=False)
     if not result.get("ok"):
@@ -11477,7 +11477,7 @@ async def post_agent_plugin_disable(request: Request, name: str):
 async def post_agent_plugin_update(request: Request, name: str):
     _require_token(request)
     name = _validate_plugin_name(name)
-    from deepsuck_cli.plugins_cmd import dashboard_update_user_plugin
+    from dag_cli.plugins_cmd import dashboard_update_user_plugin
 
     result = dashboard_update_user_plugin(name)
     if not result.get("ok"):
@@ -11490,7 +11490,7 @@ async def post_agent_plugin_update(request: Request, name: str):
 async def delete_agent_plugin(request: Request, name: str):
     _require_token(request)
     name = _validate_plugin_name(name)
-    from deepsuck_cli.plugins_cmd import dashboard_remove_user_plugin
+    from dag_cli.plugins_cmd import dashboard_remove_user_plugin
 
     result = dashboard_remove_user_plugin(name)
     if not result.get("ok"):
@@ -11508,7 +11508,7 @@ class _PluginProvidersPutBody(BaseModel):
 async def put_plugin_providers(request: Request, body: _PluginProvidersPutBody):
     """Persist memory provider / context engine selection (writes config.yaml)."""
     _require_token(request)
-    from deepsuck_cli.plugins_cmd import (
+    from dag_cli.plugins_cmd import (
         _save_context_engine,
         _save_memory_provider,
     )
@@ -11624,7 +11624,7 @@ def _mount_plugin_api_routes():
     ``/api/plugins/<name>/``.
 
     Backend import is restricted to ``bundled`` and ``user`` sources.
-    Project plugins (``./.deepsuck/plugins/``) ship with the CWD and are
+    Project plugins (``./.dag/plugins/``) ship with the CWD and are
     therefore attacker-controlled in any threat model where the user
     opens a malicious repo; they can extend the dashboard UI via
     static JS/CSS but their Python ``api`` file is never auto-imported
@@ -11638,7 +11638,7 @@ def _mount_plugin_api_routes():
             _log.warning(
                 "Plugin %s: ignoring backend api=%s (project plugins may "
                 "not auto-import Python code; move the plugin to "
-                "~/.deepsuck/plugins/ if you trust it)",
+                "~/.dag/plugins/ if you trust it)",
                 plugin["name"], api_file_name,
             )
             continue
@@ -11662,7 +11662,7 @@ def _mount_plugin_api_routes():
             _log.warning("Plugin %s declares api=%s but file not found", plugin["name"], api_file_name)
             continue
         try:
-            module_name = f"deepsuck_dashboard_plugin_{plugin['name']}"
+            module_name = f"dag_dashboard_plugin_{plugin['name']}"
             spec = importlib.util.spec_from_file_location(module_name, api_path)
             if spec is None or spec.loader is None:
                 continue
@@ -11696,7 +11696,7 @@ _mount_plugin_api_routes()
 # SPA catch-all so /{full_path:path} doesn't swallow them.  These are
 # always mounted — the gate middleware decides whether to enforce auth,
 # not whether the routes exist.
-from deepsuck_cli.dashboard_auth.routes import router as _dashboard_auth_router  # noqa: E402
+from dag_cli.dashboard_auth.routes import router as _dashboard_auth_router  # noqa: E402
 app.include_router(_dashboard_auth_router)
 
 mount_spa(app)
@@ -11784,11 +11784,11 @@ def start_server(
         # Phase 3.5: the gate engages on non-loopback binds.  The legacy
         # "refusing to bind" guard is replaced by "require at least one
         # provider to be registered, else fail closed".
-        from deepsuck_cli.dashboard_auth import list_providers
+        from dag_cli.dashboard_auth import list_providers
         if not list_providers():
             # Surface the *specific* reason any bundled provider declined
             # to register (e.g. missing DEEPSUCK_DASHBOARD_OAUTH_CLIENT_ID).
-            # Each provider plugin that ships with Deepsuck Agent exposes a
+            # Each provider plugin that ships with DAG Agent exposes a
             # module-level ``LAST_SKIP_REASON`` string for this purpose;
             # without it the operator would only see "no providers" which
             # is misleading when the provider IS installed but unconfigured.
@@ -11889,7 +11889,7 @@ def start_server(
             app.state.bound_port = actual_port
 
             print(f"DEEPSUCK_DASHBOARD_READY port={actual_port}", flush=True)
-            print(f"  Deepsuck Web UI → http://{host}:{actual_port}")
+            print(f"  Dag Web UI → http://{host}:{actual_port}")
             _maybe_open_browser(host, actual_port, open_browser, initial_profile)
 
             await server.main_loop()

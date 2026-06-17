@@ -1,6 +1,6 @@
 """Nous Portal upstream adapter.
 
-Reads the user's Nous OAuth state from ``~/.deepsuck/auth.json`` through the
+Reads the user's Nous OAuth state from ``~/.dag/auth.json`` through the
 shared runtime resolver, validates or refreshes the inference JWT, then exposes
 the upstream base URL plus bearer for the proxy server to forward to.
 """
@@ -11,7 +11,7 @@ import logging
 import threading
 from typing import Any, Dict, FrozenSet, Optional
 
-from deepsuck_cli.auth import (
+from dag_cli.auth import (
     AuthError,
     DEFAULT_NOUS_INFERENCE_URL,
     _load_auth_store,
@@ -24,7 +24,7 @@ from deepsuck_cli.auth import (
     _write_shared_nous_state,
     resolve_nous_runtime_credentials,
 )
-from deepsuck_cli.proxy.adapters.base import UpstreamAdapter, UpstreamCredential
+from dag_cli.proxy.adapters.base import UpstreamAdapter, UpstreamCredential
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class NousPortalAdapter(UpstreamAdapter):
             state = self._read_state()
             if state is None:
                 raise RuntimeError(
-                    "Not logged into Nous Portal. Run `deepsuck auth add nous` first."
+                    "Not logged into Nous Portal. Run `dag auth add nous` first."
                 )
 
             try:
@@ -129,7 +129,7 @@ class NousPortalAdapter(UpstreamAdapter):
             if not runtime_key:
                 raise RuntimeError(
                     "Nous Portal refresh did not return a usable inference JWT. "
-                    "Try `deepsuck auth add nous` to re-authenticate."
+                    "Try `dag auth add nous` to re-authenticate."
                 )
 
             base_url = (
@@ -146,7 +146,7 @@ class NousPortalAdapter(UpstreamAdapter):
 
     # ------------------------------------------------------------------
     # Internal helpers — auth.json access. Kept local rather than added
-    # to deepsuck_cli.auth to avoid expanding that module's public surface.
+    # to dag_cli.auth to avoid expanding that module's public surface.
     # ------------------------------------------------------------------
 
     def _read_state(self) -> Optional[Dict[str, Any]]:

@@ -485,7 +485,7 @@ sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
 
 from gateway.config import Platform, PlatformConfig
 from gateway.session import SessionSource, build_session_key
-from deepsuck_constants import get_default_deepsuck_root, get_deepsuck_dir, get_deepsuck_home
+from dag_constants import get_default_dag_root, get_dag_dir, get_dag_home
 
 
 GATEWAY_SECRET_CAPTURE_UNSUPPORTED_MESSAGE = (
@@ -557,8 +557,8 @@ async def _ssrf_redirect_guard(response):
 # (e.g. Telegram file URLs expire after ~1 hour).
 # ---------------------------------------------------------------------------
 
-# Default location: {DEEPSUCK_HOME}/cache/images/ (legacy: image_cache/)
-IMAGE_CACHE_DIR = get_deepsuck_dir("cache/images", "image_cache")
+# Default location: {DAG_HOME}/cache/images/ (legacy: image_cache/)
+IMAGE_CACHE_DIR = get_dag_dir("cache/images", "image_cache")
 
 
 def get_image_cache_dir() -> Path:
@@ -699,7 +699,7 @@ def cleanup_image_cache(max_age_hours: int = 24) -> int:
 # here so the STT tool (OpenAI Whisper) can transcribe them from local files.
 # ---------------------------------------------------------------------------
 
-AUDIO_CACHE_DIR = get_deepsuck_dir("cache/audio", "audio_cache")
+AUDIO_CACHE_DIR = get_dag_dir("cache/audio", "audio_cache")
 
 
 def get_audio_cache_dir() -> Path:
@@ -792,7 +792,7 @@ async def cache_audio_from_url(url: str, ext: str = ".ogg", retries: int = 2) ->
 # here so the agent can reference them by local file path.
 # ---------------------------------------------------------------------------
 
-VIDEO_CACHE_DIR = get_deepsuck_dir("cache/videos", "video_cache")
+VIDEO_CACHE_DIR = get_dag_dir("cache/videos", "video_cache")
 
 SUPPORTED_VIDEO_TYPES = {
     ".mp4": "video/mp4",
@@ -825,10 +825,10 @@ def cache_video_from_bytes(data: bytes, ext: str = ".mp4") -> str:
 # here so the agent can reference them by local file path.
 # ---------------------------------------------------------------------------
 
-DOCUMENT_CACHE_DIR = get_deepsuck_dir("cache/documents", "document_cache")
-SCREENSHOT_CACHE_DIR = get_deepsuck_dir("cache/screenshots", "browser_screenshots")
-_DEEPSUCK_HOME = get_deepsuck_home()
-_HERMES_ROOT = get_default_deepsuck_root()
+DOCUMENT_CACHE_DIR = get_dag_dir("cache/documents", "document_cache")
+SCREENSHOT_CACHE_DIR = get_dag_dir("cache/screenshots", "browser_screenshots")
+_DAG_HOME = get_dag_home()
+_HERMES_ROOT = get_default_dag_root()
 MEDIA_DELIVERY_ALLOW_DIRS_ENV = "HERMES_MEDIA_ALLOW_DIRS"
 MEDIA_DELIVERY_TRUST_RECENT_ENV = "HERMES_MEDIA_TRUST_RECENT_FILES"
 MEDIA_DELIVERY_TRUST_RECENT_SECONDS_ENV = "HERMES_MEDIA_TRUST_RECENT_SECONDS"
@@ -845,18 +845,18 @@ MEDIA_DELIVERY_SAFE_ROOTS = (
     VIDEO_CACHE_DIR,
     DOCUMENT_CACHE_DIR,
     SCREENSHOT_CACHE_DIR,
-    _DEEPSUCK_HOME / "image_cache",
-    _DEEPSUCK_HOME / "audio_cache",
-    _DEEPSUCK_HOME / "video_cache",
-    _DEEPSUCK_HOME / "document_cache",
-    _DEEPSUCK_HOME / "browser_screenshots",
+    _DAG_HOME / "image_cache",
+    _DAG_HOME / "audio_cache",
+    _DAG_HOME / "video_cache",
+    _DAG_HOME / "document_cache",
+    _DAG_HOME / "browser_screenshots",
     # Canonical cache layout — listed alongside the legacy *_cache dirs so
     # generated artifacts deliver on installs that have both (#31733).
-    _DEEPSUCK_HOME / "cache" / "images",
-    _DEEPSUCK_HOME / "cache" / "audio",
-    _DEEPSUCK_HOME / "cache" / "videos",
-    _DEEPSUCK_HOME / "cache" / "documents",
-    _DEEPSUCK_HOME / "cache" / "screenshots",
+    _DAG_HOME / "cache" / "images",
+    _DAG_HOME / "cache" / "audio",
+    _DAG_HOME / "cache" / "videos",
+    _DAG_HOME / "cache" / "documents",
+    _DAG_HOME / "cache" / "screenshots",
 )
 
 # Default recency window for trusting freshly-produced files (seconds).
@@ -959,7 +959,7 @@ def _media_delivery_denied_paths() -> List[Path]:
     # The active Hermes profile and shared Hermes root both contain control
     # files and credentials. Only cache subdirectories under them are
     # explicitly allowlisted above.
-    for hermes_root in (_DEEPSUCK_HOME, _HERMES_ROOT):
+    for hermes_root in (_DAG_HOME, _HERMES_ROOT):
         denied.append(hermes_root / ".env")
         denied.append(hermes_root / "auth.json")
         denied.append(hermes_root / "credentials")
@@ -2417,7 +2417,7 @@ class BasePlatformAdapter(ABC):
         auto-deletion.  Non-fatal if config is unreadable.
         """
         try:
-            from deepsuck_cli.config import load_config as _load_config
+            from dag_cli.config import load_config as _load_config
         except Exception:
             return 0
         try:
@@ -3961,7 +3961,7 @@ class BasePlatformAdapter(ABC):
             # session lifecycle and its cleanup races with the running task
             # (see PR #4926).
             cmd = event.get_command()
-            from deepsuck_cli.commands import should_bypass_active_session
+            from dag_cli.commands import should_bypass_active_session
 
             if should_bypass_active_session(cmd):
                 # /stop, /new, /reset must cancel the in-flight adapter task

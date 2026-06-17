@@ -1,7 +1,7 @@
 """
-Dump command for deepsuck CLI.
+Dump command for dag CLI.
 
-Outputs a compact, plain-text summary of the user's Deepsuck setup
+Outputs a compact, plain-text summary of the user's Dag setup
 that can be copy-pasted into Discord/GitHub/Telegram for support context.
 No ANSI colors, no checkmarks — just data.
 """
@@ -13,9 +13,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from deepsuck_cli.config import get_deepsuck_home, get_env_path, get_project_root, load_config
-from deepsuck_cli.env_loader import load_deepsuck_dotenv
-from deepsuck_constants import display_deepsuck_home
+from dag_cli.config import get_dag_home, get_env_path, get_project_root, load_config
+from dag_cli.env_loader import load_dag_dotenv
+from dag_constants import display_dag_home
 from agent.skill_utils import is_excluded_skill_path
 
 
@@ -25,8 +25,8 @@ def _get_git_commit(project_root: Path) -> str:
     Source installs and dev images resolve this live via ``git rev-parse``.
     The published Docker image excludes ``.git`` from the build context, so
     that lookup always fails — we fall back to the baked-in build SHA written
-    to ``<project_root>/.deepsuck_build_sha`` by the Dockerfile's
-    ``DEEPSUCK_GIT_SHA`` build-arg (see ``deepsuck_cli/build_info.py``).
+    to ``<project_root>/.dag_build_sha`` by the Dockerfile's
+    ``DEEPSUCK_GIT_SHA`` build-arg (see ``dag_cli/build_info.py``).
     The output format is identical regardless of source.
     """
     try:
@@ -46,7 +46,7 @@ def _get_git_commit(project_root: Path) -> str:
     # images, absent otherwise).  Defers the import so the dump module
     # stays cheap on non-dump code paths.
     try:
-        from deepsuck_cli.build_info import get_build_sha
+        from dag_cli.build_info import get_build_sha
         baked = get_build_sha(short=8)
         if baked:
             return baked
@@ -61,7 +61,7 @@ def _redact(value: str) -> str:
 
     Thin wrapper over :func:`agent.redact.mask_secret`. Returns ``""`` for
     an empty value (matches the historical behavior of this helper —
-    ``deepsuck dump`` formats empty values as blank, not as ``"(not set)"``).
+    ``dag dump`` formats empty values as blank, not as ``"(not set)"``).
     """
     from agent.redact import mask_secret
     return mask_secret(value)
@@ -70,7 +70,7 @@ def _redact(value: str) -> str:
 def _gateway_status() -> str:
     """Return a short gateway status string."""
     try:
-        from deepsuck_cli.gateway import get_gateway_runtime_snapshot
+        from dag_cli.gateway import get_gateway_runtime_snapshot
 
         snapshot = get_gateway_runtime_snapshot()
         if snapshot.running:
@@ -85,9 +85,9 @@ def _gateway_status() -> str:
         return "unknown" if sys.platform.startswith(("linux", "darwin")) else "N/A"
 
 
-def _count_skills(deepsuck_home: Path) -> int:
+def _count_skills(dag_home: Path) -> int:
     """Count installed skills."""
-    skills_dir = deepsuck_home / "skills"
+    skills_dir = dag_home / "skills"
     if not skills_dir.is_dir():
         return 0
     count = 0
@@ -105,9 +105,9 @@ def _count_mcp_servers(config: dict) -> int:
     return len(servers)
 
 
-def _cron_summary(deepsuck_home: Path) -> str:
+def _cron_summary(dag_home: Path) -> str:
     """Return cron jobs summary."""
-    jobs_file = deepsuck_home / "cron" / "jobs.json"
+    jobs_file = dag_home / "cron" / "jobs.json"
     if not jobs_file.exists():
         return "0"
     try:
@@ -170,7 +170,7 @@ def _config_overrides(config: dict) -> dict[str, str]:
     
     Returns a flat dict of dotpath -> value for interesting overrides.
     """
-    from deepsuck_cli.config import DEFAULT_CONFIG
+    from dag_cli.config import DEFAULT_CONFIG
 
     overrides = {}
 
@@ -222,16 +222,16 @@ def run_dump(args):
 
     # Load env from .env file so key checks work
     env_path = get_env_path()
-    load_deepsuck_dotenv(
-        deepsuck_home=env_path.parent,
+    load_dag_dotenv(
+        dag_home=env_path.parent,
         project_env=get_project_root() / ".env",
     )
 
     project_root = get_project_root()
-    deepsuck_home = get_deepsuck_home()
+    dag_home = get_dag_home()
 
     try:
-        from deepsuck_cli import __version__, __release_date__
+        from dag_cli import __version__, __release_date__
     except ImportError:
         __version__ = "(unknown)"
         __release_date__ = ""
@@ -247,7 +247,7 @@ def run_dump(args):
 
     # Profile
     try:
-        from deepsuck_cli.profiles import get_active_profile_name
+        from dag_cli.profiles import get_active_profile_name
         profile = get_active_profile_name() or "(default)"
     except Exception:
         profile = "(default)"
@@ -282,7 +282,7 @@ def run_dump(args):
     os_info = f"{platform.system()} {platform.release()} {platform.machine()}"
 
     lines = []
-    lines.append("--- deepsuck dump ---")
+    lines.append("--- dag dump ---")
     ver_str = f"{__version__}"
     if __release_date__:
         ver_str += f" ({__release_date__})"
@@ -292,7 +292,7 @@ def run_dump(args):
     lines.append(f"python:           {sys.version.split()[0]}")
     lines.append(f"openai_sdk:       {openai_ver}")
     lines.append(f"profile:          {profile}")
-    lines.append(f"deepsuck_home:      {display_deepsuck_home()}")
+    lines.append(f"dag_home:      {display_dag_home()}")
     lines.append(f"model:            {model}")
     lines.append(f"provider:         {provider}")
     lines.append(f"terminal:         {backend}")
@@ -333,9 +333,9 @@ def run_dump(args):
             display = _redact(val)
         else:
             display = "set" if val else "not set"
-        # A credential added via `deepsuck auth add openrouter` lives in the
+        # A credential added via `dag auth add openrouter` lives in the
         # credential pool, not as an env var — surface it so the dump doesn't
-        # misleadingly read "not set" while `deepsuck auth list` shows it (#42130).
+        # misleadingly read "not set" while `dag auth list` shows it (#42130).
         if not val and label == "openrouter":
             try:
                 from agent.credential_pool import load_pool as _load_pool
@@ -350,7 +350,7 @@ def run_dump(args):
     lines.append("")
     lines.append("features:")
 
-    toolsets = config.get("toolsets", ["deepsuck-cli"])
+    toolsets = config.get("toolsets", ["dag-cli"])
     lines.append(f"  toolsets:           {', '.join(toolsets) if toolsets else '(default)'}")
     lines.append(f"  mcp_servers:        {_count_mcp_servers(config)}")
     lines.append(f"  memory_provider:    {_memory_provider(config)}")
@@ -358,8 +358,8 @@ def run_dump(args):
 
     platforms = _configured_platforms()
     lines.append(f"  platforms:          {', '.join(platforms) if platforms else 'none'}")
-    lines.append(f"  cron_jobs:          {_cron_summary(deepsuck_home)}")
-    lines.append(f"  skills:             {_count_skills(deepsuck_home)}")
+    lines.append(f"  cron_jobs:          {_cron_summary(dag_home)}")
+    lines.append(f"  skills:             {_count_skills(dag_home)}")
 
     # Config overrides (non-default values)
     overrides = _config_overrides(config)

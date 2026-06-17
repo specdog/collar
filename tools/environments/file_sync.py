@@ -25,7 +25,7 @@ except ImportError:
 from pathlib import Path
 from typing import Callable
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 from tools.environments.base import _file_mtime_key
 
 logger = logging.getLogger(__name__)
@@ -47,12 +47,12 @@ DeleteFn = Callable[[list[str]], None]  # (remote_paths) -> raises on failure
 GetFilesFn = Callable[[], list[tuple[str, str]]]  # () -> [(host_path, remote_path), ...]
 
 
-def iter_sync_files(container_base: str = "/root/.deepsuck") -> list[tuple[str, str]]:
+def iter_sync_files(container_base: str = "/root/.dag") -> list[tuple[str, str]]:
     """Enumerate all files that should be synced to a remote environment.
 
     Combines credentials, skills, and cache into a single flat list of
     (host_path, remote_path) pairs.  Credential paths are remapped from
-    the hardcoded /root/.deepsuck to *container_base* because the remote
+    the hardcoded /root/.dag to *container_base* because the remote
     user's home may differ (e.g. /home/daytona, /home/user).
     """
     # Late import: credential_files imports agent modules that create
@@ -66,7 +66,7 @@ def iter_sync_files(container_base: str = "/root/.deepsuck") -> list[tuple[str, 
     files: list[tuple[str, str]] = []
     for entry in get_credential_file_mounts():
         remote = entry["container_path"].replace(
-            "/root/.deepsuck", container_base, 1
+            "/root/.dag", container_base, 1
         )
         files.append((entry["host_path"], remote))
     for entry in iter_skills_files(container_base=container_base):
@@ -214,10 +214,10 @@ class FileSyncManager:
     # Sync-back: pull remote changes to host on teardown
     # ------------------------------------------------------------------
 
-    def sync_back(self, deepsuck_home: Path | None = None) -> None:
+    def sync_back(self, dag_home: Path | None = None) -> None:
         """Pull remote changes back to the host filesystem.
 
-        Downloads the remote ``.deepsuck/`` directory as a tar archive,
+        Downloads the remote ``.dag/`` directory as a tar archive,
         unpacks it, and applies only files that differ from what was
         originally pushed (based on SHA-256 content hashes).
 
@@ -229,12 +229,12 @@ class FileSyncManager:
 
         # Nothing was ever committed through this manager — the initial
         # push failed or never ran. Skip sync_back to avoid retry storms
-        # against an uninitialized remote .deepsuck/ directory.
+        # against an uninitialized remote .dag/ directory.
         if not self._pushed_hashes and not self._synced_files:
             logger.debug("sync_back: no prior push state — skipping")
             return
 
-        lock_path = (deepsuck_home or get_deepsuck_home()) / ".sync.lock"
+        lock_path = (dag_home or get_dag_home()) / ".sync.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
 
         last_exc: Exception | None = None
@@ -323,7 +323,7 @@ class FileSyncManager:
                 )
                 return
 
-            with tempfile.TemporaryDirectory(prefix="deepsuck-sync-back-") as staging:
+            with tempfile.TemporaryDirectory(prefix="dag-sync-back-") as staging:
                 with tarfile.open(tf.name) as tar:
                     tar.extractall(staging, filter="data")
 
@@ -389,9 +389,9 @@ class FileSyncManager:
 
         Uses the existing file mapping to find a remote->host directory
         pair, then applies the same prefix substitution to the new file.
-        For example, if the mapping has ``/root/.deepsuck/skills/a.md`` →
-        ``~/.deepsuck/skills/a.md``, a new remote file at
-        ``/root/.deepsuck/skills/b.md`` maps to ``~/.deepsuck/skills/b.md``.
+        For example, if the mapping has ``/root/.dag/skills/a.md`` →
+        ``~/.dag/skills/a.md``, a new remote file at
+        ``/root/.dag/skills/b.md`` maps to ``~/.dag/skills/b.md``.
         """
         mapping = file_mapping if file_mapping is not None else []
         for host, remote in mapping:

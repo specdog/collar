@@ -6,7 +6,7 @@ author: Deepsuck Agent
 license: MIT
 platforms: [macos]
 metadata:
-  deepsuck:
+  dag:
     tags: [FindMy, AirTag, location, tracking, macOS, Apple]
 ---
 

@@ -1,16 +1,16 @@
 """
-Deepsuck Plugin System
+Dag Plugin System
 ====================
 
 Discovers, loads, and manages plugins from four sources:
 
-1. **Bundled plugins** – ``<repo>/plugins/<name>/`` (shipped with deepsuck-agent;
+1. **Bundled plugins** – ``<repo>/plugins/<name>/`` (shipped with dag-agent;
    ``memory/`` and ``context_engine/`` subdirs are excluded — they have their
    own discovery paths)
-2. **User plugins**   – ``~/.deepsuck/plugins/<name>/``
-3. **Project plugins** – ``./.deepsuck/plugins/<name>/`` (opt-in via
+2. **User plugins**   – ``~/.dag/plugins/<name>/``
+3. **Project plugins** – ``./.dag/plugins/<name>/`` (opt-in via
    ``DEEPSUCK_ENABLE_PROJECT_PLUGINS``)
-4. **Pip plugins**     – packages that expose the ``deepsuck_agent.plugins``
+4. **Pip plugins**     – packages that expose the ``dag_agent.plugins``
    entry-point group.
 
 Later sources override earlier ones on name collision, so a user or project
@@ -46,10 +46,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 from utils import env_var_enabled
-from deepsuck_cli.config import cfg_get
-from deepsuck_cli.middleware import OBSERVER_SCHEMA_VERSION, VALID_MIDDLEWARE
+from dag_cli.config import cfg_get
+from dag_cli.middleware import OBSERVER_SCHEMA_VERSION, VALID_MIDDLEWARE
 
 
 def get_bundled_plugins_dir() -> Path:
@@ -77,7 +77,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 #
 # Set ``DEEPSUCK_PLUGINS_DEBUG=1`` to surface verbose plugin-discovery logs to
-# stderr in addition to ~/.deepsuck/logs/agent.log. Aimed at plugin authors
+# stderr in addition to ~/.dag/logs/agent.log. Aimed at plugin authors
 # trying to figure out why their plugin isn't showing up: which directories
 # were scanned, which manifests parsed, which plugins were skipped (and why),
 # what each ``register(ctx)`` call registered, and full tracebacks on load
@@ -96,7 +96,7 @@ def _install_plugin_debug_handler(force: bool = False) -> None:
     """When DEEPSUCK_PLUGINS_DEBUG is on, tee plugin logs to stderr at DEBUG.
 
     Idempotent: only attaches the handler once per process unless ``force``
-    is passed. Does not touch the root logger or other Deepsuck loggers.
+    is passed. Does not touch the root logger or other Dag loggers.
     """
     global _DEBUG_HANDLER_INSTALLED, _PLUGINS_DEBUG
     if force:
@@ -169,9 +169,9 @@ VALID_HOOKS: Set[str] = {
     "post_approval_response",
 }
 
-ENTRY_POINTS_GROUP = "deepsuck_agent.plugins"
+ENTRY_POINTS_GROUP = "dag_agent.plugins"
 
-_NS_PARENT = "deepsuck_plugins"
+_NS_PARENT = "dag_plugins"
 
 
 def _env_enabled(name: str) -> bool:
@@ -187,7 +187,7 @@ def _get_disabled_plugins() -> set:
     ``plugins.enabled``.
     """
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         config = load_config()
         disabled = cfg_get(config, "plugins", "disabled", default=[])
         return set(disabled) if isinstance(disabled, list) else set()
@@ -210,7 +210,7 @@ def _get_enabled_plugins() -> Optional[set]:
     * ``set(...)`` — the concrete allow-list.
     """
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         config = load_config()
         plugins_cfg = config.get("plugins")
         if not isinstance(plugins_cfg, dict):
@@ -258,11 +258,11 @@ class PluginManifest:
     # ``platform``: gateway messaging platform adapter (e.g. IRC). Bundled
     #              platform plugins auto-load so every shipped platform is
     #              available out of the box; user-installed platform plugins
-    #              in ~/.deepsuck/plugins/ still gated by ``plugins.enabled``
+    #              in ~/.dag/plugins/ still gated by ``plugins.enabled``
     #              (untrusted code).
     kind: str = "standalone"
     # Registry key — path-derived, used by ``plugins.enabled``/``disabled``
-    # lookups and by ``deepsuck plugins list``. For a flat plugin at
+    # lookups and by ``dag plugins list``. For a flat plugin at
     # ``plugins/disk-cleanup/`` the key is ``disk-cleanup``; for a nested
     # category plugin at ``plugins/image_gen/openai/`` the key is
     # ``image_gen/openai``. When empty, falls back to ``name``.
@@ -395,7 +395,7 @@ class PluginContext:
         handler_fn: Callable | None = None,
         description: str = "",
     ) -> None:
-        """Register a CLI subcommand (e.g. ``deepsuck honcho ...``).
+        """Register a CLI subcommand (e.g. ``dag honcho ...``).
 
         The *setup_fn* receives an argparse subparser and should add any
         arguments/sub-subparsers.  If *handler_fn* is provided it is set
@@ -424,7 +424,7 @@ class PluginContext:
         The handler signature is ``fn(raw_args: str) -> str | None``.
         It may also be an async callable — the gateway dispatch handles both.
 
-        Unlike ``register_cli_command()`` (which creates ``deepsuck <subcommand>``
+        Unlike ``register_cli_command()`` (which creates ``dag <subcommand>``
         terminal commands), this registers in-session slash commands that users
         invoke during a conversation.
 
@@ -447,7 +447,7 @@ class PluginContext:
 
         # Reject if it conflicts with a built-in command
         try:
-            from deepsuck_cli.commands import resolve_command
+            from dag_cli.commands import resolve_command
             if resolve_command(clean) is not None:
                 logger.warning(
                     "Plugin '%s' tried to register command '/%s' which conflicts "
@@ -562,7 +562,7 @@ class PluginContext:
         """Register a dashboard authentication provider.
 
         ``provider`` must be an instance of
-        :class:`deepsuck_cli.dashboard_auth.DashboardAuthProvider`. Used by
+        :class:`dag_cli.dashboard_auth.DashboardAuthProvider`. Used by
         the dashboard OAuth auth gate, which engages when the dashboard
         binds to a non-loopback host without ``--insecure``.
 
@@ -571,7 +571,7 @@ class PluginContext:
         cannot crash the host. Same convention as
         ``register_image_gen_provider``.
         """
-        from deepsuck_cli.dashboard_auth import (
+        from dag_cli.dashboard_auth import (
             DashboardAuthProvider, register_provider,
         )
 
@@ -830,7 +830,7 @@ class PluginContext:
     ) -> None:
         """Register a Slack Block Kit action handler from a plugin.
 
-        Deepsuck' Slack adapter wires registered handlers into its
+        Dag' Slack adapter wires registered handlers into its
         ``slack_bolt.AsyncApp`` at connect time. The callback is invoked
         when a user clicks a button (or interacts with another Block Kit
         action element) whose ``action_id`` matches.
@@ -901,7 +901,7 @@ class PluginContext:
         Plugins use this to declare their own auxiliary tasks without touching
         core files. After registration, the task:
 
-          - Appears in the ``deepsuck model → Configure auxiliary models`` picker
+          - Appears in the ``dag model → Configure auxiliary models`` picker
           - Has its provider/model/base_url/api_key bridged from config.yaml to
             ``AUXILIARY_<KEY_UPPER>_*`` env vars at gateway startup
           - Gets default routing fields (provider="auto", model="", etc.) merged
@@ -946,8 +946,8 @@ class PluginContext:
                 f"must contain only alphanumeric characters and underscores"
             )
 
-        # Lazy import to avoid circular: deepsuck_cli.main imports plugins indirectly
-        from deepsuck_cli.main import _AUX_TASKS as _BUILTIN_AUX_TASKS
+        # Lazy import to avoid circular: dag_cli.main imports plugins indirectly
+        from dag_cli.main import _AUX_TASKS as _BUILTIN_AUX_TASKS
 
         builtin_keys = {k for k, _name, _desc in _BUILTIN_AUX_TASKS}
         if key in builtin_keys:
@@ -1044,7 +1044,7 @@ class PluginContext:
 
         The skill becomes resolvable as ``'<plugin_name>:<name>'`` via
         ``skill_view()``.  It does **not** enter the flat
-        ``~/.deepsuck/skills/`` tree and is **not** listed in the system
+        ``~/.dag/skills/`` tree and is **not** listed in the system
         prompt's ``<available_skills>`` index — plugin skills are
         opt-in explicit loads only.
 
@@ -1163,7 +1163,7 @@ class PluginManager:
 
         # 1. Bundled plugins (<repo>/plugins/<name>/)
         #
-        # Repo-shipped plugins live next to deepsuck_cli/. Two layouts are
+        # Repo-shipped plugins live next to dag_cli/. Two layouts are
         # supported (see ``_scan_directory`` for details):
         #
         #   - flat: ``plugins/disk-cleanup/plugin.yaml`` (standalone)
@@ -1189,16 +1189,16 @@ class PluginManager:
         logger.debug("  bundled/platforms: %d manifest(s)", len(bundled_platforms))
         manifests.extend(bundled_platforms)
 
-        # 2. User plugins (~/.deepsuck/plugins/)
-        user_dir = get_deepsuck_home() / "plugins"
+        # 2. User plugins (~/.dag/plugins/)
+        user_dir = get_dag_home() / "plugins"
         logger.debug("Scanning user plugins: %s", user_dir)
         user_manifests = self._scan_directory(user_dir, source="user")
         logger.debug("  user: %d manifest(s)", len(user_manifests))
         manifests.extend(user_manifests)
 
-        # 3. Project plugins (./.deepsuck/plugins/)
+        # 3. Project plugins (./.dag/plugins/)
         if _env_enabled("DEEPSUCK_ENABLE_PROJECT_PLUGINS"):
-            project_dir = Path.cwd() / ".deepsuck" / "plugins"
+            project_dir = Path.cwd() / ".dag" / "plugins"
             logger.debug("Scanning project plugins: %s", project_dir)
             project_manifests = self._scan_directory(project_dir, source="project")
             logger.debug("  project: %d manifest(s)", len(project_manifests))
@@ -1267,13 +1267,13 @@ class PluginManager:
                 )
                 continue
 
-            # Built-in backends auto-load — they ship with deepsuck and must
+            # Built-in backends auto-load — they ship with dag and must
             # just work. Selection among them (e.g. which image_gen backend
             # services calls) is driven by ``<category>.provider`` config,
             # enforced by the tool wrapper.
             #
             # Bundled platform plugins (gateway adapters like IRC) auto-load
-            # for the same reason: every platform Deepsuck ships must be
+            # for the same reason: every platform Dag ships must be
             # available out of the box without the user having to opt in.
             if manifest.source == "bundled" and manifest.kind in {"backend", "platform"}:
                 self._load_plugin(manifest)
@@ -1290,7 +1290,7 @@ class PluginManager:
             if not is_enabled:
                 loaded = LoadedPlugin(manifest=manifest, enabled=False)
                 loaded.error = (
-                    "not enabled in config (run `deepsuck plugins enable {}` to activate)"
+                    "not enabled in config (run `dag plugins enable {}` to activate)"
                     .format(lookup_key)
                 )
                 self._plugins[lookup_key] = loaded
@@ -1546,7 +1546,7 @@ class PluginManager:
                 # plugins, which mis-credited a plugin that registered a hook /
                 # middleware / tool name an earlier plugin had already used:
                 # the shared name was attributed to the first plugin only, so
-                # later plugins under-reported in `deepsuck plugins list`.
+                # later plugins under-reported in `dag plugins list`.
                 _tools_before = set(self._plugin_tool_names)
                 _hook_counts_before = {
                     h: len(cbs) for h, cbs in self._hooks.items()
@@ -1596,11 +1596,11 @@ class PluginManager:
         self._plugins[manifest.key or manifest.name] = loaded
 
     def _load_directory_module(self, manifest: PluginManifest) -> types.ModuleType:
-        """Import a directory-based plugin as ``deepsuck_plugins.<slug>``.
+        """Import a directory-based plugin as ``dag_plugins.<slug>``.
 
         The module slug is derived from ``manifest.key`` so category-namespaced
         plugins (``image_gen/openai``) import as
-        ``deepsuck_plugins.image_gen__openai`` without colliding with any
+        ``dag_plugins.image_gen__openai`` without colliding with any
         future ``tts/openai``.
         """
         plugin_dir = Path(manifest.path)  # type: ignore[arg-type]
@@ -1963,7 +1963,7 @@ def resolve_plugin_command_result(result: Any) -> Any:
 
     thread = threading.Thread(
         target=_runner,
-        name="deepsuck-plugin-command-await",
+        name="dag-plugin-command-await",
         daemon=True,
     )
     thread.start()
@@ -2004,7 +2004,7 @@ def get_plugin_auxiliary_tasks() -> List[Dict[str, Any]]:
 def get_plugin_toolsets() -> List[tuple]:
     """Return plugin toolsets as ``(key, label, description)`` tuples.
 
-    Used by the ``deepsuck tools`` TUI so plugin-provided toolsets appear
+    Used by the ``dag tools`` TUI so plugin-provided toolsets appear
     alongside the built-in ones and can be toggled on/off per platform.
     """
     manager = get_plugin_manager()

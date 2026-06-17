@@ -1,10 +1,10 @@
 """SQLite-backed Kanban board for multi-profile, multi-project collaboration.
 
 In a fresh install the board lives at ``<root>/kanban.db`` where
-``<root>`` is the **shared Deepsuck root** (the parent of any active
+``<root>`` is the **shared Dag root** (the parent of any active
 profile). Profiles intentionally collapse onto a shared board: it IS
 the cross-profile coordination primitive. A worker spawned with
-``deepsuck -p <profile>`` joins the same board as the dispatcher that
+``dag -p <profile>`` joins the same board as the dispatcher that
 claimed the task. The same applies to ``<root>/kanban/workspaces/`` and
 ``<root>/kanban/logs/``.
 
@@ -12,7 +12,7 @@ claimed the task. The same applies to ``<root>/kanban/workspaces/`` and
 separate unrelated streams of work (e.g. one per project / repo / domain).
 Each board is a directory under ``<root>/kanban/boards/<slug>/`` with
 its own ``kanban.db``, ``workspaces/``, and ``logs/``. All boards share
-the profile's Deepsuck home but are otherwise isolated: a worker spawned
+the profile's Dag home but are otherwise isolated: a worker spawned
 for a task on board ``atm10-server`` sees only that board's tasks,
 cannot enumerate other boards, and its dispatcher ticks don't touch
 other boards' DBs.
@@ -27,27 +27,27 @@ Board resolution order (highest precedence first, all optional):
 * ``board=`` argument passed directly to :func:`connect` / :func:`init_db`
   (explicit — used by the CLI ``--board`` flag and the dashboard
   ``?board=...`` query param).
-* ``DEEPSUCK_KANBAN_BOARD`` env var (used by the dispatcher to pin workers
+* ``DAG_KANBAN_BOARD`` env var (used by the dispatcher to pin workers
   to the board their task lives on — workers cannot see other boards).
-* ``DEEPSUCK_KANBAN_DB`` env var (pins the DB file path directly — legacy
+* ``DAG_KANBAN_DB`` env var (pins the DB file path directly — legacy
   override still honoured; highest precedence when the file path itself
   is what the caller wants to force).
 * ``<root>/kanban/current`` — a one-line text file holding the slug of
-  the "currently selected" board. Written by ``deepsuck kanban boards
+  the "currently selected" board. Written by ``dag kanban boards
   switch <slug>``. When absent, the active board is ``default``.
 
-In standard installs ``<root>`` is ``~/.deepsuck``. In Docker / custom
-deployments where ``DEEPSUCK_HOME`` points outside ``~/.deepsuck`` (e.g.
-``/opt/deepsuck``), ``<root>`` is ``DEEPSUCK_HOME``. Legacy env-var
+In standard installs ``<root>`` is ``~/.dag``. In Docker / custom
+deployments where ``DAG_HOME`` points outside ``~/.dag`` (e.g.
+``/opt/dag``), ``<root>`` is ``DAG_HOME``. Legacy env-var
 overrides still work:
 
-* ``DEEPSUCK_KANBAN_DB`` — pin the database file path directly.
-* ``DEEPSUCK_KANBAN_WORKSPACES_ROOT`` — pin the workspaces root directly.
-* ``DEEPSUCK_KANBAN_HOME`` — pin the umbrella root that anchors kanban
+* ``DAG_KANBAN_DB`` — pin the database file path directly.
+* ``DAG_KANBAN_WORKSPACES_ROOT`` — pin the workspaces root directly.
+* ``DAG_KANBAN_HOME`` — pin the umbrella root that anchors kanban
   paths. Useful for tests and unusual deployments.
 
-The dispatcher injects ``DEEPSUCK_KANBAN_DB``,
-``DEEPSUCK_KANBAN_WORKSPACES_ROOT``, and ``DEEPSUCK_KANBAN_BOARD`` into
+The dispatcher injects ``DAG_KANBAN_DB``,
+``DAG_KANBAN_WORKSPACES_ROOT``, and ``DAG_KANBAN_BOARD`` into
 worker subprocess env so workers converge on the exact DB the
 dispatcher used to claim their task — even under unusual symlink or
 Docker layouts.
@@ -55,7 +55,7 @@ Docker layouts.
 Schema is intentionally small: tasks, task_links, task_comments,
 task_events.  The ``workspace_kind`` field decouples coordination from git
 worktrees so that research / ops / digital-twin workloads work alongside
-coding workloads.  See ``docs/deepsuck-kanban-v1-spec.pdf`` for the full
+coding workloads.  See ``docs/dag-kanban-v1-spec.pdf`` for the full
 design specification.
 
 Concurrency strategy: WAL mode + ``BEGIN IMMEDIATE`` for write
@@ -107,7 +107,7 @@ _IS_WINDOWS = sys.platform == "win32"
 # next dispatcher tick reclaims it. Workers that outlive this window should
 # call ``heartbeat_claim(task_id)`` periodically. In practice most kanban
 # workloads either finish within 15m, set a longer claim explicitly, or use
-# ``DEEPSUCK_KANBAN_CLAIM_TTL_SECONDS`` to raise the default claim window for
+# ``DAG_KANBAN_CLAIM_TTL_SECONDS`` to raise the default claim window for
 # long single-call MCP workflows.
 DEFAULT_CLAIM_TTL_SECONDS = 15 * 60
 
@@ -126,14 +126,14 @@ def _resolve_claim_ttl_seconds(ttl_seconds: Optional[int] = None) -> int:
     """Return the effective claim TTL, honoring the kanban env override.
 
     Explicit call-site values win. Otherwise a positive integer from
-    ``DEEPSUCK_KANBAN_CLAIM_TTL_SECONDS`` overrides the built-in default.
+    ``DAG_KANBAN_CLAIM_TTL_SECONDS`` overrides the built-in default.
     Invalid or non-positive env values fall back silently so existing
     installs keep working.
     """
     if ttl_seconds is not None:
         return max(1, int(ttl_seconds))
 
-    raw = os.environ.get("DEEPSUCK_KANBAN_CLAIM_TTL_SECONDS", "").strip()
+    raw = os.environ.get("DAG_KANBAN_CLAIM_TTL_SECONDS", "").strip()
     if raw:
         try:
             parsed = int(raw)
@@ -168,12 +168,12 @@ KANBAN_RATE_LIMIT_EXIT_CODE = 75
 def _resolve_crash_grace_seconds() -> int:
     """Return the crash-detection grace period in seconds.
 
-    Reads ``DEEPSUCK_KANBAN_CRASH_GRACE_SECONDS`` from the environment;
+    Reads ``DAG_KANBAN_CRASH_GRACE_SECONDS`` from the environment;
     falls back to ``DEFAULT_CRASH_GRACE_SECONDS`` when absent, empty,
     non-integer, or negative. A value of 0 restores immediate-reclaim
     behaviour (useful for tests).
     """
-    raw = os.environ.get("DEEPSUCK_KANBAN_CRASH_GRACE_SECONDS", "").strip()
+    raw = os.environ.get("DAG_KANBAN_CRASH_GRACE_SECONDS", "").strip()
     if raw:
         try:
             parsed = int(raw)
@@ -187,14 +187,14 @@ def _resolve_crash_grace_seconds() -> int:
 def _resolve_rate_limit_cooldown_seconds() -> int:
     """Return the rate-limit requeue cooldown in seconds.
 
-    Reads ``DEEPSUCK_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS`` from the environment;
+    Reads ``DAG_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS`` from the environment;
     falls back to ``DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS`` when absent, empty,
     non-integer, or negative. A value of 0 disables the cooldown (re-spawn on
     the next tick) — useful for tests that want to assert the task becomes
     spawnable again immediately.
     """
     raw = os.environ.get(
-        "DEEPSUCK_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS", ""
+        "DAG_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS", ""
     ).strip()
     if raw:
         try:
@@ -224,7 +224,7 @@ _CTX_MAX_COMMENT_BYTES  = 2 * 1024   # 2 KB per comment
 
 DEFAULT_BOARD = "default"
 _CURRENT_BOARD_OVERRIDE: ContextVar[str | None] = ContextVar(
-    "deepsuck_kanban_current_board_override",
+    "dag_kanban_current_board_override",
     default=None,
 )
 
@@ -240,7 +240,7 @@ def scoped_current_board(slug: str):
 
 # Slug validator: lowercase alphanumerics, digits, hyphens; 1–64 chars.
 # Strict enough to stop traversal (`..`) and embedded path separators, loose
-# enough that kebab-case names like ``atm10-server`` or ``deepsuck-agent``
+# enough that kebab-case names like ``atm10-server`` or ``dag-agent``
 # pass without fuss. Board names with display formatting (spaces, emoji)
 # live in ``board.json``; the slug is just the directory name.
 _BOARD_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-_]{0,63}$")
@@ -262,26 +262,26 @@ def _normalize_board_slug(slug: Optional[str]) -> Optional[str]:
 
 
 def kanban_home() -> Path:
-    """Return the shared Deepsuck root that anchors the kanban board.
+    """Return the shared Dag root that anchors the kanban board.
 
     Resolution order:
 
-    1. ``DEEPSUCK_KANBAN_HOME`` env var when set and non-empty (explicit
+    1. ``DAG_KANBAN_HOME`` env var when set and non-empty (explicit
        override for tests and unusual deployments).
-    2. ``get_default_deepsuck_root()``, which already returns ``<root>``
-       when ``DEEPSUCK_HOME`` is ``<root>/profiles/<name>``, and returns
-       ``DEEPSUCK_HOME`` directly for Docker / custom deployments.
+    2. ``get_default_dag_root()``, which already returns ``<root>``
+       when ``DAG_HOME`` is ``<root>/profiles/<name>``, and returns
+       ``DAG_HOME`` directly for Docker / custom deployments.
 
     The kanban board is shared across profiles **by design** (see the
     module docstring). Resolving the kanban paths through the active
-    profile's ``DEEPSUCK_HOME`` would silently fork the board per profile,
+    profile's ``DAG_HOME`` would silently fork the board per profile,
     which breaks the dispatcher / worker handoff.
     """
-    override = os.environ.get("DEEPSUCK_KANBAN_HOME", "").strip()
+    override = os.environ.get("DAG_KANBAN_HOME", "").strip()
     if override:
         return Path(override).expanduser()
-    from deepsuck_constants import get_default_deepsuck_root
-    return get_default_deepsuck_root()
+    from dag_constants import get_default_dag_root
+    return get_default_dag_root()
 
 
 def boards_root() -> Path:
@@ -298,7 +298,7 @@ def boards_root() -> Path:
 def current_board_path() -> Path:
     """Return the path to ``<root>/kanban/current``.
 
-    One-line text file written by ``deepsuck kanban boards switch <slug>``
+    One-line text file written by ``dag kanban boards switch <slug>``
     to persist the user's board selection across CLI invocations. Absent
     by default (meaning: active board is ``default``).
     """
@@ -310,9 +310,9 @@ def get_current_board() -> str:
 
     Order (highest precedence first):
 
-    1. ``DEEPSUCK_KANBAN_BOARD`` env var (set by the dispatcher on worker
+    1. ``DAG_KANBAN_BOARD`` env var (set by the dispatcher on worker
        spawn, or manually for ad-hoc overrides).
-    2. ``<root>/kanban/current`` on disk (set by ``deepsuck kanban boards
+    2. ``<root>/kanban/current`` on disk (set by ``dag kanban boards
        switch``), but only when that board still exists.
     3. ``DEFAULT_BOARD`` (``"default"``).
 
@@ -329,7 +329,7 @@ def get_current_board() -> str:
         except ValueError:
             pass
 
-    env = os.environ.get("DEEPSUCK_KANBAN_BOARD", "").strip()
+    env = os.environ.get("DAG_KANBAN_BOARD", "").strip()
     if env:
         try:
             normed = _normalize_board_slug(env)
@@ -358,7 +358,7 @@ def set_current_board(slug: str) -> Path:
 
     Writes ``<root>/kanban/current``. The caller should validate the slug
     exists first (via :func:`board_exists`) — this function does not —
-    so that ``deepsuck kanban boards switch <typo>`` returns an error
+    so that ``dag kanban boards switch <typo>`` returns an error
     instead of silently pointing at nothing.
     """
     normed = _normalize_board_slug(slug)
@@ -411,7 +411,7 @@ def kanban_db_path(board: Optional[str] = None) -> Path:
 
     Resolution (highest precedence first):
 
-    1. ``DEEPSUCK_KANBAN_DB`` env var — pins the path directly. Honoured for
+    1. ``DAG_KANBAN_DB`` env var — pins the path directly. Honoured for
        back-compat and for the dispatcher→worker handoff (defense in
        depth: dispatcher injects this into worker env so workers are
        immune to any path-resolution disagreement).
@@ -420,7 +420,7 @@ def kanban_db_path(board: Optional[str] = None) -> Path:
     3. Board ``default`` → ``<root>/kanban.db`` (back-compat path).
        Other boards → ``<root>/kanban/boards/<slug>/kanban.db``.
     """
-    override = os.environ.get("DEEPSUCK_KANBAN_DB", "").strip()
+    override = os.environ.get("DAG_KANBAN_DB", "").strip()
     if override:
         return Path(override).expanduser()
     slug = _normalize_board_slug(board)
@@ -435,14 +435,14 @@ def workspaces_root(board: Optional[str] = None) -> Path:
     """Return the directory under which ``scratch`` workspaces are created.
 
     Anchored per-board so workspaces don't leak between projects.
-    ``DEEPSUCK_KANBAN_WORKSPACES_ROOT`` pins the path directly (highest
+    ``DAG_KANBAN_WORKSPACES_ROOT`` pins the path directly (highest
     precedence) — the dispatcher injects this into worker env.
 
     ``default`` keeps the legacy path ``<root>/kanban/workspaces/`` so
     that existing scratch workspaces from before the boards feature are
     preserved. Other boards use ``<root>/kanban/boards/<slug>/workspaces/``.
     """
-    override = os.environ.get("DEEPSUCK_KANBAN_WORKSPACES_ROOT", "").strip()
+    override = os.environ.get("DAG_KANBAN_WORKSPACES_ROOT", "").strip()
     if override:
         return Path(override).expanduser()
     slug = _normalize_board_slug(board)
@@ -460,7 +460,7 @@ def attachments_root(board: Optional[str] = None) -> Path:
     per-board so attachments don't leak between projects. Each task gets
     its own ``<root>/.../attachments/<task_id>/`` subdirectory.
 
-    ``DEEPSUCK_KANBAN_ATTACHMENTS_ROOT`` pins the path directly (highest
+    ``DAG_KANBAN_ATTACHMENTS_ROOT`` pins the path directly (highest
     precedence) for tests and unusual deployments.
 
     ``default`` uses ``<root>/kanban/attachments/``; other boards use
@@ -472,7 +472,7 @@ def attachments_root(board: Optional[str] = None) -> Path:
     directly. Remote backends (Docker/Modal) need this directory mounted;
     see the kanban docs.
     """
-    override = os.environ.get("DEEPSUCK_KANBAN_ATTACHMENTS_ROOT", "").strip()
+    override = os.environ.get("DAG_KANBAN_ATTACHMENTS_ROOT", "").strip()
     if override:
         return Path(override).expanduser()
     slug = _normalize_board_slug(board)
@@ -493,7 +493,7 @@ def worker_logs_dir(board: Optional[str] = None) -> Path:
 
     ``default`` keeps the legacy path ``<root>/kanban/logs/``. Other
     boards use ``<root>/kanban/boards/<slug>/logs/``. Logs follow the
-    board — makes ``deepsuck kanban log`` unambiguous even when multiple
+    board — makes ``dag kanban log`` unambiguous even when multiple
     boards have tasks with the same id.
     """
     slug = _normalize_board_slug(board)
@@ -796,7 +796,7 @@ class Task:
     # through to the goals engine default (``goals.DEFAULT_MAX_TURNS``).
     goal_max_turns: Optional[int] = None
     # Originating chat/agent session id, when the task was created from
-    # within an agent loop that propagated ``DEEPSUCK_SESSION_ID``. NULL for
+    # within an agent loop that propagated ``DAG_SESSION_ID``. NULL for
     # tasks created from the CLI, the dashboard, or any path that doesn't
     # set the env var. Lets clients render a per-session board without
     # relying on tenant + time-window heuristics.
@@ -1033,7 +1033,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     -- goals-engine default.
     goal_max_turns       INTEGER,
     -- Originating chat/agent session id when the task was created from
-    -- inside an agent loop that propagated ``DEEPSUCK_SESSION_ID``. NULL
+    -- inside an agent loop that propagated ``DAG_SESSION_ID``. NULL
     -- for tasks created from the CLI, dashboard, or any path that doesn't
     -- set the env var. Indexed so per-session list queries stay cheap on
     -- larger boards.
@@ -1155,7 +1155,7 @@ def _resolve_busy_timeout_ms() -> int:
     expected.  A long busy timeout lets SQLite serialize writers via WAL rather
     than surfacing transient ``database is locked`` failures during bursts.
     """
-    raw = os.environ.get("DEEPSUCK_KANBAN_BUSY_TIMEOUT_MS", "").strip()
+    raw = os.environ.get("DAG_KANBAN_BUSY_TIMEOUT_MS", "").strip()
     if raw:
         try:
             parsed = int(raw)
@@ -1374,7 +1374,7 @@ def _guard_existing_db_is_healthy(path: Path) -> None:
     Path-trust note: ``path`` arrives via :func:`connect`, which itself
     resolves it from an explicit ``db_path`` argument, the
     :func:`kanban_db_path` env-var chain, or the kanban-home default —
-    all sources Deepsuck treats as user-controlled-but-trusted on the
+    all sources Dag treats as user-controlled-but-trusted on the
     user's own machine. We additionally resolve the path here and
     confine all filesystem writes to its parent directory so any
     accidental ``..`` segments are collapsed before any I/O happens.
@@ -1432,7 +1432,7 @@ def connect(
     * ``db_path`` explicit → used as-is (legacy callers, tests).
     * ``board`` explicit → resolves to that board's DB.
     * Neither → :func:`kanban_db_path` resolves via
-      ``DEEPSUCK_KANBAN_DB`` env → ``DEEPSUCK_KANBAN_BOARD`` env →
+      ``DAG_KANBAN_DB`` env → ``DAG_KANBAN_BOARD`` env →
       ``<root>/kanban/current`` → ``default``.
     """
     if db_path is not None:
@@ -1459,8 +1459,8 @@ def connect(
                 # startup threads do not race before _INITIALIZED_PATHS is populated.
                 # WAL doesn't work on network filesystems (NFS/SMB/FUSE). Shared helper
                 # falls back to DELETE with one WARNING so kanban stays usable there.
-                # See deepsuck_state._WAL_INCOMPAT_MARKERS for detection logic.
-                from deepsuck_state import apply_wal_with_fallback
+                # See dag_state._WAL_INCOMPAT_MARKERS for detection logic.
+                from dag_state import apply_wal_with_fallback
                 apply_wal_with_fallback(conn, db_label=f"kanban.db ({path.name})")
                 # FULL (was NORMAL): fsync before each checkpoint to narrow the
                 # crash window that can leave a b-tree page header torn.
@@ -1531,7 +1531,7 @@ def init_db(
 ) -> Path:
     """Create the schema if it doesn't exist; return the path used.
 
-    Kept as a public entry point so CLI ``deepsuck kanban init`` and the
+    Kept as a public entry point so CLI ``dag kanban init`` and the
     daemon have something explicit to call. Unlike :func:`connect`'s
     first-time auto-init (which caches by path), ``init_db`` always
     re-runs the migration pass. Callers that know the on-disk schema
@@ -1687,7 +1687,7 @@ def _migrate_add_optional_columns(conn: sqlite3.Connection) -> None:
     if "session_id" not in cols:
         # Originating agent/chat session id, populated when the task is
         # created from within an agent loop that propagated
-        # ``DEEPSUCK_SESSION_ID`` (e.g. ACP). NULL on legacy rows and on any
+        # ``DAG_SESSION_ID`` (e.g. ACP). NULL on legacy rows and on any
         # creation path that doesn't set the env var (CLI, dashboard).
         _add_column_if_missing(
             conn, "tasks", "session_id", "session_id TEXT"
@@ -2044,7 +2044,7 @@ def _canonical_assignee(assignee: Optional[str]) -> Optional[str]:
     """Lowercase-assignee normalization for Kanban rows (dashboard/CLI parity)."""
     if assignee is None:
         return None
-    from deepsuck_cli.profiles import normalize_profile_name
+    from dag_cli.profiles import normalize_profile_name
 
     return normalize_profile_name(assignee)
 
@@ -2092,7 +2092,7 @@ def create_task(
 
     ``skills`` is an optional list of skill names to force-load into
     the worker when dispatched. Stored as JSON; the dispatcher passes
-    each name to ``deepsuck --skills ...`` alongside the built-in
+    each name to ``dag --skills ...`` alongside the built-in
     ``kanban-worker``. Use this to pin a task to a specialist skill
     (e.g. ``skills=["translation"]`` so the worker loads the
     translation skill regardless of the profile's default config).
@@ -2118,7 +2118,7 @@ def create_task(
     # Normalise + validate skills: strip whitespace, drop empties, dedupe
     # (preserving order). Refuse commas inside a single name so we don't
     # invisibly splatter a comma-joined string into one argv slot — the
-    # `deepsuck --skills X,Y` comma syntax is handled in the dispatcher,
+    # `dag --skills X,Y` comma syntax is handled in the dispatcher,
     # not here.
     skills_list: Optional[list[str]] = None
     if skills is not None:
@@ -2307,7 +2307,7 @@ def get_task(conn: sqlite3.Connection, task_id: str) -> Optional[Task]:
     return Task.from_row(row) if row else None
 
 
-# Canonical sort-order mappings for ``deepsuck kanban list --sort``.
+# Canonical sort-order mappings for ``dag kanban list --sort``.
 # Each value is a raw SQL fragment appended after ``ORDER BY``.
 VALID_SORT_ORDERS: dict[str, str] = {
     "created": "created_at ASC, id ASC",
@@ -2479,7 +2479,7 @@ def unlink_tasks(conn: sqlite3.Connection, parent_id: str, child_id: str) -> boo
         # Dependency edge removed — re-evaluate promotion eligibility for the
         # child immediately.  Matches the contract of complete_task and
         # unblock_task; without this the child stays stuck in todo until the
-        # next dispatcher tick or a manual `deepsuck kanban recompute` (issue #22459).
+        # next dispatcher tick or a manual `dag kanban recompute` (issue #22459).
         recompute_ready(conn)
     return removed
 
@@ -2737,7 +2737,7 @@ def _end_run(
     timed_out / spawn_failed / gave_up / reclaimed). ``status`` is the
     run-row status (usually just ``outcome``, but callers can pass it
     explicitly). Returns the closed run_id or ``None`` if no active run
-    existed (e.g. a CLI user calling ``deepsuck kanban complete`` on a
+    existed (e.g. a CLI user calling ``dag kanban complete`` on a
     task that was never claimed).
     """
     now = int(time.time())
@@ -2797,7 +2797,7 @@ def _synthesize_ended_run(
     """Insert a zero-duration, already-closed run row.
 
     Used when a terminal transition happens on a task that was never
-    claimed (CLI user calling ``deepsuck kanban complete <ready-task>
+    claimed (CLI user calling ``dag kanban complete <ready-task>
     --summary X``, or dashboard "mark done" on a ready task). Without
     this, the handoff fields (summary / metadata / error) would be
     silently dropped: ``_end_run`` is a no-op because there's no
@@ -2848,7 +2848,7 @@ def _has_sticky_block(conn: sqlite3.Connection, task_id: str) -> bool:
 
     * **Worker- or operator-initiated** — a worker called
       ``kanban_block(reason="review-required: ...")`` (or somebody ran
-      ``deepsuck kanban block <id>``).  This is a deliberate handoff that
+      ``dag kanban block <id>``).  This is a deliberate handoff that
       should stay blocked until an operator unblocks it.  The block tool
       emits a ``"blocked"`` event row in ``task_events``.
 
@@ -3572,7 +3572,7 @@ def complete_task(
     """Transition ``running|ready -> done`` and record ``result``.
 
     Accepts a task that is merely ``ready`` too, so a manual CLI
-    completion (``deepsuck kanban complete <id>``) works without requiring
+    completion (``dag kanban complete <id>``) works without requiring
     a claim/start/complete sequence.
 
     ``summary`` and ``metadata`` are stored on the closing run (if any)
@@ -3752,7 +3752,7 @@ def _is_managed_scratch_path(p: Path) -> bool:
     broader kanban home, a board root, or sibling subtrees like ``logs/`` or
     ``boards/<slug>/`` itself. Allowed roots:
 
-    * ``DEEPSUCK_KANBAN_WORKSPACES_ROOT`` when set (worker-side override
+    * ``DAG_KANBAN_WORKSPACES_ROOT`` when set (worker-side override
       injected by the dispatcher).
     * ``<kanban_home>/kanban/workspaces`` — legacy default-board scratch root.
     * ``<kanban_home>/kanban/boards/<slug>/workspaces`` for each board slug
@@ -3763,10 +3763,10 @@ def _is_managed_scratch_path(p: Path) -> bool:
     task's scratch dir at once), and a path that resolves to ``<kanban_home>
     /kanban`` itself, ``<kanban_home>/kanban/logs``, or
     ``<kanban_home>/kanban/boards/<slug>`` is rejected because those
-    subtrees hold Deepsuck' own DB, metadata, and logs, not task workspaces.
+    subtrees hold Dag' own DB, metadata, and logs, not task workspaces.
 
     Used by :func:`_cleanup_workspace` to refuse to ``shutil.rmtree`` paths
-    outside Deepsuck-managed storage. A board ``default_workdir`` pointing at a
+    outside Dag-managed storage. A board ``default_workdir`` pointing at a
     real source tree can otherwise pair with ``workspace_kind='scratch'`` and
     cause task completion to delete user data (#28818).
     """
@@ -3775,7 +3775,7 @@ def _is_managed_scratch_path(p: Path) -> bool:
     except OSError:
         return False
     roots: list[Path] = []
-    override = os.environ.get("DEEPSUCK_KANBAN_WORKSPACES_ROOT", "").strip()
+    override = os.environ.get("DAG_KANBAN_WORKSPACES_ROOT", "").strip()
     if override:
         try:
             roots.append(Path(override).expanduser().resolve(strict=False))
@@ -3968,7 +3968,7 @@ def _cleanup_worker_tmux(conn: sqlite3.Connection, task_id: str) -> None:
 # we:
 #   1. Log a warning line on the dispatcher logger.
 #   2. Append a ``tip_scratch_workspace`` event on the task so it's visible
-#      via ``deepsuck kanban show <id>`` and the dashboard.
+#      via ``dag kanban show <id>`` and the dashboard.
 #   3. Touch a sentinel file under ``kanban_home() / '.scratch_tip_shown'``
 #      so we don't repeat the tip — once you know, you know.
 #
@@ -4846,7 +4846,7 @@ _RESPAWN_GUARD_SUCCESS_WINDOW = 3600  # 1 hour
 # would be re-spawned on the very next tick and immediately bounce off the
 # same quota wall, burning a worker slot every tick for hours. The cooldown
 # spaces retries out so the board keeps cheaply probing whether quota is back
-# without thrashing. Overridable via ``DEEPSUCK_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS``
+# without thrashing. Overridable via ``DAG_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS``
 # for operators who want a tighter/looser probe cadence.
 DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 300  # 5 minutes
 
@@ -4879,7 +4879,7 @@ class DispatchResult:
     rather than on explicit per-task assignments."""
     skipped_nonspawnable: list[str] = field(default_factory=list)
     """Ready task ids skipped because their assignee names a control-plane
-    lane (a Claude Code terminal like ``orion-cc``) rather than a Deepsuck
+    lane (a Claude Code terminal like ``orion-cc``) rather than a Dag
     profile. Expected steady-state on multi-lane setups; NOT an
     operator-actionable failure. Tracked separately so health telemetry
     can distinguish "real stuck" (nothing spawned but spawnable work
@@ -5808,7 +5808,7 @@ def _record_spawn_failure(
 def _set_worker_pid(conn: sqlite3.Connection, task_id: str, pid: int) -> None:
     """Record the spawned child's pid + emit a ``spawned`` event.
 
-    The event's payload carries the pid so a human reading ``deepsuck kanban
+    The event's payload carries the pid so a human reading ``dag kanban
     tail`` can correlate log lines with OS-level traces without opening
     the drawer.
     """
@@ -5967,7 +5967,7 @@ def check_respawn_guard(conn: sqlite3.Connection, task_id: str) -> Optional[str]
 
 def has_spawnable_ready(conn: sqlite3.Connection) -> bool:
     """Return True iff there is at least one ready+assigned+unclaimed task
-    whose assignee maps to a real Deepsuck profile.
+    whose assignee maps to a real Dag profile.
 
     Used by the gateway- and CLI-embedded dispatchers' health telemetry to
     decide whether ``0 spawned`` is a "stuck" condition (real spawnable
@@ -5987,7 +5987,7 @@ def has_spawnable_ready(conn: sqlite3.Connection) -> bool:
     if not rows:
         return False
     try:
-        from deepsuck_cli.profiles import profile_exists  # local import: avoids cycle
+        from dag_cli.profiles import profile_exists  # local import: avoids cycle
     except Exception:
         # Can't introspect — assume spawnable, preserve legacy behavior.
         return True
@@ -5999,7 +5999,7 @@ def has_spawnable_ready(conn: sqlite3.Connection) -> bool:
 
 def has_spawnable_review(conn: sqlite3.Connection) -> bool:
     """Return True iff there is at least one review+assigned+unclaimed task
-    whose assignee maps to a real Deepsuck profile.
+    whose assignee maps to a real Dag profile.
 
     Mirror of :func:`has_spawnable_ready` for the review column —
     used by the health telemetry to decide whether the dispatcher
@@ -6013,7 +6013,7 @@ def has_spawnable_review(conn: sqlite3.Connection) -> bool:
     if not rows:
         return False
     try:
-        from deepsuck_cli.profiles import profile_exists  # local import: avoids cycle
+        from dag_cli.profiles import profile_exists  # local import: avoids cycle
     except Exception:
         return True
     for row in rows:
@@ -6155,7 +6155,7 @@ def dispatch_once(
     _default_assignee_resolved = False
     if _default_assignee:
         try:
-            from deepsuck_cli.profiles import profile_exists as _pe
+            from dag_cli.profiles import profile_exists as _pe
             _default_assignee_resolved = bool(_pe(_default_assignee))
         except Exception:
             # Profiles module not importable (test stubs, exotic envs).
@@ -6211,18 +6211,18 @@ def dispatch_once(
             else:
                 result.skipped_unassigned.append(row["id"])
                 continue
-        # Skip ready tasks whose assignee is not a real Deepsuck profile.
-        # `_default_spawn` invokes ``deepsuck -p <assignee>`` which fails
+        # Skip ready tasks whose assignee is not a real Dag profile.
+        # `_default_spawn` invokes ``dag -p <assignee>`` which fails
         # with "Profile 'X' does not exist" when the assignee names a
         # control-plane lane (e.g. an interactive Claude Code terminal
-        # like ``orion-cc`` / ``orion-research``) rather than a Deepsuck
+        # like ``orion-cc`` / ``orion-research``) rather than a Dag
         # profile. Those task lanes are pulled by terminals via
         # ``claim_task`` directly and should NEVER auto-spawn — the
         # subprocess would crash on startup, get reaped as a zombie,
         # the task would loop back to ``ready`` on next tick, and we'd
         # burn CPU forever (#kanban-dispatcher-crash-loop 2026-05-05).
         try:
-            from deepsuck_cli.profiles import profile_exists  # local import: avoids cycle
+            from dag_cli.profiles import profile_exists  # local import: avoids cycle
         except Exception:
             profile_exists = None  # type: ignore[assignment]
         if profile_exists is not None and not profile_exists(row_assignee):
@@ -6259,7 +6259,7 @@ def dispatch_once(
         if guard_reason is not None:
             result.respawn_guarded.append((row["id"], guard_reason))
             # Emit an event so operators can see why the task was
-            # skipped when reading `deepsuck kanban tail` — without
+            # skipped when reading `dag kanban tail` — without
             # this the task appears stuck in ready with no diagnosis.
             if not dry_run:
                 with write_txn(conn):
@@ -6356,7 +6356,7 @@ def dispatch_once(
             result.skipped_unassigned.append(row["id"])
             continue
         try:
-            from deepsuck_cli.profiles import profile_exists
+            from dag_cli.profiles import profile_exists
         except Exception:
             profile_exists = None  # type: ignore[assignment]
         if profile_exists is not None and not profile_exists(row["assignee"]):
@@ -6429,7 +6429,7 @@ def worker_log_rotation_config(kanban_cfg: Optional[dict] = None) -> tuple[int, 
     """
     if kanban_cfg is None:
         try:
-            from deepsuck_cli.config import load_config
+            from dag_cli.config import load_config
 
             kanban_cfg = (load_config().get("kanban") or {})
         except Exception:
@@ -6494,16 +6494,16 @@ def _rotate_worker_log(
         pass
 
 
-def _module_deepsuck_argv() -> list[str]:
-    """Return the interpreter-bound Deepsuck CLI invocation."""
-    # ``deepsuck_cli.main`` is the console-script target declared in
-    # pyproject.toml, NOT a top-level ``deepsuck`` package — there is no
-    # ``deepsuck`` package to import.
-    return [sys.executable, "-m", "deepsuck_cli.main"]
+def _module_dag_argv() -> list[str]:
+    """Return the interpreter-bound Dag CLI invocation."""
+    # ``dag_cli.main`` is the console-script target declared in
+    # pyproject.toml, NOT a top-level ``dag`` package — there is no
+    # ``dag`` package to import.
+    return [sys.executable, "-m", "dag_cli.main"]
 
 
-def _absolute_deepsuck_path(path: str) -> str:
-    """Return an absolute filesystem path for a resolved Deepsuck shim."""
+def _absolute_dag_path(path: str) -> str:
+    """Return an absolute filesystem path for a resolved Dag shim."""
     expanded = os.path.expanduser(path)
     return expanded if os.path.isabs(expanded) else os.path.abspath(expanded)
 
@@ -6556,8 +6556,8 @@ def _safe_which_no_cwd(command: str) -> Optional[str]:
     return None
 
 
-def _deepsuck_path_argv(path: str) -> list[str]:
-    """Return argv for a resolved Deepsuck executable path.
+def _dag_path_argv(path: str) -> list[str]:
+    """Return argv for a resolved Dag executable path.
 
     Windows batch shims (`.cmd` / `.bat`) are not safe as argv[0] for
     worker launches because the argument vector includes task-derived
@@ -6565,32 +6565,32 @@ def _deepsuck_path_argv(path: str) -> list[str]:
     executable is only a shell shim.
     """
     if _IS_WINDOWS and _is_windows_batch_shim(path):
-        return _module_deepsuck_argv()
-    return [_absolute_deepsuck_path(path)]
+        return _module_dag_argv()
+    return [_absolute_dag_path(path)]
 
 
-def _resolve_deepsuck_argv() -> list[str]:
-    """Resolve the ``deepsuck`` invocation as argv parts for ``Popen``.
+def _resolve_dag_argv() -> list[str]:
+    """Resolve the ``dag`` invocation as argv parts for ``Popen``.
 
     Tries in order:
 
     1. ``$DEEPSUCK_BIN`` — explicit operator override. Path-like values are
        normalized to absolute paths; bare command names keep normal PATH
        semantics and never prefer a same-directory file before ``PATH``.
-    2. ``shutil.which("deepsuck")`` — the console-script shim, normalized to
+    2. ``shutil.which("dag")`` — the console-script shim, normalized to
        an absolute path. On Windows, ``which`` can return a relative
-       ``.\\deepsuck.CMD`` when the current directory is on ``PATH``; directly
+       ``.\\dag.CMD`` when the current directory is on ``PATH``; directly
        launching batch shims is also unsafe with task-derived argv. The
        dispatcher therefore falls back to the interpreter-bound module form
        for implicit ``.cmd`` / ``.bat`` shims.
-    3. ``sys.executable -m deepsuck_cli.main`` — fallback for setups where
-       Deepsuck is launched from a venv and the ``deepsuck`` shim is not on
+    3. ``sys.executable -m dag_cli.main`` — fallback for setups where
+       Dag is launched from a venv and the ``dag`` shim is not on
        the dispatcher's ``$PATH`` (cron, systemd ``User=`` services,
        launchd jobs, detached processes, etc.). Goes through the running
        interpreter so the result is independent of ``$PATH``.
 
-    Mirrors ``gateway.run._resolve_deepsuck_bin`` for the same reason. Kept
-    local (not imported from gateway) because ``deepsuck_cli`` sits below
+    Mirrors ``gateway.run._resolve_dag_bin`` for the same reason. Kept
+    local (not imported from gateway) because ``dag_cli`` sits below
     ``gateway`` in the dependency order.
     """
     import shutil
@@ -6598,24 +6598,24 @@ def _resolve_deepsuck_argv() -> list[str]:
     env_bin = os.environ.get("DEEPSUCK_BIN", "").strip()
     if env_bin:
         if _looks_like_path(env_bin):
-            return _deepsuck_path_argv(env_bin)
+            return _dag_path_argv(env_bin)
         resolved_env_bin = _safe_which_no_cwd(env_bin)
         if resolved_env_bin:
-            return _deepsuck_path_argv(resolved_env_bin)
-        return _module_deepsuck_argv()
+            return _dag_path_argv(resolved_env_bin)
+        return _module_dag_argv()
 
-    deepsuck_bin = _safe_which_no_cwd("deepsuck") if _IS_WINDOWS else shutil.which("deepsuck")
-    if deepsuck_bin:
-        return _deepsuck_path_argv(deepsuck_bin)
-    return _module_deepsuck_argv()
+    dag_bin = _safe_which_no_cwd("dag") if _IS_WINDOWS else shutil.which("dag")
+    if dag_bin:
+        return _dag_path_argv(dag_bin)
+    return _module_dag_argv()
 
 
-def _kanban_worker_skill_available(deepsuck_home: Optional[str]) -> bool:
+def _kanban_worker_skill_available(dag_home: Optional[str]) -> bool:
     """True if the bundled ``kanban-worker`` skill resolves for the home the
     spawned worker will run under.
 
     The dispatcher injects ``--skills kanban-worker`` into every worker. When
-    the worker activates a profile (``deepsuck -p <name>``), its ``SKILLS_DIR``
+    the worker activates a profile (``dag -p <name>``), its ``SKILLS_DIR``
     becomes ``<profile_home>/skills`` — which on many profiles does NOT contain
     the bundled skill (it ships in the *default* root home, not every
     profile-scoped skills dir). Preloading a missing skill is fatal at CLI
@@ -6626,9 +6626,9 @@ def _kanban_worker_skill_available(deepsuck_home: Optional[str]) -> bool:
     """
     from pathlib import Path as _Path
 
-    # An unset DEEPSUCK_HOME means the worker falls back to the default root
-    # home (``~/.deepsuck``), which ships the bundled skill.
-    base = _Path(deepsuck_home) if deepsuck_home else (_Path.home() / ".deepsuck")
+    # An unset DAG_HOME means the worker falls back to the default root
+    # home (``~/.dag``), which ships the bundled skill.
+    base = _Path(dag_home) if dag_home else (_Path.home() / ".dag")
     skills_root = base / "skills"
     if not skills_root.is_dir():
         return False
@@ -6675,7 +6675,7 @@ def _worker_terminal_timeout_env(
     return str(desired)
 
 
-def _resolve_worker_cli_toolsets(deepsuck_home: Optional[str]) -> Optional[list[str]]:
+def _resolve_worker_cli_toolsets(dag_home: Optional[str]) -> Optional[list[str]]:
     """Return the assigned profile's effective CLI toolsets for a worker.
 
     Dispatcher-spawned workers are launched from a long-lived gateway process,
@@ -6684,26 +6684,26 @@ def _resolve_worker_cli_toolsets(deepsuck_home: Optional[str]) -> Optional[list[
     explicit ``--toolsets`` pin so worker startup cannot fall back to a stale
     root/active-profile config or a profile whose top-level ``toolsets`` entry
     is only the kanban orchestrator surface. ``model_tools`` still appends the
-    task-scoped kanban lifecycle tools when ``DEEPSUCK_KANBAN_TASK`` is set.
+    task-scoped kanban lifecycle tools when ``DAG_KANBAN_TASK`` is set.
     """
-    if not deepsuck_home:
+    if not dag_home:
         return None
     try:
-        from deepsuck_constants import reset_deepsuck_home_override, set_deepsuck_home_override
-        from deepsuck_cli.config import load_config
-        from deepsuck_cli.tools_config import _get_platform_tools
+        from dag_constants import reset_dag_home_override, set_dag_home_override
+        from dag_cli.config import load_config
+        from dag_cli.tools_config import _get_platform_tools
 
-        token = set_deepsuck_home_override(deepsuck_home)
+        token = set_dag_home_override(dag_home)
         try:
             cfg = load_config()
             toolsets = sorted(_get_platform_tools(cfg, "cli"))
         finally:
-            reset_deepsuck_home_override(token)
+            reset_dag_home_override(token)
         return toolsets or None
     except Exception as exc:
         _log.debug(
-            "kanban worker: could not resolve CLI toolsets for DEEPSUCK_HOME=%r (%s)",
-            deepsuck_home,
+            "kanban worker: could not resolve CLI toolsets for DAG_HOME=%r (%s)",
+            dag_home,
             exc,
         )
         return None
@@ -6715,7 +6715,7 @@ def _default_spawn(
     *,
     board: Optional[str] = None,
 ) -> Optional[int]:
-    """Fire-and-forget ``deepsuck -p <profile> chat -q ...`` subprocess.
+    """Fire-and-forget ``dag -p <profile> chat -q ...`` subprocess.
 
     Returns the spawned child's PID so the dispatcher can detect crashes
     before the claim TTL expires. The child's completion is still observed
@@ -6723,7 +6723,7 @@ def _default_spawn(
     the PID check is a safety net for crashes, OOM kills, and Ctrl+C.
 
     ``board`` pins the child's kanban context to that board: the child's
-    ``DEEPSUCK_KANBAN_DB`` / ``DEEPSUCK_KANBAN_BOARD`` / workspaces_root env
+    ``DAG_KANBAN_DB`` / ``DAG_KANBAN_BOARD`` / workspaces_root env
     vars all resolve to the same board the dispatcher claimed the task
     from. Workers cannot accidentally see other boards.
     """
@@ -6731,48 +6731,48 @@ def _default_spawn(
     if not task.assignee:
         raise ValueError(f"task {task.id} has no assignee")
 
-    from deepsuck_cli.profiles import normalize_profile_name
+    from dag_cli.profiles import normalize_profile_name
 
     profile_arg = normalize_profile_name(task.assignee)
 
     prompt = f"work kanban task {task.id}"
     env = dict(os.environ)
 
-    # Inject DEEPSUCK_HOME so the worker reads the profile-scoped config.yaml
+    # Inject DAG_HOME so the worker reads the profile-scoped config.yaml
     # (fallback_providers, toolsets, agent settings, etc.) instead of the root
     # config.  Without this, `env = dict(os.environ)` copies only the parent's
-    # env, and when the child process starts `deepsuck -p <name>` the
-    # _apply_profile_override() runs *before* deepsuck_constants is imported.
-    # If DEEPSUCK_HOME is absent from the child's env, get_deepsuck_home() falls
-    # back to Path.home() / ".deepsuck" (the DEFAULT profile root), ignoring the
+    # env, and when the child process starts `dag -p <name>` the
+    # _apply_profile_override() runs *before* dag_constants is imported.
+    # If DAG_HOME is absent from the child's env, get_dag_home() falls
+    # back to Path.home() / ".dag" (the DEFAULT profile root), ignoring the
     # profile-specific config entirely.  Fixes profile-scoped fallback_providers
     # being invisible to kanban workers.
-    from deepsuck_cli.profiles import resolve_profile_env
+    from dag_cli.profiles import resolve_profile_env
     try:
-        env["DEEPSUCK_HOME"] = resolve_profile_env(profile_arg)
+        env["DAG_HOME"] = resolve_profile_env(profile_arg)
     except FileNotFoundError:
         # Profile dir doesn't exist — defer resolution to the CLI's
         # _apply_profile_override() via DEEPSUCK_PROFILE (set below).
         # This only happens in test fixtures where the isolated
-        # DEEPSUCK_HOME never had profiles created.
+        # DAG_HOME never had profiles created.
         pass
     if task.tenant:
         env["DEEPSUCK_TENANT"] = task.tenant
-    env["DEEPSUCK_KANBAN_TASK"] = task.id
-    env["DEEPSUCK_KANBAN_WORKSPACE"] = workspace
+    env["DAG_KANBAN_TASK"] = task.id
+    env["DAG_KANBAN_WORKSPACE"] = workspace
     if task.branch_name:
-        env["DEEPSUCK_KANBAN_BRANCH"] = task.branch_name
+        env["DAG_KANBAN_BRANCH"] = task.branch_name
     if task.current_run_id is not None:
-        env["DEEPSUCK_KANBAN_RUN_ID"] = str(task.current_run_id)
+        env["DAG_KANBAN_RUN_ID"] = str(task.current_run_id)
     if task.claim_lock:
-        env["DEEPSUCK_KANBAN_CLAIM_LOCK"] = task.claim_lock
+        env["DAG_KANBAN_CLAIM_LOCK"] = task.claim_lock
     # Goal-loop mode: the worker reads these and wraps its run in the
     # Ralph-style /goal judge loop (see cli.py quiet-mode path). Only set
     # when enabled so non-goal tasks keep a clean env.
     if task.goal_mode:
-        env["DEEPSUCK_KANBAN_GOAL_MODE"] = "1"
+        env["DAG_KANBAN_GOAL_MODE"] = "1"
         if task.goal_max_turns is not None:
-            env["DEEPSUCK_KANBAN_GOAL_MAX_TURNS"] = str(int(task.goal_max_turns))
+            env["DAG_KANBAN_GOAL_MAX_TURNS"] = str(int(task.goal_max_turns))
     terminal_timeout = _worker_terminal_timeout_env(
         task.max_runtime_seconds,
         env.get("TERMINAL_TIMEOUT"),
@@ -6786,28 +6786,28 @@ def _default_spawn(
     if foreground_timeout is not None:
         env["TERMINAL_MAX_FOREGROUND_TIMEOUT"] = foreground_timeout
     # Pin the shared board + workspaces root the dispatcher resolved, so
-    # that even when the worker activates a profile (`deepsuck -p <name>`
-    # rewrites DEEPSUCK_HOME), its kanban paths still match the
-    # dispatcher's. Belt-and-braces with the `get_default_deepsuck_root()`
+    # that even when the worker activates a profile (`dag -p <name>`
+    # rewrites DAG_HOME), its kanban paths still match the
+    # dispatcher's. Belt-and-braces with the `get_default_dag_root()`
     # resolution in `kanban_home()` — symmetric resolution is the norm,
     # but unusual symlink / Docker layouts are caught here too.
-    env["DEEPSUCK_KANBAN_DB"] = str(kanban_db_path(board=board))
-    env["DEEPSUCK_KANBAN_WORKSPACES_ROOT"] = str(workspaces_root(board=board))
+    env["DAG_KANBAN_DB"] = str(kanban_db_path(board=board))
+    env["DAG_KANBAN_WORKSPACES_ROOT"] = str(workspaces_root(board=board))
     # Board slug — the final defense-in-depth pin. If the worker ever
     # resolves kanban paths without the DB / workspaces env vars, the
     # board slug still forces it to the right directory.
     resolved_board = _normalize_board_slug(board) or get_current_board()
-    env["DEEPSUCK_KANBAN_BOARD"] = resolved_board
+    env["DAG_KANBAN_BOARD"] = resolved_board
     # DEEPSUCK_PROFILE is the author the kanban_comment tool defaults to.
-    # `deepsuck -p <assignee>` activates the profile, but the env var is
+    # `dag -p <assignee>` activates the profile, but the env var is
     # what the tool reads — set it explicitly here so comments are
     # attributed correctly regardless of how the child loads config.
     env["DEEPSUCK_PROFILE"] = profile_arg
 
     cmd = [
-        *_resolve_deepsuck_argv(),
+        *_resolve_dag_argv(),
         "-p", profile_arg,
-        # Worker subprocesses switch to a profile-scoped DEEPSUCK_HOME above,
+        # Worker subprocesses switch to a profile-scoped DAG_HOME above,
         # so they see that profile's shell-hook allowlist instead of the
         # dispatcher's root allowlist. Pass --accept-hooks explicitly so
         # profile-local worker sessions still register configured hooks.
@@ -6827,7 +6827,7 @@ def _default_spawn(
     # profile-scoped skills dirs, and preloading a missing skill is
     # fatal at CLI startup. Omitting it is safe — the lifecycle
     # contract still ships via KANBAN_GUIDANCE.
-    if _kanban_worker_skill_available(env.get("DEEPSUCK_HOME")):
+    if _kanban_worker_skill_available(env.get("DAG_HOME")):
         cmd.extend(["--skills", "kanban-worker"])
     # Per-task force-loaded skills. Each name goes in its own
     # `--skills X` pair rather than a single comma-joined arg: the CLI
@@ -6842,7 +6842,7 @@ def _default_spawn(
                 cmd.extend(["--skills", sk])
     if task.model_override:
         cmd.extend(["-m", task.model_override])
-    worker_toolsets = _resolve_worker_cli_toolsets(env.get("DEEPSUCK_HOME"))
+    worker_toolsets = _resolve_worker_cli_toolsets(env.get("DAG_HOME"))
     if worker_toolsets:
         cmd.extend(["--toolsets", ",".join(worker_toolsets)])
     cmd.extend([
@@ -6851,7 +6851,7 @@ def _default_spawn(
     ])
     # Redirect output to a per-task log under <board-root>/logs/.
     # Anchored at the board root (not the shared kanban root), so
-    # `deepsuck kanban log` on a specific board reads its own file and
+    # `dag kanban log` on a specific board reads its own file and
     # logs don't collide across boards that happen to share task ids.
     log_dir = worker_logs_dir(board=board)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -6875,8 +6875,8 @@ def _default_spawn(
     except FileNotFoundError:
         log_f.close()
         raise RuntimeError(
-            "`deepsuck` executable not found on PATH. "
-            "Install Deepsuck Agent or activate its venv before running the kanban dispatcher."
+            "`dag` executable not found on PATH. "
+            "Install DAG Agent or activate its venv before running the kanban dispatcher."
         )
     # NOTE: we intentionally do NOT close log_f here — we want Popen's
     # child process to keep writing after this function returns.  The
@@ -6901,7 +6901,7 @@ def run_daemon(
     """Run the dispatcher in a loop until interrupted.
 
     Calls :func:`dispatch_once` every ``interval`` seconds. Exits cleanly
-    on SIGINT / SIGTERM so ``deepsuck kanban daemon`` is systemd-friendly.
+    on SIGINT / SIGTERM so ``dag kanban daemon`` is systemd-friendly.
     ``stop_event`` (a :class:`threading.Event`) and ``on_tick`` (a
     callable receiving the :class:`DispatchResult`) are test hooks.
     """
@@ -7157,7 +7157,7 @@ def build_worker_context(conn: sqlite3.Connection, task_id: str) -> str:
         for c in shown_c:
             ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(c.created_at))
             # Render author with explicit "comment from worker" framing so
-            # operator-controlled DEEPSUCK_PROFILE values like "deepsuck-system"
+            # operator-controlled DEEPSUCK_PROFILE values like "dag-system"
             # or "operator" can't be misread by the next worker as a system
             # directive above the (attacker-influenceable) comment body.
             # Defense-in-depth — the LLM-controlled author-forgery surface
@@ -7571,15 +7571,15 @@ def list_profiles_on_disk() -> list[str]:
 
     Includes:
     - named profiles under ``<default-root>/profiles/<name>/config.yaml``
-    - the implicit ``default`` profile when the default Deepsuck root exists
+    - the implicit ``default`` profile when the default Dag root exists
 
     Reads profile paths directly so this module has no import dependency on
-    ``deepsuck_cli.profiles`` (which pulls in a large chunk of the CLI startup
+    ``dag_cli.profiles`` (which pulls in a large chunk of the CLI startup
     path).
     """
     try:
-        from deepsuck_constants import get_default_deepsuck_root
-        default_root = get_default_deepsuck_root()
+        from dag_constants import get_default_dag_root
+        default_root = get_default_dag_root()
         profiles_dir = default_root / "profiles"
     except Exception:
         return []
@@ -7608,7 +7608,7 @@ def known_assignees(conn: sqlite3.Connection) -> list[dict]:
     A name is included when it's a configured profile on disk OR when
     any non-archived task has it as the assignee. Used by:
 
-    - ``deepsuck kanban assignees`` for the terminal.
+    - ``dag kanban assignees`` for the terminal.
     - The dashboard assignee dropdown (so a fresh profile appears in
       the picker even before it's been given any task).
     - Router-profile heuristics ("who's overloaded?") without scanning

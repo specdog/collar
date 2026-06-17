@@ -1,8 +1,8 @@
 """Shared parser helpers used across multiple CLI subcommand builders.
 
-These were module-level helpers in ``deepsuck_cli/main.py``. They are pulled
+These were module-level helpers in ``dag_cli/main.py``. They are pulled
 into a neutral module so both ``main.py`` and every
-``deepsuck_cli/subcommands/<group>.py`` builder can import them without an
+``dag_cli/subcommands/<group>.py`` builder can import them without an
 import cycle. ``main.py`` re-exports them for backwards compatibility, so
 existing references keep working.
 """

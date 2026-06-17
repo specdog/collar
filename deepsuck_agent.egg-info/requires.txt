@@ -34,16 +34,16 @@ pywinpty<3,>=2.0.0
 agent-client-protocol==0.9.0
 
 [all]
-deepsuck-agent[cron]
-deepsuck-agent[cli]
-deepsuck-agent[pty]
-deepsuck-agent[mcp]
-deepsuck-agent[homeassistant]
-deepsuck-agent[sms]
-deepsuck-agent[acp]
-deepsuck-agent[google]
-deepsuck-agent[web]
-deepsuck-agent[youtube]
+dag-agent[cron]
+dag-agent[cli]
+dag-agent[pty]
+dag-agent[mcp]
+dag-agent[homeassistant]
+dag-agent[sms]
+dag-agent[acp]
+dag-agent[google]
+dag-agent[web]
+dag-agent[youtube]
 
 [anthropic]
 anthropic==0.87.0
@@ -158,19 +158,19 @@ aiohttp==3.13.4
 
 [termux]
 python-telegram-bot[webhooks]==22.6
-deepsuck-agent[cron]
-deepsuck-agent[cli]
-deepsuck-agent[pty]
-deepsuck-agent[mcp]
-deepsuck-agent[honcho]
-deepsuck-agent[acp]
+dag-agent[cron]
+dag-agent[cli]
+dag-agent[pty]
+dag-agent[mcp]
+dag-agent[honcho]
+dag-agent[acp]
 
 [termux-all]
-deepsuck-agent[termux]
-deepsuck-agent[google]
-deepsuck-agent[homeassistant]
-deepsuck-agent[sms]
-deepsuck-agent[web]
+dag-agent[termux]
+dag-agent[google]
+dag-agent[homeassistant]
+dag-agent[sms]
+dag-agent[web]
 
 [tts-premium]
 elevenlabs==1.59.0

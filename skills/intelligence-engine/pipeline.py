@@ -17,8 +17,8 @@ AK = os.getenv("DEEPSEEK_API_KEY","")
 BU = os.getenv("DEEPSEEK_BASE_URL","https://api.deepseek.com")
 MD = os.getenv("SELF_REFINE_MODEL","deepseek-chat")
 HOME = Path.home()
-SCRIPTS = HOME / ".deepsuck" / "skills" / "intelligence-engine" / "scripts"
-ENV_FILE = HOME / ".deepsuck" / ".env"
+SCRIPTS = HOME / ".dag" / "skills" / "intelligence-engine" / "scripts"
+ENV_FILE = HOME / ".dag" / ".env"
 
 # ── API ─────────────────────────────────────────────────────────────
 def load_key():

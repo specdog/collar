@@ -1,14 +1,14 @@
 ---
-name: deepsuck-agent
+name: dag-agent
 description: "Configure, extend, or contribute to Deepsuck Agent."
 version: 2.1.0
 author: Deepsuck Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  deepsuck:
-    tags: [deepsuck, setup, configuration, multi-agent, spawning, cli, gateway, development]
-    homepage: https://github.com/NousResearch/deepsuck-agent
+  dag:
+    tags: [dag, setup, configuration, multi-agent, spawning, cli, gateway, development]
+    homepage: https://github.com/NousResearch/dag-agent
     related_skills: [claude-code, codex, opencode]
 ---
 
@@ -29,28 +29,28 @@ People use Deepsuck for software development, research, system administration, d
 
 **This skill helps you work with Deepsuck Agent effectively** — setting it up, configuring features, spawning additional agent instances, troubleshooting issues, finding the right commands and settings, and understanding how the system works when you need to extend or contribute to it.
 
-**Docs:** https://deepsuck-agent.nousresearch.com/docs/
+**Docs:** https://dag-agent.nousresearch.com/docs/
 
 ## Quick Start
 
 ```bash
 # Install
-curl -fsSL https://deepsuck-agent.nousresearch.com/install.sh | bash
+curl -fsSL https://dag-agent.nousresearch.com/install.sh | bash
 
 # Interactive chat (default)
-deepsuck
+dag
 
 # Single query
-deepsuck chat -q "What is the capital of France?"
+dag chat -q "What is the capital of France?"
 
 # Setup wizard
-deepsuck setup
+dag setup
 
 # Change model/provider
-deepsuck model
+dag model
 
 # Check health
-deepsuck doctor
+dag doctor
 ```
 
 ---
@@ -60,7 +60,7 @@ deepsuck doctor
 ### Global Flags
 
 ```
-deepsuck [flags] [command]
+dag [flags] [command]
 
   --version, -V             Show version
   --resume, -r SESSION      Resume session by ID or title
@@ -77,7 +77,7 @@ No subcommand defaults to `chat`.
 ### Chat
 
 ```
-deepsuck chat [flags]
+dag chat [flags]
   -q, --query TEXT          Single query, non-interactive
   -m, --model MODEL         Model (e.g. anthropic/claude-sonnet-4)
   -t, --toolsets LIST       Comma-separated toolsets
@@ -91,146 +91,146 @@ deepsuck chat [flags]
 ### Configuration
 
 ```
-deepsuck setup [section]      Interactive wizard (model|terminal|gateway|tools|agent)
-deepsuck model                Interactive model/provider picker
-deepsuck config               View current config
-deepsuck config edit          Open config.yaml in $EDITOR
-deepsuck config set KEY VAL   Set a config value
-deepsuck config path          Print config.yaml path
-deepsuck config env-path      Print .env path
-deepsuck config check         Check for missing/outdated config
-deepsuck config migrate       Update config with new options
-deepsuck auth                 Interactive credential manager
-deepsuck auth add PROVIDER    Add OAuth or API-key credential (e.g. nous, openai-codex, qwen-oauth)
-deepsuck auth list            List stored credentials
-deepsuck auth remove PROVIDER Remove a stored credential
-deepsuck doctor [--fix]       Check dependencies and config
-deepsuck status [--all]       Show component status
+dag setup [section]      Interactive wizard (model|terminal|gateway|tools|agent)
+dag model                Interactive model/provider picker
+dag config               View current config
+dag config edit          Open config.yaml in $EDITOR
+dag config set KEY VAL   Set a config value
+dag config path          Print config.yaml path
+dag config env-path      Print .env path
+dag config check         Check for missing/outdated config
+dag config migrate       Update config with new options
+dag auth                 Interactive credential manager
+dag auth add PROVIDER    Add OAuth or API-key credential (e.g. nous, openai-codex, qwen-oauth)
+dag auth list            List stored credentials
+dag auth remove PROVIDER Remove a stored credential
+dag doctor [--fix]       Check dependencies and config
+dag status [--all]       Show component status
 ```
 
 ### Tools & Skills
 
 ```
-deepsuck tools                Interactive tool enable/disable (curses UI)
-deepsuck tools list           Show all tools and status
-deepsuck tools enable NAME    Enable a toolset
-deepsuck tools disable NAME   Disable a toolset
+dag tools                Interactive tool enable/disable (curses UI)
+dag tools list           Show all tools and status
+dag tools enable NAME    Enable a toolset
+dag tools disable NAME   Disable a toolset
 
-deepsuck skills list          List installed skills
-deepsuck skills search QUERY  Search the skills hub
-deepsuck skills install ID    Install a skill (ID can be a hub identifier OR a direct https://…/SKILL.md URL; pass --name to override when frontmatter has no name)
-deepsuck skills inspect ID    Preview without installing
-deepsuck skills config        Enable/disable skills per platform
-deepsuck skills check         Check for updates
-deepsuck skills update        Update outdated skills
-deepsuck skills uninstall N   Remove a hub skill
-deepsuck skills publish PATH  Publish to registry
-deepsuck skills browse        Browse all available skills
-deepsuck skills tap add REPO  Add a GitHub repo as skill source
+dag skills list          List installed skills
+dag skills search QUERY  Search the skills hub
+dag skills install ID    Install a skill (ID can be a hub identifier OR a direct https://…/SKILL.md URL; pass --name to override when frontmatter has no name)
+dag skills inspect ID    Preview without installing
+dag skills config        Enable/disable skills per platform
+dag skills check         Check for updates
+dag skills update        Update outdated skills
+dag skills uninstall N   Remove a hub skill
+dag skills publish PATH  Publish to registry
+dag skills browse        Browse all available skills
+dag skills tap add REPO  Add a GitHub repo as skill source
 ```
 
 ### MCP Servers
 
 ```
-deepsuck mcp serve            Run Deepsuck as an MCP server
-deepsuck mcp add NAME         Add an MCP server (--url or --command)
-deepsuck mcp remove NAME      Remove an MCP server
-deepsuck mcp list             List configured servers
-deepsuck mcp test NAME        Test connection
-deepsuck mcp configure NAME   Toggle tool selection
+dag mcp serve            Run Deepsuck as an MCP server
+dag mcp add NAME         Add an MCP server (--url or --command)
+dag mcp remove NAME      Remove an MCP server
+dag mcp list             List configured servers
+dag mcp test NAME        Test connection
+dag mcp configure NAME   Toggle tool selection
 ```
 
 How the built-in MCP client connects servers (stdio/HTTP), auto-discovers
 their tools, and exposes them as first-class tools, plus catalog install
-(`deepsuck mcp install <name>`): `skill_view(name="deepsuck-agent", file_path="references/native-mcp.md")`.
+(`dag mcp install <name>`): `skill_view(name="dag-agent", file_path="references/native-mcp.md")`.
 
 ### Gateway (Messaging Platforms)
 
 ```
-deepsuck gateway run          Start gateway foreground
-deepsuck gateway install      Install as background service
-deepsuck gateway start/stop   Control the service
-deepsuck gateway restart      Restart the service
-deepsuck gateway status       Check status
-deepsuck gateway setup        Configure platforms
+dag gateway run          Start gateway foreground
+dag gateway install      Install as background service
+dag gateway start/stop   Control the service
+dag gateway restart      Restart the service
+dag gateway status       Check status
+dag gateway setup        Configure platforms
 ```
 
 Supported platforms: Telegram, Discord, Slack, WhatsApp, Signal, Email, SMS, Matrix, Mattermost, Home Assistant, DingTalk, Feishu, WeCom, BlueBubbles (iMessage), Weixin (WeChat), API Server, Webhooks. Open WebUI connects via the API Server adapter.
 
-Platform docs: https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/
+Platform docs: https://dag-agent.nousresearch.com/docs/user-guide/messaging/
 
 ### Sessions
 
 ```
-deepsuck sessions list        List recent sessions
-deepsuck sessions browse      Interactive picker
-deepsuck sessions export OUT  Export to JSONL
-deepsuck sessions rename ID T Rename a session
-deepsuck sessions delete ID   Delete a session
-deepsuck sessions prune       Clean up old sessions (--older-than N days)
-deepsuck sessions stats       Session store statistics
+dag sessions list        List recent sessions
+dag sessions browse      Interactive picker
+dag sessions export OUT  Export to JSONL
+dag sessions rename ID T Rename a session
+dag sessions delete ID   Delete a session
+dag sessions prune       Clean up old sessions (--older-than N days)
+dag sessions stats       Session store statistics
 ```
 
 ### Cron Jobs
 
 ```
-deepsuck cron list            List jobs (--all for disabled)
-deepsuck cron create SCHED    Create: '30m', 'every 2h', '0 9 * * *'
-deepsuck cron edit ID         Edit schedule, prompt, delivery
-deepsuck cron pause/resume ID Control job state
-deepsuck cron run ID          Trigger on next tick
-deepsuck cron remove ID       Delete a job
-deepsuck cron status          Scheduler status
+dag cron list            List jobs (--all for disabled)
+dag cron create SCHED    Create: '30m', 'every 2h', '0 9 * * *'
+dag cron edit ID         Edit schedule, prompt, delivery
+dag cron pause/resume ID Control job state
+dag cron run ID          Trigger on next tick
+dag cron remove ID       Delete a job
+dag cron status          Scheduler status
 ```
 
 ### Webhooks
 
 ```
-deepsuck webhook subscribe N  Create route at /webhooks/<name>
-deepsuck webhook list         List subscriptions
-deepsuck webhook remove NAME  Remove a subscription
-deepsuck webhook test NAME    Send a test POST
+dag webhook subscribe N  Create route at /webhooks/<name>
+dag webhook list         List subscriptions
+dag webhook remove NAME  Remove a subscription
+dag webhook test NAME    Send a test POST
 ```
 
 Full setup, route config, payload templating, and event-driven agent-run
-patterns: `skill_view(name="deepsuck-agent", file_path="references/webhooks.md")`.
+patterns: `skill_view(name="dag-agent", file_path="references/webhooks.md")`.
 
 ### Profiles
 
 ```
-deepsuck profile list         List all profiles
-deepsuck profile create NAME  Create (--clone, --clone-all, --clone-from)
-deepsuck profile use NAME     Set sticky default
-deepsuck profile delete NAME  Delete a profile
-deepsuck profile show NAME    Show details
-deepsuck profile alias NAME   Manage wrapper scripts
-deepsuck profile rename A B   Rename a profile
-deepsuck profile export NAME  Export to tar.gz
-deepsuck profile import FILE  Import from archive
+dag profile list         List all profiles
+dag profile create NAME  Create (--clone, --clone-all, --clone-from)
+dag profile use NAME     Set sticky default
+dag profile delete NAME  Delete a profile
+dag profile show NAME    Show details
+dag profile alias NAME   Manage wrapper scripts
+dag profile rename A B   Rename a profile
+dag profile export NAME  Export to tar.gz
+dag profile import FILE  Import from archive
 ```
 
 ### Credential Pools
 
 ```
-deepsuck auth add             Interactive credential wizard
-deepsuck auth list [PROVIDER] List pooled credentials
-deepsuck auth remove P INDEX  Remove by provider + index
-deepsuck auth reset PROVIDER  Clear exhaustion status
+dag auth add             Interactive credential wizard
+dag auth list [PROVIDER] List pooled credentials
+dag auth remove P INDEX  Remove by provider + index
+dag auth reset PROVIDER  Clear exhaustion status
 ```
 
 ### Other
 
 ```
-deepsuck insights [--days N]  Usage analytics
-deepsuck update               Update to latest version
-deepsuck pairing list/approve/revoke  DM authorization
-deepsuck plugins list/install/remove  Plugin management
-deepsuck honcho setup/status  Honcho memory integration (requires honcho plugin)
-deepsuck memory setup/status/off  Memory provider config
-deepsuck completion bash|zsh  Shell completions
-deepsuck acp                  ACP server (IDE integration)
-deepsuck claw migrate         Migrate from OpenClaw
-deepsuck uninstall            Uninstall Deepsuck
+dag insights [--days N]  Usage analytics
+dag update               Update to latest version
+dag pairing list/approve/revoke  DM authorization
+dag plugins list/install/remove  Plugin management
+dag honcho setup/status  Honcho memory integration (requires honcho plugin)
+dag memory setup/status/off  Memory provider config
+dag completion bash|zsh  Shell completions
+dag acp                  ACP server (IDE integration)
+dag claw migrate         Migrate from OpenClaw
+dag uninstall            Uninstall Deepsuck
 ```
 
 ---
@@ -239,8 +239,8 @@ deepsuck uninstall            Uninstall Deepsuck
 
 Type these during an interactive chat session. New commands land fairly
 often; if something below looks stale, run `/help` in-session for the
-authoritative list or see the [live slash commands reference](https://deepsuck-agent.nousresearch.com/docs/reference/slash-commands).
-The registry of record is `deepsuck_cli/commands.py` — every consumer
+authoritative list or see the [live slash commands reference](https://dag-agent.nousresearch.com/docs/reference/slash-commands).
+The registry of record is `dag_cli/commands.py` — every consumer
 (autocomplete, Telegram menu, Slack mapping, `/help`) derives from it.
 
 ### Session Control
@@ -288,7 +288,7 @@ The registry of record is `deepsuck_cli/commands.py` — every consumer
 /toolsets            List toolsets (CLI)
 /skills              Search/install skills (CLI)
 /skill <name>        Load a skill into session
-/reload-skills       Re-scan ~/.deepsuck/skills/ for added/removed skills
+/reload-skills       Re-scan ~/.dag/skills/ for added/removed skills
 /reload              Reload .env variables into the running session (CLI)
 /reload-mcp          Reload MCP servers
 /cron                Manage cron jobs (CLI)
@@ -342,21 +342,21 @@ The registry of record is `deepsuck_cli/commands.py` — every consumer
 ## Key Paths & Config
 
 ```
-~/.deepsuck/config.yaml       Main configuration
-~/.deepsuck/.env              API keys and secrets (under $DEEPSUCK_HOME if set)
-$DEEPSUCK_HOME/skills/        Installed skills
-~/.deepsuck/sessions/         Gateway routing index, request dumps, *.jsonl transcripts (and optional per-session JSON snapshots when sessions.write_json_snapshots: true)
-~/.deepsuck/state.db          Canonical session store (SQLite + FTS5)
-~/.deepsuck/logs/             Gateway and error logs
-~/.deepsuck/auth.json         OAuth tokens and credential pools
-~/.deepsuck/deepsuck-agent/     Source code (if git-installed)
+~/.dag/config.yaml       Main configuration
+~/.dag/.env              API keys and secrets (under $DAG_HOME if set)
+$DAG_HOME/skills/        Installed skills
+~/.dag/sessions/         Gateway routing index, request dumps, *.jsonl transcripts (and optional per-session JSON snapshots when sessions.write_json_snapshots: true)
+~/.dag/state.db          Canonical session store (SQLite + FTS5)
+~/.dag/logs/             Gateway and error logs
+~/.dag/auth.json         OAuth tokens and credential pools
+~/.dag/dag-agent/     Source code (if git-installed)
 ```
 
-Profiles use `~/.deepsuck/profiles/<name>/` with the same layout.
+Profiles use `~/.dag/profiles/<name>/` with the same layout.
 
 ### Config Sections
 
-Edit with `deepsuck config edit` or `deepsuck config set section.key value`.
+Edit with `dag config edit` or `dag config set section.key value`.
 
 | Section | Key options |
 |---------|-------------|
@@ -372,18 +372,18 @@ Edit with `deepsuck config edit` or `deepsuck config set section.key value`.
 | `delegation` | `model`, `provider`, `base_url`, `api_key`, `max_iterations` (50), `reasoning_effort` |
 | `checkpoints` | `enabled`, `max_snapshots` (50) |
 
-Full config reference: https://deepsuck-agent.nousresearch.com/docs/user-guide/configuration
+Full config reference: https://dag-agent.nousresearch.com/docs/user-guide/configuration
 
 ### Providers
 
-20+ providers supported. Set via `deepsuck model` or `deepsuck setup`.
+20+ providers supported. Set via `dag model` or `dag setup`.
 
 | Provider | Auth | Key env var |
 |----------|------|-------------|
 | OpenRouter | API key | `OPENROUTER_API_KEY` |
 | Anthropic | API key | `ANTHROPIC_API_KEY` |
-| Nous Portal | OAuth | `deepsuck auth` |
-| OpenAI Codex | OAuth | `deepsuck auth` |
+| Nous Portal | OAuth | `dag auth` |
+| OpenAI Codex | OAuth | `dag auth` |
 | GitHub Copilot | Token | `COPILOT_GITHUB_TOKEN` |
 | Google Gemini | API key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
 | DeepSeek | API key | `DEEPSEEK_API_KEY` |
@@ -398,15 +398,15 @@ Full config reference: https://deepsuck-agent.nousresearch.com/docs/user-guide/c
 | Kilo Code | API key | `KILOCODE_API_KEY` |
 | OpenCode Zen | API key | `OPENCODE_ZEN_API_KEY` |
 | OpenCode Go | API key | `OPENCODE_GO_API_KEY` |
-| Qwen OAuth | OAuth | `deepsuck auth add qwen-oauth` |
+| Qwen OAuth | OAuth | `dag auth add qwen-oauth` |
 | Custom endpoint | Config | `model.base_url` + `model.api_key` in config.yaml |
 | GitHub Copilot ACP | External | `COPILOT_CLI_PATH` or Copilot CLI |
 
-Full provider docs: https://deepsuck-agent.nousresearch.com/docs/integrations/providers
+Full provider docs: https://dag-agent.nousresearch.com/docs/integrations/providers
 
 ### Toolsets
 
-Enable/disable via `deepsuck tools` (interactive) or `deepsuck tools enable/disable NAME`.
+Enable/disable via `dag tools` (interactive) or `dag tools enable/disable NAME`.
 
 | Toolset | What it provides |
 |---------|-----------------|
@@ -449,21 +449,21 @@ Tool changes take effect on `/reset` (new session). They do NOT apply mid-conver
 
 ## Security & Privacy Toggles
 
-Common "why is Deepsuck doing X to my output / tool calls / commands?" toggles — and the exact commands to change them. Most of these need a fresh session (`/reset` in chat, or start a new `deepsuck` invocation) because they're read once at startup.
+Common "why is Deepsuck doing X to my output / tool calls / commands?" toggles — and the exact commands to change them. Most of these need a fresh session (`/reset` in chat, or start a new `dag` invocation) because they're read once at startup.
 
 ### Secret redaction in tool output
 
 Secret redaction is **on by default** — tool output (terminal stdout, `read_file`, web content, subagent summaries, etc.) is scanned for strings that look like API keys, tokens, and secrets before it enters the conversation context and logs. Leave it enabled for normal use:
 
 ```bash
-deepsuck config set security.redact_secrets true       # keep enabled globally
+dag config set security.redact_secrets true       # keep enabled globally
 ```
 
 **Restart required.** `security.redact_secrets` is snapshotted at import time — toggling it mid-session (e.g. via `export DEEPSUCK_REDACT_SECRETS=false` from a tool call) will NOT take effect for the running process. Tell the user to change it in config from a terminal, then start a new session. This is deliberate — it prevents an LLM from flipping the toggle on itself mid-task.
 
 Disable only when you deliberately need raw credential-like strings for debugging or redactor development:
 ```bash
-deepsuck config set security.redact_secrets false
+dag config set security.redact_secrets false
 ```
 
 ### PII redaction in gateway messages
@@ -471,8 +471,8 @@ deepsuck config set security.redact_secrets false
 Separate from secret redaction. When enabled, the gateway hashes user IDs and strips phone numbers from the session context before it reaches the model:
 
 ```bash
-deepsuck config set privacy.redact_pii true    # enable
-deepsuck config set privacy.redact_pii false   # disable (default)
+dag config set privacy.redact_pii true    # enable
+dag config set privacy.redact_pii false   # disable (default)
 ```
 
 ### Command approval prompts
@@ -484,23 +484,23 @@ By default (`approvals.mode: manual`), Deepsuck prompts the user before running 
 - `off` — skip all approval prompts (equivalent to `--yolo`)
 
 ```bash
-deepsuck config set approvals.mode smart       # recommended middle ground
-deepsuck config set approvals.mode off         # bypass everything (not recommended)
+dag config set approvals.mode smart       # recommended middle ground
+dag config set approvals.mode off         # bypass everything (not recommended)
 ```
 
 Per-invocation bypass without changing config:
-- `deepsuck --yolo …`
-- `export DEEPSUCK_YOLO_MODE=1`
+- `dag --yolo …`
+- `export DAG_YOLO_MODE=1`
 
 Note: YOLO / `approvals.mode: off` does NOT turn off secret redaction. They are independent.
 
 ### Shell hooks allowlist
 
-Some shell-hook integrations require explicit allowlisting before they fire. Managed via `~/.deepsuck/shell-hooks-allowlist.json` — prompted interactively the first time a hook wants to run.
+Some shell-hook integrations require explicit allowlisting before they fire. Managed via `~/.dag/shell-hooks-allowlist.json` — prompted interactively the first time a hook wants to run.
 
 ### Disabling the web/browser/image-gen tools
 
-To keep the model away from network or media tools entirely, open `deepsuck tools` and toggle per-platform. Takes effect on next session (`/reset`). See the Tools & Skills section above.
+To keep the model away from network or media tools entirely, open `dag tools` and toggle per-platform. Takes effect on next session (`/reset`). See the Tools & Skills section above.
 
 ---
 
@@ -546,7 +546,7 @@ Run additional Deepsuck processes as fully independent subprocesses — separate
 
 ### When to Use This vs delegate_task
 
-| | `delegate_task` | Spawning `deepsuck` process |
+| | `delegate_task` | Spawning `dag` process |
 |-|-----------------|--------------------------|
 | Isolation | Separate conversation, shared process | Fully independent process |
 | Duration | Minutes (bounded by parent loop) | Hours/days |
@@ -557,10 +557,10 @@ Run additional Deepsuck processes as fully independent subprocesses — separate
 ### One-Shot Mode
 
 ```
-terminal(command="deepsuck chat -q 'Research GRPO papers and write summary to ~/research/grpo.md'", timeout=300)
+terminal(command="dag chat -q 'Research GRPO papers and write summary to ~/research/grpo.md'", timeout=300)
 
 # Background for long tasks:
-terminal(command="deepsuck chat -q 'Set up CI/CD for ~/myapp'", background=true)
+terminal(command="dag chat -q 'Set up CI/CD for ~/myapp'", background=true)
 ```
 
 ### Interactive PTY Mode (via tmux)
@@ -569,7 +569,7 @@ Deepsuck uses prompt_toolkit, which requires a real terminal. Use tmux for inter
 
 ```
 # Start
-terminal(command="tmux new-session -d -s agent1 -x 120 -y 40 'deepsuck'", timeout=10)
+terminal(command="tmux new-session -d -s agent1 -x 120 -y 40 'dag'", timeout=10)
 
 # Wait for startup, then send a message
 terminal(command="sleep 8 && tmux send-keys -t agent1 'Build a FastAPI auth service' Enter", timeout=15)
@@ -588,11 +588,11 @@ terminal(command="tmux send-keys -t agent1 '/exit' Enter && sleep 2 && tmux kill
 
 ```
 # Agent A: backend
-terminal(command="tmux new-session -d -s backend -x 120 -y 40 'deepsuck -w'", timeout=10)
+terminal(command="tmux new-session -d -s backend -x 120 -y 40 'dag -w'", timeout=10)
 terminal(command="sleep 8 && tmux send-keys -t backend 'Build REST API for user management' Enter", timeout=15)
 
 # Agent B: frontend
-terminal(command="tmux new-session -d -s frontend -x 120 -y 40 'deepsuck -w'", timeout=10)
+terminal(command="tmux new-session -d -s frontend -x 120 -y 40 'dag -w'", timeout=10)
 terminal(command="sleep 8 && tmux send-keys -t frontend 'Build React dashboard for user management' Enter", timeout=15)
 
 # Check progress, relay context between them
@@ -604,10 +604,10 @@ terminal(command="tmux send-keys -t frontend 'Here is the API schema from the ba
 
 ```
 # Resume most recent session
-terminal(command="tmux new-session -d -s resumed 'deepsuck --continue'", timeout=10)
+terminal(command="tmux new-session -d -s resumed 'dag --continue'", timeout=10)
 
 # Resume specific session
-terminal(command="tmux new-session -d -s resumed 'deepsuck --resume 20260225_143052_a1b2c3'", timeout=10)
+terminal(command="tmux new-session -d -s resumed 'dag --resume 20260225_143052_a1b2c3'", timeout=10)
 ```
 
 ### Tips
@@ -615,7 +615,7 @@ terminal(command="tmux new-session -d -s resumed 'deepsuck --resume 20260225_143
 - **Prefer `delegate_task` for quick subtasks** — less overhead than spawning a full process
 - **Use `-w` (worktree mode)** when spawning agents that edit code — prevents git conflicts
 - **Set timeouts** for one-shot mode — complex tasks can take 5-10 minutes
-- **Use `deepsuck chat -q` for fire-and-forget** — no PTY needed
+- **Use `dag chat -q` for fire-and-forget** — no PTY needed
 - **Use tmux for interactive sessions** — raw PTY mode has `\r` vs `\n` issues with prompt_toolkit
 - **For scheduled tasks**, use the `cronjob` tool instead of spawning — handles delivery and retry
 
@@ -646,7 +646,7 @@ Config: `delegation.*` in `config.yaml`.
 ### Cron (scheduled jobs)
 
 Durable scheduler — `cron/jobs.py` + `cron/scheduler.py`. Drive it via
-the `cronjob` tool, the `deepsuck cron` CLI (`list`, `add`, `edit`,
+the `cronjob` tool, the `dag cron` CLI (`list`, `add`, `edit`,
 `pause`, `resume`, `run`, `remove`), or the `/cron` slash command.
 
 - **Schedules:** duration (`"30m"`, `"2h"`), "every" phrase
@@ -662,7 +662,7 @@ the `cronjob` tool, the `deepsuck cron` CLI (`list`, `add`, `edit`,
   header/footer instead of being mirrored into the target gateway
   session (keeps role alternation intact).
 
-User docs: https://deepsuck-agent.nousresearch.com/docs/user-guide/features/cron
+User docs: https://dag-agent.nousresearch.com/docs/user-guide/features/cron
 
 ### Curator (skill lifecycle)
 
@@ -670,26 +670,26 @@ Background maintenance for agent-created skills. Tracks usage, marks
 idle skills stale, archives stale ones, keeps a pre-run tar.gz backup
 so nothing is lost.
 
-- **CLI:** `deepsuck curator <verb>` — `status`, `run`, `pause`, `resume`,
+- **CLI:** `dag curator <verb>` — `status`, `run`, `pause`, `resume`,
   `pin`, `unpin`, `archive`, `restore`, `prune`, `backup`, `rollback`.
 - **Slash:** `/curator <subcommand>` mirrors the CLI.
 - **Scope:** only touches skills with `created_by: "agent"` provenance.
   Bundled + hub-installed skills are off-limits. **Never deletes** —
   max destructive action is archive. Pinned skills are exempt from
   every auto-transition and every LLM review pass.
-- **Telemetry:** sidecar at `~/.deepsuck/skills/.usage.json` holds
+- **Telemetry:** sidecar at `~/.dag/skills/.usage.json` holds
   per-skill `use_count`, `view_count`, `patch_count`,
   `last_activity_at`, `state`, `pinned`.
 
 Config: `curator.*` (`enabled`, `interval_hours`, `min_idle_hours`,
 `stale_after_days`, `archive_after_days`, `backup.*`).
-User docs: https://deepsuck-agent.nousresearch.com/docs/user-guide/features/curator
+User docs: https://dag-agent.nousresearch.com/docs/user-guide/features/curator
 
 ### Kanban (multi-agent work queue)
 
 Durable SQLite board for multi-profile / multi-worker collaboration.
-Users drive it via `deepsuck kanban <verb>`; dispatcher-spawned workers
-see a focused `kanban_*` toolset gated by `DEEPSUCK_KANBAN_TASK`, and
+Users drive it via `dag kanban <verb>`; dispatcher-spawned workers
+see a focused `kanban_*` toolset gated by `DAG_KANBAN_TASK`, and
 orchestrator profiles can opt into the broader `kanban` toolset. Normal
 sessions still have zero `kanban_*` schema footprint unless configured.
 
@@ -709,10 +709,10 @@ sessions still have zero `kanban_*` schema footprint unless configured.
   (default 2; configurable via `kanban.failure_limit` or per-task
   `max_retries`).
 - **Isolation:** board is the hard boundary (workers get
-  `DEEPSUCK_KANBAN_BOARD` pinned in env); tenant is a soft namespace
+  `DAG_KANBAN_BOARD` pinned in env); tenant is a soft namespace
   within a board for workspace-path + memory-key isolation.
 
-User docs: https://deepsuck-agent.nousresearch.com/docs/user-guide/features/kanban
+User docs: https://dag-agent.nousresearch.com/docs/user-guide/features/kanban
 
 ---
 
@@ -751,7 +751,7 @@ Ctrl+Enter?" This is how the Ctrl+Enter = c-j fact was established.
 
 **HTTP 400 "No models provided" on first run.** `config.yaml` was saved
 with a UTF-8 BOM (common when Windows apps write it). Re-save as UTF-8
-without BOM. `deepsuck config edit` writes without BOM; manual edits in
+without BOM. `dag config edit` writes without BOM; manual edits in
 Notepad are the usual culprit.
 
 ### `execute_code` / Sandbox
@@ -814,15 +814,15 @@ and logs — avoids shell-escaping backslashes in bash.
 3. In gateway: `/restart`. In CLI: exit and relaunch.
 
 ### Tool not available
-1. `deepsuck tools` — check if toolset is enabled for your platform
+1. `dag tools` — check if toolset is enabled for your platform
 2. Some tools need env vars (check `.env`)
 3. `/reset` after enabling tools
 
 ### Model/provider issues
-1. `deepsuck doctor` — check config and dependencies
-2. `deepsuck auth` — re-authenticate OAuth providers (or `deepsuck auth add <provider>`)
+1. `dag doctor` — check config and dependencies
+2. `dag auth` — re-authenticate OAuth providers (or `dag auth add <provider>`)
 3. Check `.env` has the right API key
-4. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `deepsuck model` → GitHub Copilot.
+4. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `dag model` → GitHub Copilot.
 
 ### Changes not taking effect
 - **Tools/skills:** `/reset` starts a new session with updated toolset
@@ -830,20 +830,20 @@ and logs — avoids shell-escaping backslashes in bash.
 - **Code changes:** Restart the CLI or gateway process
 
 ### Skills not showing
-1. `deepsuck skills list` — verify installed
-2. `deepsuck skills config` — check platform enablement
-3. Load explicitly: `/skill name` or `deepsuck -s name`
+1. `dag skills list` — verify installed
+2. `dag skills config` — check platform enablement
+3. Load explicitly: `/skill name` or `dag -s name`
 
 ### Gateway issues
 Check logs first:
 ```bash
-grep -i "failed to send\|error" ~/.deepsuck/logs/gateway.log | tail -20
+grep -i "failed to send\|error" ~/.dag/logs/gateway.log | tail -20
 ```
 
 Common gateway problems:
 - **Gateway dies on SSH logout**: Enable linger: `sudo loginctl enable-linger $USER`
 - **Gateway dies on WSL2 close**: WSL2 requires `systemd=true` in `/etc/wsl.conf` for systemd services to work. Without it, gateway falls back to `nohup` (dies when session closes).
-- **Gateway crash loop**: Reset the failed state: `systemctl --user reset-failed deepsuck-gateway`
+- **Gateway crash loop**: Reset the failed state: `systemctl --user reset-failed dag-gateway`
 
 ### Platform-specific issues
 - **Discord bot silent**: Must enable **Message Content Intent** in Bot → Privileged Gateway Intents.
@@ -853,8 +853,8 @@ Common gateway problems:
 ### Auxiliary models not working
 If `auxiliary` tasks (vision, compression, session_search) fail silently, the `auto` provider can't find a backend. Either set `OPENROUTER_API_KEY` or `GOOGLE_API_KEY`, or explicitly configure each auxiliary task's provider:
 ```bash
-deepsuck config set auxiliary.vision.provider <your_provider>
-deepsuck config set auxiliary.vision.model <model_name>
+dag config set auxiliary.vision.provider <your_provider>
+dag config set auxiliary.vision.model <model_name>
 ```
 
 ---
@@ -863,39 +863,39 @@ deepsuck config set auxiliary.vision.model <model_name>
 
 | Looking for... | Location |
 |----------------|----------|
-| Config options | `deepsuck config edit` or [Configuration docs](https://deepsuck-agent.nousresearch.com/docs/user-guide/configuration) |
-| Available tools | `deepsuck tools list` or [Tools reference](https://deepsuck-agent.nousresearch.com/docs/reference/tools-reference) |
-| Slash commands | `/help` in session or [Slash commands reference](https://deepsuck-agent.nousresearch.com/docs/reference/slash-commands) |
-| Skills catalog | `deepsuck skills browse` or [Skills catalog](https://deepsuck-agent.nousresearch.com/docs/reference/skills-catalog) |
-| Provider setup | `deepsuck model` or [Providers guide](https://deepsuck-agent.nousresearch.com/docs/integrations/providers) |
-| Platform setup | `deepsuck gateway setup` or [Messaging docs](https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/) |
-| MCP servers | `deepsuck mcp list` or [MCP guide](https://deepsuck-agent.nousresearch.com/docs/user-guide/features/mcp) |
-| Profiles | `deepsuck profile list` or [Profiles docs](https://deepsuck-agent.nousresearch.com/docs/user-guide/profiles) |
-| Cron jobs | `deepsuck cron list` or [Cron docs](https://deepsuck-agent.nousresearch.com/docs/user-guide/features/cron) |
-| Memory | `deepsuck memory status` or [Memory docs](https://deepsuck-agent.nousresearch.com/docs/user-guide/features/memory) |
-| Env variables | `deepsuck config env-path` or [Env vars reference](https://deepsuck-agent.nousresearch.com/docs/reference/environment-variables) |
-| CLI commands | `deepsuck --help` or [CLI reference](https://deepsuck-agent.nousresearch.com/docs/reference/cli-commands) |
-| Gateway logs | `~/.deepsuck/logs/gateway.log` |
-| Session files | `deepsuck sessions browse` (reads state.db) |
-| Source code | `~/.deepsuck/deepsuck-agent/` |
+| Config options | `dag config edit` or [Configuration docs](https://dag-agent.nousresearch.com/docs/user-guide/configuration) |
+| Available tools | `dag tools list` or [Tools reference](https://dag-agent.nousresearch.com/docs/reference/tools-reference) |
+| Slash commands | `/help` in session or [Slash commands reference](https://dag-agent.nousresearch.com/docs/reference/slash-commands) |
+| Skills catalog | `dag skills browse` or [Skills catalog](https://dag-agent.nousresearch.com/docs/reference/skills-catalog) |
+| Provider setup | `dag model` or [Providers guide](https://dag-agent.nousresearch.com/docs/integrations/providers) |
+| Platform setup | `dag gateway setup` or [Messaging docs](https://dag-agent.nousresearch.com/docs/user-guide/messaging/) |
+| MCP servers | `dag mcp list` or [MCP guide](https://dag-agent.nousresearch.com/docs/user-guide/features/mcp) |
+| Profiles | `dag profile list` or [Profiles docs](https://dag-agent.nousresearch.com/docs/user-guide/profiles) |
+| Cron jobs | `dag cron list` or [Cron docs](https://dag-agent.nousresearch.com/docs/user-guide/features/cron) |
+| Memory | `dag memory status` or [Memory docs](https://dag-agent.nousresearch.com/docs/user-guide/features/memory) |
+| Env variables | `dag config env-path` or [Env vars reference](https://dag-agent.nousresearch.com/docs/reference/environment-variables) |
+| CLI commands | `dag --help` or [CLI reference](https://dag-agent.nousresearch.com/docs/reference/cli-commands) |
+| Gateway logs | `~/.dag/logs/gateway.log` |
+| Session files | `dag sessions browse` (reads state.db) |
+| Source code | `~/.dag/dag-agent/` |
 
 ---
 
 ## Contributor Quick Reference
 
-For occasional contributors and PR authors. Full developer docs: https://deepsuck-agent.nousresearch.com/docs/developer-guide/
+For occasional contributors and PR authors. Full developer docs: https://dag-agent.nousresearch.com/docs/developer-guide/
 
 ### Project Layout
 
 ```
-deepsuck-agent/
+dag-agent/
 ├── run_agent.py          # AIAgent — core conversation loop
 ├── model_tools.py        # Tool discovery and dispatch
 ├── toolsets.py           # Toolset definitions
 ├── cli.py                # Interactive CLI (DeepsuckCLI)
-├── deepsuck_state.py       # SQLite session store
+├── dag_state.py       # SQLite session store
 ├── agent/                # Prompt builder, context compression, memory, model routing, credential pooling, skill dispatch
-├── deepsuck_cli/           # CLI subcommands, config, setup, commands
+├── dag_cli/           # CLI subcommands, config, setup, commands
 │   ├── commands.py       # Slash command registry (CommandDef)
 │   ├── config.py         # DEFAULT_CONFIG, env var definitions
 │   └── main.py           # CLI entry point and argparse
@@ -908,7 +908,7 @@ deepsuck-agent/
 └── website/              # Docusaurus docs site
 ```
 
-Config: `~/.deepsuck/config.yaml` (settings), `~/.deepsuck/.env` (API keys) — both under `$DEEPSUCK_HOME` when it is set.
+Config: `~/.dag/config.yaml` (settings), `~/.dag/.env` (API keys) — both under `$DAG_HOME` when it is set.
 
 ### Adding a Tool (3 files)
 
@@ -938,11 +938,11 @@ registry.register(
 
 Auto-discovery: any `tools/*.py` file with a top-level `registry.register()` call is imported automatically — no manual list needed.
 
-All handlers must return JSON strings. Use `get_deepsuck_home()` for paths, never hardcode `~/.deepsuck`.
+All handlers must return JSON strings. Use `get_dag_home()` for paths, never hardcode `~/.dag`.
 
 ### Adding a Slash Command
 
-1. Add `CommandDef` to `COMMAND_REGISTRY` in `deepsuck_cli/commands.py`
+1. Add `CommandDef` to `COMMAND_REGISTRY` in `dag_cli/commands.py`
 2. Add handler in `cli.py` → `process_command()`
 3. (Optional) Add gateway handler in `gateway/run.py`
 
@@ -967,7 +967,7 @@ python -m pytest tests/ -o 'addopts=' -q   # Full suite
 python -m pytest tests/tools/ -q            # Specific area
 ```
 
-- Tests auto-redirect `DEEPSUCK_HOME` to temp dirs — never touch real `~/.deepsuck/`
+- Tests auto-redirect `DAG_HOME` to temp dirs — never touch real `~/.dag/`
 - Run full suite before pushing any change
 - Use `-o 'addopts='` to clear any baked-in pytest flags
 
@@ -982,7 +982,7 @@ Use `-n 0` (not `-n 4`) because `pyproject.toml`'s default `addopts` already inc
 
 **Cross-platform test guards:** tests that use POSIX-only syscalls need a skip marker. Common ones already in the codebase:
 - Symlink creation → `@pytest.mark.skipif(sys.platform == "win32", reason="Symlinks require elevated privileges on Windows")` (see `tests/cron/test_cron_script.py`)
-- POSIX file modes (0o600, etc.) → `@pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX mode bits not enforced on Windows")` (see `tests/deepsuck_cli/test_auth_toctou_file_modes.py`)
+- POSIX file modes (0o600, etc.) → `@pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX mode bits not enforced on Windows")` (see `tests/dag_cli/test_auth_toctou_file_modes.py`)
 - `signal.SIGALRM` → Unix-only (see `tests/conftest.py::_enforce_test_timeout`)
 - Live Winsock / Windows-specific regression tests → `@pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific regression")`
 
@@ -1023,6 +1023,6 @@ Types: `fix:`, `feat:`, `refactor:`, `docs:`, `chore:`
 
 - **Never break prompt caching** — don't change context, tools, or system prompt mid-conversation
 - **Message role alternation** — never two assistant or two user messages in a row
-- Use `get_deepsuck_home()` from `deepsuck_constants` for all paths (profile-safe)
+- Use `get_dag_home()` from `dag_constants` for all paths (profile-safe)
 - Config values go in `config.yaml`, secrets go in `.env`
 - New tools need a `check_fn` so they only appear when requirements are met

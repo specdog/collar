@@ -1,6 +1,6 @@
-"""``deepsuck tools`` subcommand parser.
+"""``dag tools`` subcommand parser.
 
-Extracted from ``deepsuck_cli/main.py:main()`` (god-file Phase 2 follow-up).
+Extracted from ``dag_cli/main.py:main()`` (god-file Phase 2 follow-up).
 Handler injected to avoid importing ``main``.
 """
 
@@ -18,7 +18,7 @@ def build_tools_parser(subparsers, *, cmd_tools: Callable) -> None:
             "Enable, disable, or list tools for CLI, Telegram, Discord, etc.\n\n"
             "Built-in toolsets use plain names (e.g. web, memory).\n"
             "MCP tools use server:tool notation (e.g. github:create_issue).\n\n"
-            "Run 'deepsuck tools' with no subcommand for the interactive configuration UI."
+            "Run 'dag tools' with no subcommand for the interactive configuration UI."
         ),
     )
     tools_parser.add_argument(
@@ -28,7 +28,7 @@ def build_tools_parser(subparsers, *, cmd_tools: Callable) -> None:
     )
     tools_sub = tools_parser.add_subparsers(dest="tools_action")
 
-    # deepsuck tools list [--platform cli]
+    # dag tools list [--platform cli]
     tools_list_p = tools_sub.add_parser(
         "list",
         help="Show all tools and their enabled/disabled status",
@@ -39,7 +39,7 @@ def build_tools_parser(subparsers, *, cmd_tools: Callable) -> None:
         help="Platform to show (default: cli)",
     )
 
-    # deepsuck tools disable <name...> [--platform cli]
+    # dag tools disable <name...> [--platform cli]
     tools_disable_p = tools_sub.add_parser(
         "disable",
         help="Disable toolsets or MCP tools",
@@ -56,7 +56,7 @@ def build_tools_parser(subparsers, *, cmd_tools: Callable) -> None:
         help="Platform to apply to (default: cli)",
     )
 
-    # deepsuck tools enable <name...> [--platform cli]
+    # dag tools enable <name...> [--platform cli]
     tools_enable_p = tools_sub.add_parser(
         "enable",
         help="Enable toolsets or MCP tools",
@@ -73,13 +73,13 @@ def build_tools_parser(subparsers, *, cmd_tools: Callable) -> None:
         help="Platform to apply to (default: cli)",
     )
 
-    # deepsuck tools post-setup <key>
+    # dag tools post-setup <key>
     tools_postsetup_p = tools_sub.add_parser(
         "post-setup",
         help="Run a provider's post-setup install hook (npm/pip/binary)",
         description=(
             "Run the install/bootstrap hook a tool backend declares — the\n"
-            "same step `deepsuck tools` runs after you pick a provider that\n"
+            "same step `dag tools` runs after you pick a provider that\n"
             "needs extra dependencies (browser Chromium, Camofox, cua-driver,\n"
             "KittenTTS/Piper, ddgs, Spotify, Langfuse, xAI). Stable,\n"
             "non-interactive target the dashboard spawns to drive backend\n"

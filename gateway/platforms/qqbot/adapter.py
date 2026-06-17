@@ -742,8 +742,8 @@ class QQAdapter(BasePlatformAdapter):
                 "shard": [0, 1],
                 "properties": {
                     "$os": "macOS",
-                    "$browser": "deepsuck-agent",
-                    "$device": "deepsuck-agent",
+                    "$browser": "dag-agent",
+                    "$device": "dag-agent",
                 },
             },
         }
@@ -1115,7 +1115,7 @@ class QQAdapter(BasePlatformAdapter):
           (unblocks the agent thread waiting on a dangerous-command approval).
         - ``update_prompt:<answer>`` →
           writes the answer to ``~/.hermes/.update_response`` for the
-          detached ``deepsuck update --gateway`` process to consume.
+          detached ``dag update --gateway`` process to consume.
         - Anything else is logged at DEBUG and ignored.
 
         Installed as the adapter's default interaction callback in
@@ -1184,13 +1184,13 @@ class QQAdapter(BasePlatformAdapter):
         """Atomically write the update-prompt answer to ``.update_response``.
 
         Mirrors the Discord / Telegram / Feishu adapters: the detached
-        ``deepsuck update --gateway`` watcher polls this file for a ``y``/``n``
+        ``dag update --gateway`` watcher polls this file for a ``y``/``n``
         response to its interactive prompts (stash-restore, config migration).
         Writes via ``tmp + rename`` so a partial write can't fool the reader.
         """
         try:
-            from deepsuck_constants import get_deepsuck_home
-            home = get_deepsuck_home()
+            from dag_constants import get_dag_home
+            home = get_dag_home()
             response_path = home / ".update_response"
             tmp = response_path.with_suffix(".tmp")
             tmp.write_text(answer)
@@ -2186,7 +2186,7 @@ class QQAdapter(BasePlatformAdapter):
                                  or ("glm-asr" if provider in {"zai", "glm"} else "whisper-1"),
                     }
 
-        # 2. QQ-specific env vars (set by `deepsuck setup gateway` / `deepsuck gateway`)
+        # 2. QQ-specific env vars (set by `dag setup gateway` / `dag gateway`)
         qq_stt_key = os.getenv("QQ_STT_API_KEY", "")
         if qq_stt_key:
             base_url = os.getenv(
@@ -2699,7 +2699,7 @@ class QQAdapter(BasePlatformAdapter):
         """Send a Yes/No update-confirmation prompt with inline buttons.
 
         Matches the cross-adapter contract used by
-        ``gateway/run.py``'s ``deepsuck update --gateway`` watcher. Button
+        ``gateway/run.py``'s ``dag update --gateway`` watcher. Button
         clicks surface as ``INTERACTION_CREATE`` with
         ``button_data = 'update_prompt:y'`` or ``'update_prompt:n'``;
         the adapter's interaction callback writes the answer to

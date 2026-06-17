@@ -1,11 +1,11 @@
 """
-Session Insights Engine for Deepsuck Agent.
+Session Insights Engine for DAG Agent.
 
 Analyzes historical session data from the SQLite state database to produce
 comprehensive usage insights — token consumption, cost estimates, tool usage
 patterns, activity trends, model/platform breakdowns, and session metrics.
 
-Inspired by Claude Code's /insights command, adapted for Deepsuck Agent's
+Inspired by Claude Code's /insights command, adapted for DAG Agent's
 multi-platform architecture with additional cost estimation and platform
 breakdown capabilities.
 
@@ -94,7 +94,7 @@ class InsightsEngine:
         Initialize with a SessionDB instance.
 
         Args:
-            db: A SessionDB instance (from deepsuck_state.py)
+            db: A SessionDB instance (from dag_state.py)
         """
         self.db = db
         self._conn = db._conn
@@ -729,7 +729,7 @@ class InsightsEngine:
         # Header
         lines.append("")
         lines.append("  ╔══════════════════════════════════════════════════════════╗")
-        lines.append("  ║                    📊 Deepsuck Insights                    ║")
+        lines.append("  ║                    📊 Dag Insights                    ║")
         period_label = f"Last {days} days"
         if src_filter:
             period_label += f" ({src_filter})"
@@ -864,7 +864,7 @@ class InsightsEngine:
         o = report["overview"]
         days = report["days"]
 
-        lines.append(f"📊 **Deepsuck Insights** — Last {days} days\n")
+        lines.append(f"📊 **DAG Insights** — Last {days} days\n")
 
         # Overview
         lines.append(f"**Sessions:** {o['total_sessions']} | **Messages:** {o['total_messages']:,} | **Tool calls:** {o['total_tool_calls']:,}")

@@ -165,7 +165,7 @@ def _resolve_matrix_bang_command(name: str) -> str | None:
         candidates.append(hyphenated)
 
     try:
-        from deepsuck_cli.commands import is_gateway_known_command
+        from dag_cli.commands import is_gateway_known_command
 
         for candidate in candidates:
             if is_gateway_known_command(candidate):
@@ -341,10 +341,10 @@ class _MatrixModelPickerPrompt:
 MAX_MESSAGE_LENGTH = 4000
 
 # Store directory for E2EE keys and sync state.
-# Uses get_deepsuck_home() so each profile gets its own Matrix store.
-from deepsuck_constants import get_deepsuck_dir as _get_deepsuck_dir
+# Uses get_dag_home() so each profile gets its own Matrix store.
+from dag_constants import get_dag_dir as _get_dag_dir
 
-_STORE_DIR = _get_deepsuck_dir("platforms/matrix/store", "matrix/store")
+_STORE_DIR = _get_dag_dir("platforms/matrix/store", "matrix/store")
 _CRYPTO_DB_PATH = _STORE_DIR / "crypto.db"
 
 # Grace period: ignore messages older than this many seconds before startup.
@@ -1993,7 +1993,7 @@ class MatrixAdapter(BasePlatformAdapter):
             )
 
         try:
-            from deepsuck_cli.providers import get_label
+            from dag_cli.providers import get_label
             provider_label = get_label(current_provider)
         except Exception:
             provider_label = current_provider

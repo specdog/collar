@@ -34,7 +34,7 @@ from agent.i18n import t
 from gateway.config import HomeChannel, Platform, PlatformConfig
 from gateway.platforms.base import EphemeralReply, MessageEvent, MessageType
 from gateway.session import SessionSource, build_session_key
-from deepsuck_cli.config import cfg_get
+from dag_cli.config import cfg_get
 from utils import (
     atomic_json_write,
     atomic_yaml_write,
@@ -129,7 +129,7 @@ class GatewaySlashCommandsMixin:
 
         # Fire plugin on_session_finalize hook (session boundary)
         try:
-            from deepsuck_cli.plugins import invoke_hook as _invoke_hook
+            from dag_cli.plugins import invoke_hook as _invoke_hook
             _invoke_hook(
                 "on_session_finalize",
                 session_id=_old_sid,
@@ -172,7 +172,7 @@ class GatewaySlashCommandsMixin:
         _title_arg = event.get_command_args().strip()
         _title_note = ""
         if _title_arg and self._session_db and new_entry:
-            from deepsuck_state import SessionDB
+            from dag_state import SessionDB
             try:
                 sanitized = SessionDB.sanitize_title(_title_arg)
             except ValueError as e:
@@ -204,7 +204,7 @@ class GatewaySlashCommandsMixin:
 
         # Fire plugin on_session_reset hook (new session guaranteed to exist)
         try:
-            from deepsuck_cli.plugins import invoke_hook as _invoke_hook
+            from dag_cli.plugins import invoke_hook as _invoke_hook
             _new_sid = new_entry.session_id if new_entry else None
             _invoke_hook(
                 "on_session_reset",
@@ -219,7 +219,7 @@ class GatewaySlashCommandsMixin:
 
         # Append a random tip to the reset message
         try:
-            from deepsuck_cli.tips import get_random_tip
+            from dag_cli.tips import get_random_tip
             _tip_line = t("gateway.reset.tip", tip=get_random_tip())
         except Exception:
             _tip_line = ""
@@ -230,10 +230,10 @@ class GatewaySlashCommandsMixin:
 
     async def _handle_profile_command(self, event: MessageEvent) -> str:
         """Handle /profile — show active profile name and home directory."""
-        from deepsuck_constants import display_deepsuck_home
-        from deepsuck_cli.profiles import get_active_profile_name
+        from dag_constants import display_dag_home
+        from dag_cli.profiles import get_active_profile_name
 
-        display = display_deepsuck_home()
+        display = display_dag_home()
         profile_name = get_active_profile_name()
 
         lines = [
@@ -311,7 +311,7 @@ class GatewaySlashCommandsMixin:
         import asyncio
         import re
         import shlex
-        from deepsuck_cli.kanban import run_slash
+        from dag_cli.kanban import run_slash
 
         text = (event.text or "").strip()
         # Strip the leading "/kanban" (with or without slash), leaving args.
@@ -365,7 +365,7 @@ class GatewaySlashCommandsMixin:
                     user_id = str(getattr(source, "user_id", "") or "") or None
                     if platform_str and chat_id:
                         def _sub():
-                            from deepsuck_cli import kanban_db as _kb
+                            from dag_cli import kanban_db as _kb
                             conn = _kb.connect(board=requested_board)
                             try:
                                 _kb.add_notify_sub(
@@ -822,7 +822,7 @@ class GatewaySlashCommandsMixin:
                 return (
                     f"✓ {platform.value} paused. "
                     f"Resume with `/platform resume {platform.value}` or "
-                    f"`deepsuck gateway restart` to reset."
+                    f"`dag gateway restart` to reset."
                 )
             # action == "resume"
             if platform not in failed:
@@ -943,14 +943,14 @@ class GatewaySlashCommandsMixin:
 
     async def _handle_version_command(self, event: MessageEvent) -> str:
         """Handle /version — show the running Hermes Agent version."""
-        from deepsuck_cli.banner import format_banner_version_label
+        from dag_cli.banner import format_banner_version_label
 
         return format_banner_version_label()
 
     async def _handle_help_command(self, event: MessageEvent) -> str:
         """Handle /help command - list available commands."""
         from gateway.run import _telegramize_command_mentions
-        from deepsuck_cli.commands import gateway_help_lines
+        from dag_cli.commands import gateway_help_lines
         lines = [
             t("gateway.help.header"),
             *gateway_help_lines(),
@@ -975,7 +975,7 @@ class GatewaySlashCommandsMixin:
 
     async def _handle_commands_command(self, event: MessageEvent) -> str:
         from gateway.run import _telegramize_command_mentions
-        from deepsuck_cli.commands import gateway_help_lines
+        from dag_cli.commands import gateway_help_lines
 
         raw_args = event.get_command_args().strip()
         if raw_args:
@@ -1041,12 +1041,12 @@ class GatewaySlashCommandsMixin:
         """
         from gateway.run import _hermes_home, _load_gateway_config
         import yaml
-        from deepsuck_cli.model_switch import (
+        from dag_cli.model_switch import (
             switch_model as _switch_model, parse_model_flags,
             list_authenticated_providers,
             list_picker_providers,
         )
-        from deepsuck_cli.providers import get_label
+        from dag_cli.providers import get_label
 
         raw_args = event.get_command_args().strip()
 
@@ -1056,7 +1056,7 @@ class GatewaySlashCommandsMixin:
         # --refresh: bust the disk cache so the picker shows live data.
         if force_refresh:
             try:
-                from deepsuck_cli.models import clear_provider_models_cache
+                from dag_cli.models import clear_provider_models_cache
                 clear_provider_models_cache()
             except Exception:
                 pass
@@ -1079,7 +1079,7 @@ class GatewaySlashCommandsMixin:
                     current_base_url = model_cfg.get("base_url", "")
                 user_provs = cfg.get("providers")
                 try:
-                    from deepsuck_cli.config import get_compatible_custom_providers
+                    from dag_cli.config import get_compatible_custom_providers
                     custom_provs = get_compatible_custom_providers(cfg)
                 except Exception:
                     custom_provs = cfg.get("custom_providers")
@@ -1212,7 +1212,7 @@ class GatewaySlashCommandsMixin:
                         lines = [t("gateway.model.switched", model=result.new_model)]
                         lines.append(t("gateway.model.provider_label", provider=plabel))
                         mi = result.model_info
-                        from deepsuck_cli.model_switch import resolve_display_context_length
+                        from dag_cli.model_switch import resolve_display_context_length
                         _sw_config_ctx = None
                         try:
                             _sw_cfg = _load_gateway_config()
@@ -1389,7 +1389,7 @@ class GatewaySlashCommandsMixin:
                     model_cfg["provider"] = result.target_provider
                     if result.base_url:
                         model_cfg["base_url"] = result.base_url
-                    from deepsuck_cli.config import save_config
+                    from dag_cli.config import save_config
                     save_config(cfg)
                 except Exception as e:
                     logger.warning("Failed to persist model switch: %s", e)
@@ -1402,7 +1402,7 @@ class GatewaySlashCommandsMixin:
             # Context: always resolve via the provider-aware chain so Codex OAuth,
             # Copilot, and Nous-enforced caps win over the raw models.dev entry.
             mi = result.model_info
-            from deepsuck_cli.model_switch import resolve_display_context_length
+            from dag_cli.model_switch import resolve_display_context_length
             _sw2_config_ctx = None
             try:
                 _sw2_cfg = _load_gateway_config()
@@ -1457,7 +1457,7 @@ class GatewaySlashCommandsMixin:
         # on a cache miss, so run it off the event loop.
         _cost_warning = None
         try:
-            from deepsuck_cli.model_cost_guard import expensive_model_warning
+            from dag_cli.model_cost_guard import expensive_model_warning
 
             _cost_warning = await asyncio.to_thread(
                 expensive_model_warning,
@@ -1508,7 +1508,7 @@ class GatewaySlashCommandsMixin:
         On change, the cached agent for this session is evicted so the next
         message creates a fresh AIAgent with the new api_mode wired in
         (avoids prompt-cache invalidation mid-session)."""
-        from deepsuck_cli import codex_runtime_switch as crs
+        from dag_cli import codex_runtime_switch as crs
 
         raw_args = event.get_command_args().strip() if event else ""
         new_value, errors = crs.parse_args(raw_args)
@@ -1517,7 +1517,7 @@ class GatewaySlashCommandsMixin:
 
         # Load + persist via the same helpers used for /model and /yolo
         try:
-            from deepsuck_cli.config import load_config, save_config
+            from dag_cli.config import load_config, save_config
         except Exception as exc:
             return f"❌ Could not load config: {exc}"
         cfg = load_config()
@@ -1544,7 +1544,7 @@ class GatewaySlashCommandsMixin:
     async def _handle_personality_command(self, event: MessageEvent) -> str:
         """Handle /personality command - list or set a personality."""
         from gateway.run import _hermes_home, _load_gateway_config
-        from deepsuck_constants import display_deepsuck_home
+        from dag_constants import display_dag_home
 
         args = event.get_command_args().strip().lower()
         config_path = _hermes_home / 'config.yaml'
@@ -1557,7 +1557,7 @@ class GatewaySlashCommandsMixin:
             personalities = {}
 
         if not personalities:
-            return t("gateway.personality.none_configured", path=display_deepsuck_home())
+            return t("gateway.personality.none_configured", path=display_dag_home())
 
         if not args:
             lines = [t("gateway.personality.header")]
@@ -1838,7 +1838,7 @@ class GatewaySlashCommandsMixin:
 
         # Save to .env so it persists across restarts
         try:
-            from deepsuck_cli.config import save_env_value
+            from dag_cli.config import save_env_value
             save_env_value(env_key, str(chat_id))
             # Keep thread/topic routing explicit and clear stale values when
             # /sethome is run from the parent chat instead of a thread.
@@ -2169,7 +2169,7 @@ class GatewaySlashCommandsMixin:
         new setting takes effect on the next message.
         """
         from gateway.run import _hermes_home
-        from deepsuck_cli.write_approval_commands import handle_pending_subcommand
+        from dag_cli.write_approval_commands import handle_pending_subcommand
         from tools import write_approval as wa
         from tools.memory_tool import MemoryStore
 
@@ -2217,7 +2217,7 @@ class GatewaySlashCommandsMixin:
         the CLI (``/skills diff <id>``) and the pending JSON file.
         """
         from gateway.run import _hermes_home
-        from deepsuck_cli.write_approval_commands import handle_pending_subcommand
+        from dag_cli.write_approval_commands import handle_pending_subcommand
         from tools import write_approval as wa
 
         raw_args = event.get_command_args().strip()
@@ -2264,7 +2264,7 @@ class GatewaySlashCommandsMixin:
         """Handle /fast — mirror the CLI Priority Processing toggle in gateway chats."""
         from gateway.run import _hermes_home, _load_gateway_config, _resolve_gateway_model
         import yaml
-        from deepsuck_cli.models import model_supports_fast_mode
+        from dag_cli.models import model_supports_fast_mode
 
         args = event.get_command_args().strip().lower()
         config_path = _hermes_home / "config.yaml"
@@ -2502,7 +2502,7 @@ class GatewaySlashCommandsMixin:
 
         # Parse args: either a focus topic (full compress) or the
         # boundary-aware "here [N]" form (partial compress).
-        from deepsuck_cli.partial_compress import (
+        from dag_cli.partial_compress import (
             parse_partial_compress_args,
             rejoin_compressed_head_and_tail,
             split_history_for_partial_compress,
@@ -2656,7 +2656,7 @@ class GatewaySlashCommandsMixin:
         if source.platform != Platform.TELEGRAM or source.chat_type != "dm":
             return t("gateway.topic.not_telegram_dm")
         if not self._session_db:
-            from deepsuck_state import format_session_db_unavailable
+            from dag_state import format_session_db_unavailable
             return format_session_db_unavailable(prefix=t("gateway.shared.session_db_unavailable_prefix"))
 
         # Authorization: /topic activates multi-session mode and mutates
@@ -2746,7 +2746,7 @@ class GatewaySlashCommandsMixin:
         session_id = session_entry.session_id
 
         if not self._session_db:
-            from deepsuck_state import format_session_db_unavailable
+            from dag_state import format_session_db_unavailable
             return format_session_db_unavailable(prefix=t("gateway.shared.session_db_unavailable_prefix"))
 
         # Ensure session exists in SQLite DB (it may only exist in session_store
@@ -2791,7 +2791,7 @@ class GatewaySlashCommandsMixin:
     async def _handle_resume_command(self, event: MessageEvent) -> str:
         """Handle /resume command — list or switch to a previous session."""
         if not self._session_db:
-            from deepsuck_state import format_session_db_unavailable
+            from dag_state import format_session_db_unavailable
             return format_session_db_unavailable(prefix=t("gateway.shared.session_db_unavailable_prefix"))
 
         source = event.source
@@ -2944,10 +2944,10 @@ class GatewaySlashCommandsMixin:
     async def _handle_sessions_command(self, event: MessageEvent) -> str:
         """Handle /sessions — list previous sessions for gateway chats."""
         if not self._session_db:
-            from deepsuck_state import format_session_db_unavailable
+            from dag_state import format_session_db_unavailable
             return format_session_db_unavailable(prefix=t("gateway.shared.session_db_unavailable_prefix"))
 
-        from deepsuck_cli.session_listing import (
+        from dag_cli.session_listing import (
             format_gateway_session_listing,
             parse_session_listing_args,
             query_session_listing,
@@ -2997,7 +2997,7 @@ class GatewaySlashCommandsMixin:
         import uuid as _uuid
 
         if not self._session_db:
-            from deepsuck_state import format_session_db_unavailable
+            from dag_state import format_session_db_unavailable
             return format_session_db_unavailable(prefix=t("gateway.shared.session_db_unavailable_prefix"))
 
         source = event.source
@@ -3315,7 +3315,7 @@ class GatewaySlashCommandsMixin:
                     i += 1
 
         try:
-            from deepsuck_state import SessionDB
+            from dag_state import SessionDB
             from agent.insights import InsightsEngine
 
             loop = asyncio.get_running_loop()
@@ -3514,7 +3514,7 @@ class GatewaySlashCommandsMixin:
             return (
                 "No skill bundles installed.\n"
                 "Create one on the host with:\n"
-                "  `deepsuck bundles create <name> --skill <s1> --skill <s2>`\n"
+                "  `dag bundles create <name> --skill <s1> --skill <s2>`\n"
                 f"Directory: `{_bundles_dir()}`"
             )
 
@@ -3632,10 +3632,10 @@ class GatewaySlashCommandsMixin:
 
         Gateway uploads ONLY the summary report (system info + log tails),
         NOT full log files, to protect conversation privacy.  Users who need
-        full log uploads should use ``deepsuck debug share`` from the CLI.
+        full log uploads should use ``dag debug share`` from the CLI.
         """
         import asyncio
-        from deepsuck_cli.debug import (
+        from dag_cli.debug import (
             _capture_dump, collect_debug_report,
             upload_to_pastebin, _schedule_auto_delete,
             _GATEWAY_PRIVACY_NOTICE, _best_effort_sweep_expired_pastes,
@@ -3674,8 +3674,8 @@ class GatewaySlashCommandsMixin:
     async def _handle_update_command(self, event: MessageEvent) -> str:
         """Handle /update command — update Hermes Agent to the latest version.
 
-        Spawns ``deepsuck update`` in a detached session (via ``setsid``) so it
-        survives the gateway restart that ``deepsuck update`` may trigger. Marker
+        Spawns ``dag update`` in a detached session (via ``setsid``) so it
+        survives the gateway restart that ``dag update`` may trigger. Marker
         files are written so either the current gateway process or the next one
         can notify the user when the update finishes.
         """
@@ -3684,7 +3684,7 @@ class GatewaySlashCommandsMixin:
         import shutil
         import subprocess
         from datetime import datetime
-        from deepsuck_cli.config import is_managed, format_managed_message
+        from dag_cli.config import is_managed, format_managed_message
 
         # Block non-messaging platforms (API server, webhooks, ACP)
         platform = event.source.platform
@@ -3733,7 +3733,7 @@ class GatewaySlashCommandsMixin:
         _tmp_pending.replace(pending_path)
         exit_code_path.unlink(missing_ok=True)
 
-        # Spawn `deepsuck update --gateway` detached so it survives gateway restart.
+        # Spawn `dag update --gateway` detached so it survives gateway restart.
         # --gateway enables file-based IPC for interactive prompts (stash
         # restore, config migration) so the gateway can forward them to the
         # user instead of silently skipping them.
@@ -3741,7 +3741,7 @@ class GatewaySlashCommandsMixin:
         # where systemd-run --user fails due to missing D-Bus session).
         # PYTHONUNBUFFERED ensures output is flushed line-by-line so the
         # gateway can stream it to the messenger in near-real-time.
-        # Spawn `deepsuck update --gateway` detached so it survives gateway restart.
+        # Spawn `dag update --gateway` detached so it survives gateway restart.
         # --gateway enables file-based IPC for interactive prompts (stash
         # restore, config migration) so the gateway can forward them to the
         # user instead of silently skipping them.
@@ -3750,7 +3750,7 @@ class GatewaySlashCommandsMixin:
         # PYTHONUNBUFFERED ensures output is flushed line-by-line so the
         # gateway can stream it to the messenger in near-real-time.
         #
-        # Windows: no bash/setsid chain.  Run `deepsuck update --gateway`
+        # Windows: no bash/setsid chain.  Run `dag update --gateway`
         # directly via sys.executable; redirect stdout/stderr to the same
         # output files via Popen file handles; write the exit code in a
         # follow-up write.  A tiny Python watcher would be cleaner but
@@ -3760,7 +3760,7 @@ class GatewaySlashCommandsMixin:
         try:
             if sys.platform == "win32":
                 import textwrap
-                from deepsuck_cli._subprocess_compat import windows_detach_popen_kwargs
+                from dag_cli._subprocess_compat import windows_detach_popen_kwargs
 
                 # hermes_cmd is a list of argv parts we can pass directly
                 # (no shell-quoting needed).

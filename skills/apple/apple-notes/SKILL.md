@@ -6,7 +6,7 @@ author: Deepsuck Agent
 license: MIT
 platforms: [macos]
 metadata:
-  deepsuck:
+  dag:
     tags: [Notes, Apple, macOS, note-taking]
     related_skills: [obsidian]
 prerequisites:

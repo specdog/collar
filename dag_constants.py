@@ -1,4 +1,4 @@
-"""Shared constants for Deepsuck Agent.
+"""Shared constants for DAG Agent.
 
 Import-safe module with no dependencies — can be imported from anywhere
 without risk of circular imports.
@@ -13,64 +13,64 @@ from pathlib import Path
 
 _profile_fallback_warned: bool = False
 _UNSET = object()
-_DEEPSUCK_HOME_OVERRIDE: ContextVar[str | object] = ContextVar(
-    "_DEEPSUCK_HOME_OVERRIDE", default=_UNSET
+_DAG_HOME_OVERRIDE: ContextVar[str | object] = ContextVar(
+    "_DAG_HOME_OVERRIDE", default=_UNSET
 )
 
 
-def set_deepsuck_home_override(path: str | Path | None) -> Token:
-    """Set a context-local Deepsuck home override and return its reset token.
+def set_dag_home_override(path: str | Path | None) -> Token:
+    """Set a context-local Dag home override and return its reset token.
 
     This is for in-process, per-task scoping.  It deliberately does not mutate
     ``os.environ`` because that is shared by every thread in the process.
     """
     value: str | object = _UNSET if path is None else str(path)
-    return _DEEPSUCK_HOME_OVERRIDE.set(value)
+    return _DAG_HOME_OVERRIDE.set(value)
 
 
-def reset_deepsuck_home_override(token: Token) -> None:
-    """Restore the previous context-local Deepsuck home override."""
-    _DEEPSUCK_HOME_OVERRIDE.reset(token)
+def reset_dag_home_override(token: Token) -> None:
+    """Restore the previous context-local Dag home override."""
+    _DAG_HOME_OVERRIDE.reset(token)
 
 
-def get_deepsuck_home_override() -> str | None:
-    """Return the active context-local Deepsuck home override, if any."""
-    override = _DEEPSUCK_HOME_OVERRIDE.get()
+def get_dag_home_override() -> str | None:
+    """Return the active context-local Dag home override, if any."""
+    override = _DAG_HOME_OVERRIDE.get()
     if override is _UNSET or not override:
         return None
     return str(override)
 
 
-def _get_platform_default_deepsuck_home() -> Path:
-    """Return the platform-native default Deepsuck home path."""
+def _get_platform_default_dag_home() -> Path:
+    """Return the platform-native default Dag home path."""
     if sys.platform == "win32":
         local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
         base = Path(local_appdata) if local_appdata else Path.home() / "AppData" / "Local"
-        return base / "deepsuck"
-    return Path.home() / ".deepsuck"
+        return base / "dag"
+    return Path.home() / ".dag"
 
 
-def get_deepsuck_home() -> Path:
-    """Return the Deepsuck home directory (default: platform-native path).
+def get_dag_home() -> Path:
+    """Return the Dag home directory (default: platform-native path).
 
-    Reads DEEPSUCK_HOME env var, falls back to the platform-native default.
+    Reads DAG_HOME env var, falls back to the platform-native default.
     This is the single source of truth — all other copies should import this.
 
-    When ``DEEPSUCK_HOME`` is unset but an ``active_profile`` file indicates
+    When ``DAG_HOME`` is unset but an ``active_profile`` file indicates
     a non-default profile is active, logs a loud one-shot warning to
     ``errors.log`` so cross-profile data corruption is diagnosable instead
     of silent.  Behavior is unchanged otherwise — we still return
     the platform-native default — because raising here would brick 30+ module-level
     callers that import this at load time.  Subprocess spawners are
-    expected to propagate ``DEEPSUCK_HOME`` explicitly (see the systemd
-    template in ``deepsuck_cli/gateway.py`` and the kanban dispatcher in
-    ``deepsuck_cli/kanban_db.py``).  See https://github.com/NousResearch/deepsuck-agent/issues/18594.
+    expected to propagate ``DAG_HOME`` explicitly (see the systemd
+    template in ``dag_cli/gateway.py`` and the kanban dispatcher in
+    ``dag_cli/kanban_db.py``).  See https://github.com/NousResearch/dag-agent/issues/18594.
     """
-    override = get_deepsuck_home_override()
+    override = get_dag_home_override()
     if override:
         return Path(override)
 
-    val = os.environ.get("DEEPSUCK_HOME", "").strip() or os.environ.get("DEEPSUCK_HOME", "").strip()
+    val = os.environ.get("DAG_HOME", "").strip() or os.environ.get("DAG_HOME", "").strip()
     if val:
         return Path(val)
 
@@ -79,7 +79,7 @@ def get_deepsuck_home() -> Path:
     global _profile_fallback_warned
     if not _profile_fallback_warned:
         try:
-            fallback_home = _get_platform_default_deepsuck_home()
+            fallback_home = _get_platform_default_dag_home()
             active_path = fallback_home / "active_profile"
             active = active_path.read_text().strip() if active_path.exists() else ""
         except (UnicodeDecodeError, OSError):
@@ -92,11 +92,11 @@ def get_deepsuck_home() -> Path:
             # configured, and (b) root-logger propagation would double-emit
             # on consoles where a StreamHandler is already attached.
             msg = (
-                f"[DEEPSUCK_HOME fallback] DEEPSUCK_HOME is unset but active "
+                f"[DAG_HOME fallback] DAG_HOME is unset but active "
                 f"profile is {active!r}. Falling back to {fallback_home}, which "
                 f"is the DEFAULT profile — not {active!r}. Any data this "
                 f"process writes will land in the wrong profile. The "
-                f"subprocess spawner should pass DEEPSUCK_HOME explicitly "
+                f"subprocess spawner should pass DAG_HOME explicitly "
                 f"(see issue #18594)."
             )
             try:
@@ -105,34 +105,34 @@ def get_deepsuck_home() -> Path:
             except Exception:
                 pass
 
-    return _get_platform_default_deepsuck_home()
+    return _get_platform_default_dag_home()
 
 
-def get_default_deepsuck_root() -> Path:
-    """Return the root Deepsuck directory for profile-level operations.
+def get_default_dag_root() -> Path:
+    """Return the root Dag directory for profile-level operations.
 
-    In standard deployments this is the platform-native Deepsuck home
-    (``~/.deepsuck`` on POSIX, ``%LOCALAPPDATA%\\deepsuck`` on native Windows).
+    In standard deployments this is the platform-native Dag home
+    (``~/.dag`` on POSIX, ``%LOCALAPPDATA%\\dag`` on native Windows).
 
-    In Docker or custom deployments where ``DEEPSUCK_HOME`` points outside
-    ``~/.deepsuck`` (e.g. ``/opt/data``), returns ``DEEPSUCK_HOME`` directly
+    In Docker or custom deployments where ``DAG_HOME`` points outside
+    ``~/.dag`` (e.g. ``/opt/data``), returns ``DAG_HOME`` directly
     — that IS the root.
 
-    In profile mode where ``DEEPSUCK_HOME`` is ``<root>/profiles/<name>``,
+    In profile mode where ``DAG_HOME`` is ``<root>/profiles/<name>``,
     returns ``<root>`` so that ``profile list`` can see all profiles.
-    Works both for standard (``~/.deepsuck/profiles/coder``) and Docker
+    Works both for standard (``~/.dag/profiles/coder``) and Docker
     (``/opt/data/profiles/coder``) layouts.
 
     Import-safe — no dependencies beyond stdlib.
     """
-    native_home = _get_platform_default_deepsuck_home()
-    env_home = os.environ.get("DEEPSUCK_HOME", "")
+    native_home = _get_platform_default_dag_home()
+    env_home = os.environ.get("DAG_HOME", "")
     if not env_home:
         return native_home
     env_path = Path(env_home)
     try:
         env_path.resolve().relative_to(native_home.resolve())
-        # DEEPSUCK_HOME is under ~/.deepsuck (normal or profile mode)
+        # DAG_HOME is under ~/.dag (normal or profile mode)
         return native_home
     except ValueError:
         pass
@@ -144,14 +144,14 @@ def get_default_deepsuck_root() -> Path:
     if env_path.parent.name == "profiles":
         return env_path.parent.parent
 
-    # Not a profile path — DEEPSUCK_HOME itself is the root
+    # Not a profile path — DAG_HOME itself is the root
     return env_path
 
 
 def _get_packaged_data_dir(name: str) -> Path | None:
     """Return an installed data-files directory if one exists.
 
-    Used to discover bundled skills/optional-skills when Deepsuck is installed
+    Used to discover bundled skills/optional-skills when Dag is installed
     from a wheel that emitted them via setuptools data_files.
     """
     candidates = []
@@ -179,7 +179,7 @@ def get_optional_skills_dir(default: Path | None = None) -> Path:
         return packaged
     if default is not None:
         return default
-    return get_deepsuck_home() / "optional-skills"
+    return get_dag_home() / "optional-skills"
 
 
 def get_optional_mcps_dir(default: Path | None = None) -> Path:
@@ -198,7 +198,7 @@ def get_optional_mcps_dir(default: Path | None = None) -> Path:
         return packaged
     if default is not None:
         return default
-    return get_deepsuck_home() / "optional-mcps"
+    return get_dag_home() / "optional-mcps"
 
 
 def get_bundled_skills_dir(default: Path | None = None) -> Path:
@@ -208,7 +208,7 @@ def get_bundled_skills_dir(default: Path | None = None) -> Path:
         1. ``DEEPSUCK_BUNDLED_SKILLS`` env var (Nix wrapper / explicit override)
         2. Wheel-installed ``<sysconfig data>/skills`` (pip install path)
         3. Caller-supplied ``default`` (typically the source-checkout path)
-        4. ``<DEEPSUCK_HOME>/skills`` last-resort
+        4. ``<DAG_HOME>/skills`` last-resort
     """
     override = os.getenv("DEEPSUCK_BUNDLED_SKILLS", "").strip()
     if override:
@@ -218,44 +218,44 @@ def get_bundled_skills_dir(default: Path | None = None) -> Path:
         return packaged
     if default is not None:
         return default
-    return get_deepsuck_home() / "skills"
+    return get_dag_home() / "skills"
 
 
-def get_deepsuck_dir(new_subpath: str, old_name: str) -> Path:
-    """Resolve a Deepsuck subdirectory with backward compatibility.
+def get_dag_dir(new_subpath: str, old_name: str) -> Path:
+    """Resolve a Dag subdirectory with backward compatibility.
 
     New installs get the consolidated layout (e.g. ``cache/images``).
     Existing installs that already have the old path (e.g. ``image_cache``)
     keep using it — no migration required.
 
     Args:
-        new_subpath: Preferred path relative to DEEPSUCK_HOME (e.g. ``"cache/images"``).
-        old_name: Legacy path relative to DEEPSUCK_HOME (e.g. ``"image_cache"``).
+        new_subpath: Preferred path relative to DAG_HOME (e.g. ``"cache/images"``).
+        old_name: Legacy path relative to DAG_HOME (e.g. ``"image_cache"``).
 
     Returns:
         Absolute ``Path`` — old location if it exists on disk, otherwise the new one.
     """
-    home = get_deepsuck_home()
+    home = get_dag_home()
     old_path = home / old_name
     if old_path.exists():
         return old_path
     return home / new_subpath
 
 
-def display_deepsuck_home() -> str:
-    """Return a user-friendly display string for the current DEEPSUCK_HOME.
+def display_dag_home() -> str:
+    """Return a user-friendly display string for the current DAG_HOME.
 
     Uses ``~/`` shorthand for readability::
 
-        default:  ``~/.deepsuck``
-        profile:  ``~/.deepsuck/profiles/coder``
-        custom:   ``/opt/deepsuck-custom``
+        default:  ``~/.dag``
+        profile:  ``~/.dag/profiles/coder``
+        custom:   ``/opt/dag-custom``
 
     Use this in **user-facing** print/log messages instead of hardcoding
-    ``~/.deepsuck``.  For code that needs a real ``Path``, use
-    :func:`get_deepsuck_home` instead.
+    ``~/.dag``.  For code that needs a real ``Path``, use
+    :func:`get_dag_home` instead.
     """
-    home = get_deepsuck_home()
+    home = get_dag_home()
     try:
         return "~/" + str(home.relative_to(Path.home()))
     except ValueError:
@@ -267,10 +267,10 @@ def secure_parent_dir(path: Path) -> None:
 
     Refuses to chmod ``/`` or any top-level directory (resolved parent with
     fewer than 3 parts, i.e. ``/`` or any direct child like ``/usr``) to
-    prevent catastrophic host bricking when ``DEEPSUCK_HOME`` or other path
+    prevent catastrophic host bricking when ``DAG_HOME`` or other path
     env vars resolve to an unexpected location.
 
-    See https://github.com/NousResearch/deepsuck-agent/issues/25821.
+    See https://github.com/NousResearch/dag-agent/issues/25821.
     """
     parent = path.parent.resolve()
     # Refuse root and its direct children (/usr, /home, /var, /tmp, …).
@@ -294,11 +294,11 @@ def _norm_home_path(path: str | None) -> str:
 
 
 def _profile_home_path(env: dict[str, str] | None = None) -> str | None:
-    """Return ``{DEEPSUCK_HOME}/home`` when the profile-home directory exists."""
-    deepsuck_home = get_deepsuck_home_override() or (env or {}).get("DEEPSUCK_HOME") or os.getenv("DEEPSUCK_HOME")
-    if not deepsuck_home:
+    """Return ``{DAG_HOME}/home`` when the profile-home directory exists."""
+    dag_home = get_dag_home_override() or (env or {}).get("DAG_HOME") or os.getenv("DAG_HOME")
+    if not dag_home:
         return None
-    profile_home = os.path.join(deepsuck_home, "home")
+    profile_home = os.path.join(dag_home, "home")
     if os.path.isdir(profile_home):
         return profile_home
     return None
@@ -340,11 +340,11 @@ def _iter_real_home_candidates(env: dict[str, str] | None = None) -> list[str]:
 
 
 def get_real_home(env: dict[str, str] | None = None) -> str:
-    """Return the OS user's real home directory, avoiding Deepsuck profile HOME.
+    """Return the OS user's real home directory, avoiding Dag profile HOME.
 
-    ``DEEPSUCK_HOME`` scopes Deepsuck state. ``HOME`` is reserved for the OS/user
+    ``DAG_HOME`` scopes Dag state. ``HOME`` is reserved for the OS/user
     account and the many external CLIs that store credentials under ``~``.
-    If a parent process is already running with ``HOME={DEEPSUCK_HOME}/home``,
+    If a parent process is already running with ``HOME={DAG_HOME}/home``,
     this helper repairs back to the account home when possible.
     """
     profile_home = _profile_home_path(env)
@@ -366,10 +366,10 @@ def get_subprocess_home(env: dict[str, str] | None = None) -> str | None:
     ``TERMINAL_HOME_MODE``):
 
     * ``auto`` (default): host installs keep the real user HOME; containers use
-      ``{DEEPSUCK_HOME}/home`` for persistent state. If a host parent already has
+      ``{DAG_HOME}/home`` for persistent state. If a host parent already has
       HOME pointed at the profile home, repair subprocesses back to real HOME.
     * ``real``: always prefer the real OS-user HOME.
-    * ``profile``: use ``{DEEPSUCK_HOME}/home`` when it exists, preserving the
+    * ``profile``: use ``{DAG_HOME}/home`` when it exists, preserving the
       older strict per-profile tool-config isolation.
     """
     env = env or {}
@@ -396,7 +396,7 @@ def get_subprocess_home(env: dict[str, str] | None = None) -> str | None:
 
 
 def apply_subprocess_home_env(env: dict[str, str]) -> None:
-    """Apply Deepsuck' subprocess HOME contract to *env* in-place."""
+    """Apply Dag' subprocess HOME contract to *env* in-place."""
     real_home = get_real_home(env)
     if real_home:
         env["DEEPSUCK_REAL_HOME"] = real_home
@@ -492,23 +492,23 @@ def is_container() -> bool:
 
 
 def get_config_path() -> Path:
-    """Return the path to ``config.yaml`` under DEEPSUCK_HOME.
+    """Return the path to ``config.yaml`` under DAG_HOME.
 
-    Replaces the ``get_deepsuck_home() / "config.yaml"`` pattern repeated
-    in 7+ files (skill_utils.py, deepsuck_logging.py, deepsuck_time.py, etc.).
+    Replaces the ``get_dag_home() / "config.yaml"`` pattern repeated
+    in 7+ files (skill_utils.py, dag_logging.py, dag_time.py, etc.).
     """
-    return get_deepsuck_home() / "config.yaml"
+    return get_dag_home() / "config.yaml"
 
 
 def get_skills_dir() -> Path:
-    """Return the path to the skills directory under DEEPSUCK_HOME."""
-    return get_deepsuck_home() / "skills"
+    """Return the path to the skills directory under DAG_HOME."""
+    return get_dag_home() / "skills"
 
 
 
 def get_env_path() -> Path:
-    """Return the path to the ``.env`` file under DEEPSUCK_HOME."""
-    return get_deepsuck_home() / ".env"
+    """Return the path to the ``.env`` file under DAG_HOME."""
+    return get_dag_home() / ".env"
 
 
 # ─── Network Preferences ─────────────────────────────────────────────────────
@@ -536,7 +536,7 @@ def apply_ipv4_preference(force: bool = False) -> None:
     import socket
 
     # Guard against double-patching
-    if getattr(socket.getaddrinfo, "_deepsuck_ipv4_patched", False):
+    if getattr(socket.getaddrinfo, "_dag_ipv4_patched", False):
         return
 
     _original_getaddrinfo = socket.getaddrinfo
@@ -552,7 +552,7 @@ def apply_ipv4_preference(force: bool = False) -> None:
                 return _original_getaddrinfo(host, port, family, type, proto, flags)
         return _original_getaddrinfo(host, port, family, type, proto, flags)
 
-    _ipv4_getaddrinfo._deepsuck_ipv4_patched = True  # type: ignore[attr-defined]
+    _ipv4_getaddrinfo._dag_ipv4_patched = True  # type: ignore[attr-defined]
     socket.getaddrinfo = _ipv4_getaddrinfo  # type: ignore[assignment]
 
 

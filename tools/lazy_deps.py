@@ -240,7 +240,7 @@ def _allow_lazy_installs() -> bool:
     refusing to install would lock people out of their own backends; the
     decision to block is an explicit user opt-in.
     """
-    if os.environ.get("DEEPSUCK_DISABLE_LAZY_INSTALLS") == "1":
+    if os.environ.get("DAG_DISABLE_LAZY_INSTALLS") == "1":
         return False
     try:
         from dag_cli.config import load_config

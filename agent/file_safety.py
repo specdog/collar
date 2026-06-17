@@ -78,8 +78,8 @@ def build_write_denied_prefixes(home: str) -> list[str]:
 
 
 def get_safe_write_root() -> Optional[str]:
-    """Return the resolved DEEPSUCK_WRITE_SAFE_ROOT path, or None if unset."""
-    root = os.getenv("DEEPSUCK_WRITE_SAFE_ROOT", "")
+    """Return the resolved DAG_WRITE_SAFE_ROOT path, or None if unset."""
+    root = os.getenv("DAG_WRITE_SAFE_ROOT", "")
     if not root:
         return None
     try:

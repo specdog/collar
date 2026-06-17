@@ -704,7 +704,7 @@ def _handle_comment(args: dict, **kw) -> str:
     # the future-worker context with what reads as a system directive.
     # Cross-task commenting itself remains unrestricted (see #19713) —
     # comments are the deliberate handoff channel between tasks.
-    author = os.environ.get("DEEPSUCK_PROFILE") or "worker"
+    author = os.environ.get("DAG_PROFILE") or "worker"
     board = args.get("board")
     try:
         kb, conn = _connect(board=board)
@@ -737,7 +737,7 @@ def _handle_create(args: dict, **kw) -> str:
         )
     body = args.get("body")
     parents = args.get("parents") or []
-    tenant = args.get("tenant") or os.environ.get("DEEPSUCK_TENANT")
+    tenant = args.get("tenant") or os.environ.get("DAG_TENANT")
     # Stamp the originating session id when the agent loop runs under
     # ACP (which sets DAG_SESSION_ID before invoking tools). NULL on
     # CLI / dashboard paths and on legacy hosts that don't set the env.
@@ -814,7 +814,7 @@ def _handle_create(args: dict, **kw) -> str:
                     int(goal_max_turns) if goal_max_turns is not None else None
                 ),
                 initial_status=str(initial_status),
-                created_by=os.environ.get("DEEPSUCK_PROFILE") or "worker",
+                created_by=os.environ.get("DAG_PROFILE") or "worker",
                 session_id=session_id,
             )
             new_task = kb.get_task(conn, new_tid)
@@ -1204,7 +1204,7 @@ KANBAN_CREATE_SCHEMA = {
                 "type": "string",
                 "description": (
                     "Optional namespace for multi-project isolation. "
-                    "Defaults to DEEPSUCK_TENANT env if set."
+                    "Defaults to DAG_TENANT env if set."
                 ),
             },
             "priority": {

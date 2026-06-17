@@ -19,7 +19,7 @@ def run():
             {"role": "user", "content": prompt},
             {"role": "assistant", "content": '{"tool_calls": ['}
         ],
-        "max_tokens": int(os.environ.get("DEEPSUCK_MAX_TOKENS", "800")),
+        "max_tokens": int(os.environ.get("DAG_MAX_TOKENS", "800")),
         "temperature": 0
     }).encode()
 

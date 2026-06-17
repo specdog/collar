@@ -169,9 +169,9 @@ def get_optional_skills_dir(default: Path | None = None) -> Path:
     """Return the optional-skills directory, honoring package-manager wrappers.
 
     Packaged installs may ship ``optional-skills`` outside the Python package
-    tree and expose it via ``DEEPSUCK_OPTIONAL_SKILLS``.
+    tree and expose it via ``DAG_OPTIONAL_SKILLS``.
     """
-    override = os.getenv("DEEPSUCK_OPTIONAL_SKILLS", "").strip()
+    override = os.getenv("DAG_OPTIONAL_SKILLS", "").strip()
     if override:
         return Path(override)
     packaged = _get_packaged_data_dir("optional-skills")
@@ -188,9 +188,9 @@ def get_optional_mcps_dir(default: Path | None = None) -> Path:
     Mirrors :func:`get_optional_skills_dir` for the MCP catalog (Nous-approved
     Model Context Protocol servers shipped with the repo but disabled by
     default). Packaged installs may ship ``optional-mcps`` outside the Python
-    package tree and expose it via ``DEEPSUCK_OPTIONAL_MCPS``.
+    package tree and expose it via ``DAG_OPTIONAL_MCPS``.
     """
-    override = os.getenv("DEEPSUCK_OPTIONAL_MCPS", "").strip()
+    override = os.getenv("DAG_OPTIONAL_MCPS", "").strip()
     if override:
         return Path(override)
     packaged = _get_packaged_data_dir("optional-mcps")
@@ -205,12 +205,12 @@ def get_bundled_skills_dir(default: Path | None = None) -> Path:
     """Return the bundled skills directory for source and packaged installs.
 
     Resolution order:
-        1. ``DEEPSUCK_BUNDLED_SKILLS`` env var (Nix wrapper / explicit override)
+        1. ``DAG_BUNDLED_SKILLS`` env var (Nix wrapper / explicit override)
         2. Wheel-installed ``<sysconfig data>/skills`` (pip install path)
         3. Caller-supplied ``default`` (typically the source-checkout path)
         4. ``<DAG_HOME>/skills`` last-resort
     """
-    override = os.getenv("DEEPSUCK_BUNDLED_SKILLS", "").strip()
+    override = os.getenv("DAG_BUNDLED_SKILLS", "").strip()
     if override:
         return Path(override)
     packaged = _get_packaged_data_dir("skills")
@@ -312,7 +312,7 @@ def _iter_real_home_candidates(env: dict[str, str] | None = None) -> list[str]:
     """Return likely OS-user home candidates in trust order."""
     env = env or {}
     candidates: list[str] = []
-    explicit = str(env.get("DEEPSUCK_REAL_HOME") or os.getenv("DEEPSUCK_REAL_HOME", "")).strip()
+    explicit = str(env.get("DAG_REAL_HOME") or os.getenv("DAG_REAL_HOME", "")).strip()
     if explicit:
         candidates.append(explicit)
     home = str(env.get("HOME") or os.getenv("HOME", "")).strip()
@@ -399,7 +399,7 @@ def apply_subprocess_home_env(env: dict[str, str]) -> None:
     """Apply Dag' subprocess HOME contract to *env* in-place."""
     real_home = get_real_home(env)
     if real_home:
-        env["DEEPSUCK_REAL_HOME"] = real_home
+        env["DAG_REAL_HOME"] = real_home
     home = get_subprocess_home(env)
     if home:
         env["HOME"] = home

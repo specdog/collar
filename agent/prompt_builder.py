@@ -74,11 +74,11 @@ def _find_git_root(start: Path) -> Optional[Path]:
     return None
 
 
-_DEEPSUCK_MD_NAMES = (".dag.md", "DEEPSUCK.md")
+_DAG_MD_NAMES = (".dag.md", "DAG.md")
 
 
 def _find_dag_md(cwd: Path) -> Optional[Path]:
-    """Discover the nearest ``.dag.md`` or ``DEEPSUCK.md``.
+    """Discover the nearest ``.dag.md`` or ``DAG.md``.
 
     Search order: *cwd* first, then each parent directory up to (and
     including) the git repository root.  Returns the first match, or
@@ -88,7 +88,7 @@ def _find_dag_md(cwd: Path) -> Optional[Path]:
     current = cwd.resolve()
 
     for directory in [current, *current.parents]:
-        for name in _DEEPSUCK_MD_NAMES:
+        for name in _DAG_MD_NAMES:
             candidate = directory / name
             if candidate.is_file():
                 return candidate
@@ -167,7 +167,7 @@ DAG_GROUND_ENTITY_GRAPH = (
     "KnowledgeFetch→ KnowledgeSource:queri(1m)"
 )
 
-DEEPSUCK_AGENT_HELP_GUIDANCE = ""
+DAG_AGENT_HELP_GUIDANCE = ""
 
 MEMORY_GUIDANCE = _load_dag_text("memory-guidance")
 SESSION_SEARCH_GUIDANCE = _load_dag_text("session-search")
@@ -695,11 +695,11 @@ def build_environment_hints() -> str:
             )
 
     # Dag desktop GUI — any agent running under the desktop app should know
-    # it. DEEPSUCK_DESKTOP marks the backend powering the chat; DEEPSUCK_DESKTOP_TERMINAL
+    # it. DAG_DESKTOP marks the backend powering the chat; DAG_DESKTOP_TERMINAL
     # marks a dag launched in the embedded terminal pane. Both set by main.cjs.
     _truthy = ("1", "true", "yes")
-    _in_desktop = (os.getenv("DEEPSUCK_DESKTOP") or "").strip().lower() in _truthy
-    _in_desktop_term = (os.getenv("DEEPSUCK_DESKTOP_TERMINAL") or "").strip().lower() in _truthy
+    _in_desktop = (os.getenv("DAG_DESKTOP") or "").strip().lower() in _truthy
+    _in_desktop_term = (os.getenv("DAG_DESKTOP_TERMINAL") or "").strip().lower() in _truthy
     if _in_desktop or _in_desktop_term:
         _desktop_hint = "Runtime surface: you're running inside the Dag desktop GUI app."
         if _in_desktop_term:
@@ -720,7 +720,7 @@ def build_environment_hints() -> str:
     # it's part of the stable, cache-safe system prompt. The env var is the
     # build-time/embedder mechanism (set in a container ENV); config.yaml
     # ``agent.environment_hint`` is the user-facing surface. Env var wins.
-    extra = (os.getenv("DEEPSUCK_ENVIRONMENT_HINT") or "").strip()
+    extra = (os.getenv("DAG_ENVIRONMENT_HINT") or "").strip()
     if not extra:
         try:
             from dag_cli.config import load_config
@@ -1297,7 +1297,7 @@ load_soul_md = load_soul_identity
 
 
 def _load_dag_md(cwd_path: Path) -> str:
-    """.dag.md / DEEPSUCK.md — walk to git root."""
+    """.dag.md / DAG.md — walk to git root."""
     dag_md_path = _find_dag_md(cwd_path)
     if not dag_md_path:
         return ""
@@ -1385,7 +1385,7 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
     """Discover and load context files for the system prompt.
 
     Priority (first found wins — only ONE project context type is loaded):
-      1. .dag.md / DEEPSUCK.md  (walk to git root)
+      1. .dag.md / DAG.md  (walk to git root)
       2. AGENTS.md / agents.md   (cwd only)
       3. CLAUDE.md / claude.md   (cwd only)
       4. .cursorrules / .cursor/rules/*.mdc  (cwd only)

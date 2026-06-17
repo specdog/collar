@@ -2714,10 +2714,10 @@ def _load_mcp_config() -> Dict[str, dict]:
     """
     try:
         from dag_cli.config import load_config
-        # Safe mode (--safe-mode / DEEPSUCK_SAFE_MODE=1): troubleshooting run
+        # Safe mode (--safe-mode / DAG_SAFE_MODE=1): troubleshooting run
         # with all customizations disabled — no MCP servers connect.
         from utils import env_var_enabled as _env_enabled
-        if _env_enabled("DEEPSUCK_SAFE_MODE"):
+        if _env_enabled("DAG_SAFE_MODE"):
             return {}
         config = load_config()
         servers = config.get("mcp_servers")

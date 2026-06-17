@@ -3521,30 +3521,30 @@ def check_for_skill_updates(
 # Dag centralized index source
 # ---------------------------------------------------------------------------
 
-DEEPSUCK_INDEX_URL = "https://dag-agent.nousresearch.com/docs/api/skills-index.json"
-DEEPSUCK_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "dag-index.json"
-DEEPSUCK_INDEX_TTL = 6 * 3600  # 6 hours
+DAG_INDEX_URL = "https://dag-agent.nousresearch.com/docs/api/skills-index.json"
+DAG_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "dag-index.json"
+DAG_INDEX_TTL = 6 * 3600  # 6 hours
 
 
 def _load_dag_index() -> Optional[dict]:
     """Fetch the centralized skills index, with local cache.
 
     The index is a JSON file hosted on the docs site, rebuilt daily by CI.
-    We cache it locally for DEEPSUCK_INDEX_TTL seconds to avoid repeated
+    We cache it locally for DAG_INDEX_TTL seconds to avoid repeated
     downloads within a session.
     """
     # Check local cache
-    if DEEPSUCK_INDEX_CACHE_FILE.exists():
+    if DAG_INDEX_CACHE_FILE.exists():
         try:
-            age = time.time() - DEEPSUCK_INDEX_CACHE_FILE.stat().st_mtime
-            if age < DEEPSUCK_INDEX_TTL:
-                return json.loads(DEEPSUCK_INDEX_CACHE_FILE.read_text())
+            age = time.time() - DAG_INDEX_CACHE_FILE.stat().st_mtime
+            if age < DAG_INDEX_TTL:
+                return json.loads(DAG_INDEX_CACHE_FILE.read_text())
         except (OSError, json.JSONDecodeError):
             pass
 
     # Fetch from docs site
     try:
-        resp = httpx.get(DEEPSUCK_INDEX_URL, timeout=15, follow_redirects=True)
+        resp = httpx.get(DAG_INDEX_URL, timeout=15, follow_redirects=True)
         if resp.status_code != 200:
             logger.debug("DAG index fetch returned %d", resp.status_code)
             return _load_stale_index_cache()
@@ -3559,8 +3559,8 @@ def _load_dag_index() -> Optional[dict]:
 
     # Cache locally
     try:
-        DEEPSUCK_INDEX_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        DEEPSUCK_INDEX_CACHE_FILE.write_text(json.dumps(data))
+        DAG_INDEX_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        DAG_INDEX_CACHE_FILE.write_text(json.dumps(data))
     except OSError:
         pass
 
@@ -3569,9 +3569,9 @@ def _load_dag_index() -> Optional[dict]:
 
 def _load_stale_index_cache() -> Optional[dict]:
     """Fall back to stale cache when the network fetch fails."""
-    if DEEPSUCK_INDEX_CACHE_FILE.exists():
+    if DAG_INDEX_CACHE_FILE.exists():
         try:
-            return json.loads(DEEPSUCK_INDEX_CACHE_FILE.read_text())
+            return json.loads(DAG_INDEX_CACHE_FILE.read_text())
         except (OSError, json.JSONDecodeError):
             pass
     return None

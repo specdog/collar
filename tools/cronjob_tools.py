@@ -856,9 +856,9 @@ def check_cronjob_requirements() -> bool:
     from utils import env_var_enabled
 
     return (
-        env_var_enabled("DEEPSUCK_INTERACTIVE")
-        or env_var_enabled("DEEPSUCK_GATEWAY_SESSION")
-        or env_var_enabled("DEEPSUCK_EXEC_ASK")
+        env_var_enabled("DAG_INTERACTIVE")
+        or env_var_enabled("DAG_GATEWAY_SESSION")
+        or env_var_enabled("DAG_EXEC_ASK")
     )
 
 

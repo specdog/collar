@@ -28,12 +28,12 @@ from typing import List, Dict, Any, Set, Optional
 
 # Shared tool list for CLI and all messaging platform toolsets.
 # Edit this once to update all platforms simultaneously.
-_DEEPSUCK_CORE_TOOLS = [
+_DAG_CORE_TOOLS = [
     # Web
     "web_search", "web_extract",
     # Terminal + process management
     "terminal", "process",
-    # Read the desktop GUI's embedded terminal pane (gated on DEEPSUCK_DESKTOP
+    # Read the desktop GUI's embedded terminal pane (gated on DAG_DESKTOP
     # via check_fn in tools/read_terminal_tool.py — hidden outside the GUI).
     "read_terminal",
     # File manipulation
@@ -78,7 +78,7 @@ _DEEPSUCK_CORE_TOOLS = [
 # Webhook events may originate from untrusted third-party content (for example,
 # public PR titles/comments). Keep the default webhook toolset intentionally
 # constrained to avoid local file/system execution by prompt injection.
-_DEEPSUCK_WEBHOOK_SAFE_TOOLS = [
+_DAG_WEBHOOK_SAFE_TOOLS = [
     "web_search",
     "web_extract",
     "vision_analyze",
@@ -428,7 +428,7 @@ TOOLSETS = {
     
     "dag-cli": {
         "description": "Full interactive CLI toolset - all default tools plus cronjob management",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
@@ -439,19 +439,19 @@ TOOLSETS = {
         # homeassistant) are excluded by _get_platform_tools() unless
         # the user explicitly enables them.
         "description": "Default cron toolset - same core tools as dag-cli; gated by `dag tools`",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-telegram": {
         "description": "Telegram bot toolset - full access for personal use (terminal has safety checks)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
     
     "dag-discord": {
         "description": "Discord bot toolset - full access (terminal has safety checks via dangerous command approval)",
-        "tools": _DEEPSUCK_CORE_TOOLS + [
+        "tools": _DAG_CORE_TOOLS + [
             "discord",
             "discord_admin",
         ],
@@ -460,61 +460,61 @@ TOOLSETS = {
     
     "dag-whatsapp": {
         "description": "WhatsApp bot toolset - similar to Telegram (personal messaging, more trusted)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
     
     "dag-slack": {
         "description": "Slack bot toolset - full access for workspace use (terminal has safety checks)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
     
     "dag-signal": {
         "description": "Signal bot toolset - encrypted messaging platform (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-bluebubbles": {
         "description": "BlueBubbles iMessage bot toolset - Apple iMessage via local BlueBubbles server",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-homeassistant": {
         "description": "Home Assistant bot toolset - smart home event monitoring and control",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-email": {
         "description": "Email bot toolset - interact with Dag via email (IMAP/SMTP)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-mattermost": {
         "description": "Mattermost bot toolset - self-hosted team messaging (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-matrix": {
         "description": "Matrix bot toolset - decentralized encrypted messaging (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-dingtalk": {
         "description": "DingTalk bot toolset - enterprise messaging platform (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-feishu": {
         "description": "Feishu/Lark bot toolset - enterprise messaging via Feishu/Lark (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS + [
+        "tools": _DAG_CORE_TOOLS + [
             "feishu_doc_read",
             "feishu_drive_list_comments",
             "feishu_drive_list_comment_replies",
@@ -526,31 +526,31 @@ TOOLSETS = {
 
     "dag-weixin": {
         "description": "Weixin bot toolset - personal WeChat messaging via iLink (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-qqbot": {
         "description": "QQBot toolset - QQ messaging via Official Bot API v2 (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-wecom": {
         "description": "WeCom bot toolset - enterprise WeChat messaging (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-wecom-callback": {
         "description": "WeCom callback toolset - enterprise self-built app messaging (full access)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-yuanbao": {
         "description": "Yuanbao Bot 元宝消息平台工具集 - 群信息、成员查询、私聊、贴纸表情",
-        "tools": _DEEPSUCK_CORE_TOOLS + [
+        "tools": _DAG_CORE_TOOLS + [
             "yb_query_group_info",
             "yb_query_group_members",
             "yb_send_dm",
@@ -563,13 +563,13 @@ TOOLSETS = {
 
     "dag-sms": {
         "description": "SMS bot toolset - interact with Dag via SMS (Twilio)",
-        "tools": _DEEPSUCK_CORE_TOOLS,
+        "tools": _DAG_CORE_TOOLS,
         "includes": []
     },
 
     "dag-webhook": {
         "description": "Webhook toolset - receive and process external webhook events",
-        "tools": _DEEPSUCK_WEBHOOK_SAFE_TOOLS,
+        "tools": _DAG_WEBHOOK_SAFE_TOOLS,
         "includes": []
     },
 
@@ -672,14 +672,14 @@ def resolve_toolset(name: str, visited: Set[str] = None) -> List[str]:
     toolset = get_toolset(name)
     if not toolset:
         # Auto-generate a toolset for plugin platforms (dag-<name>).
-        # Gives them _DEEPSUCK_CORE_TOOLS plus any tools the plugin registered
+        # Gives them _DAG_CORE_TOOLS plus any tools the plugin registered
         # into a toolset matching the platform name.
         if name.startswith("dag-"):
             platform_name = name[len("dag-"):]
             try:
                 from gateway.platform_registry import platform_registry
                 if platform_registry.is_registered(platform_name):
-                    plugin_tools = set(_DEEPSUCK_CORE_TOOLS)
+                    plugin_tools = set(_DAG_CORE_TOOLS)
                     try:
                         from tools.registry import registry
                         plugin_tools.update(

@@ -346,11 +346,11 @@ def _capture_required_environment_variables(
     missing_names = [entry["name"] for entry in missing_entries]
     # Most gateway surfaces (messaging platforms) can't prompt for a secret, so
     # they short-circuit to the "unsupported" hint. Interactive gateway surfaces
-    # — the desktop app / TUI — set DEEPSUCK_INTERACTIVE and register a
+    # — the desktop app / TUI — set DAG_INTERACTIVE and register a
     # secret-capture callback that routes to a secure secret.request overlay, so
-    # they fall through and actually prompt. (DEEPSUCK_INTERACTIVE is the same flag
+    # they fall through and actually prompt. (DAG_INTERACTIVE is the same flag
     # tools/approval.py uses to tell an interactive surface from a messaging one.)
-    if _is_gateway_surface() and not env_var_enabled("DEEPSUCK_INTERACTIVE"):
+    if _is_gateway_surface() and not env_var_enabled("DAG_INTERACTIVE"):
         return {
             "missing_names": missing_names,
             "setup_skipped": False,
@@ -411,7 +411,7 @@ def _capture_required_environment_variables(
 
 
 def _is_gateway_surface() -> bool:
-    if env_var_enabled("DEEPSUCK_GATEWAY_SESSION"):
+    if env_var_enabled("DAG_GATEWAY_SESSION"):
         return True
     from gateway.session_context import get_session_env
     return bool(get_session_env("DAG_SESSION_PLATFORM"))

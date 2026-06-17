@@ -3032,11 +3032,11 @@ def _build_compact_banner() -> str:
         _hero = getattr(_skin, "banner_hero", None) if _skin else None
         if _hero:
             braille = (
-                f"[bold {title_color}] ⣿⣿⣿ ⣿⣿⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]\n"
-                f"[bold {title_color}] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿ ⣿ [/]\n"
-                f"[bold {title_color}] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]\n"
-                f"[bold {title_color}] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿⣿  [/]\n"
-                f"[bold {title_color}] ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿ ⣿ ⣿ ⣿ [/]"
+                f"[bold {title_color}]⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ [/]\n"
+                f"[bold {title_color}]⣿      ⣿    ⣿  ⣿      ⣿      ⣿    ⣿  ⣿    ⣿ [/]\n"
+                f"[bold {title_color}]⣿      ⣿    ⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ [/]\n"
+                f"[bold {title_color}]⣿      ⣿    ⣿  ⣿      ⣿      ⣿  ⣿    ⣿⣿    [/]\n"
+                f"[bold {title_color}]⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿    ⣿  ⣿    ⣿ [/]"
             )
             hero_block = f"\n{braille}\n\n{_hero}\n"
     except Exception:

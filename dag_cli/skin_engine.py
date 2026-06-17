@@ -98,7 +98,6 @@ USAGE
 BUILT-IN SKINS
 ==============
 
-- ``dogbone``  — Gold dog bone with a crimson bite
 - ``default`` — Classic Dag gold/kawaii (the current look)
 - ``ares``    — Crimson/bronze war-god theme with custom spinner wings
 - ``mono``    — Clean grayscale monochrome
@@ -138,7 +137,7 @@ class SkinConfig:
     tool_prefix: str = "┊"
     tool_emojis: Dict[str, str] = field(default_factory=dict)  # per-tool emoji overrides
     banner_logo: str = ""    # Rich-markup ASCII art logo (replaces DAG_AGENT_LOGO)
-    banner_hero: str = ""    # Rich-markup hero art (replaces DAG_BONE)
+    banner_hero: str = ""    # Rich-markup hero art (replaces DAG_CADUCEUS)
 
     def get_color(self, key: str, fallback: str = "") -> str:
         """Get a color value with fallback."""
@@ -163,44 +162,6 @@ class SkinConfig:
 # =============================================================================
 
 _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
-    "dogbone": {
-        "name": "dogbone",
-        "description": "Gold dog bone — brass with a crimson bite",
-        "colors": {
-            "banner_border": "#9B1B30",
-            "banner_title": "#D4AF37",
-            "banner_accent": "#9B1B30",
-            "banner_dim": "#8B8682",
-            "banner_text": "#F5F0E8",
-            "ui_accent": "#D4AF37",
-            "ui_label": "#D4AF37",
-            "ui_ok": "#4caf50",
-            "ui_error": "#ef5350",
-            "ui_warn": "#ffa726",
-            "prompt": "#F5F0E8",
-            "input_rule": "#9B1B30",
-            "response_border": "#D4AF37",
-            "status_bar_bg": "#1a1a1a",
-            "status_bar_text": "#F5F0E8",
-            "status_bar_strong": "#D4AF37",
-            "status_bar_dim": "#8B8682",
-            "session_label": "#D4AF37",
-            "session_border": "#9B1B30",
-        },
-        "branding": {
-            "agent_name": "collar",
-            "welcome": "Welcome to collar! Type your message or /help for commands.",
-            "goodbye": "Goodbye! 🦴",
-            "response_label": " 🦴 collar ",
-            "prompt_symbol": "🦴",
-            "help_header": "(🦴) Available Commands",
-        },
-        "tool_prefix": "┊",
-        "banner_hero": """[#9B1B30]         ▲   ▲   ▲   ▲         [/]
-[#D4AF37]   ╔════════════════════╗[/]
-[#D4AF37]   ║[/][#9B1B30]  c  o  l  l  a  r  [/][#D4AF37]║[/]
-[#D4AF37]   ╚════════════════════╝[/]""",
-    },
     "default": {
         "name": "default",
         "description": "Classic Dag — gold and kawaii",

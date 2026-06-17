@@ -3026,12 +3026,19 @@ def _build_compact_banner() -> str:
     line1 = line1[:content_width].ljust(content_width)
     line2 = version_line[:content_width].ljust(content_width)
 
-    # Banner hero above the version box
+    # Braille COLLAR + banner hero above the version box
     hero_block = ""
     try:
         _hero = getattr(_skin, "banner_hero", None) if _skin else None
         if _hero:
-            hero_block = f"{_hero}\n"
+            braille = (
+                f"[bold {title_color}] ⣿⣿⣿ ⣿⣿⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]\n"
+                f"[bold {title_color}] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿ ⣿ [/]\n"
+                f"[bold {title_color}] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]\n"
+                f"[bold {title_color}] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿⣿  [/]\n"
+                f"[bold {title_color}] ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿ ⣿ ⣿ ⣿ [/]"
+            )
+            hero_block = f"\n{braille}\n\n{_hero}\n"
     except Exception:
         pass
 

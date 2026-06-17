@@ -176,7 +176,7 @@ def is_interactive_stdin() -> bool:
 def print_noninteractive_setup_guidance(reason: str | None = None) -> None:
     """Print guidance for headless/non-interactive setup flows."""
     print()
-    print(color("⚕ Dag Setup — Non-interactive mode", Colors.CYAN, Colors.BOLD))
+    print(color("🔗 collar Setup — Non-interactive mode", Colors.CYAN, Colors.BOLD))
     print()
     if reason:
         print_info(reason)
@@ -188,7 +188,7 @@ def print_noninteractive_setup_guidance(reason: str | None = None) -> None:
     print_info("  dag config set model.default your-model-name")
     print()
     print_info("Or set OPENROUTER_API_KEY / OPENAI_API_KEY in your environment.")
-    print_info("Run 'dag setup' in an interactive terminal to use the full wizard.")
+    print_info("Run 'collar setup' in an interactive terminal to use the full wizard.")
     print()
 
 
@@ -350,7 +350,7 @@ def _prompt_api_key(var: dict):
         save_env_value(var["name"], value)
         print_success("  ✓ Saved")
     else:
-        print_warning("  Skipped (configure later with 'dag setup')")
+        print_warning("  Skipped (configure later with 'collar setup')")
 
 
 def _print_setup_summary(config: dict, dag_home):
@@ -373,7 +373,7 @@ def _print_setup_summary(config: dict, dag_home):
     if _vision_backends:
         tool_status.append(("Vision (image analysis)", True, None))
     else:
-        tool_status.append(("Vision (image analysis)", False, "run 'dag setup' to configure"))
+        tool_status.append(("Vision (image analysis)", False, "run 'collar setup' to configure"))
 
     # Mixture of Agents — requires OpenRouter specifically (calls multiple models)
     if get_env_value("OPENROUTER_API_KEY"):
@@ -519,7 +519,7 @@ def _print_setup_summary(config: dict, dag_home):
         if subscription_features.modal.direct_override:
             tool_status.append(("Modal Execution (direct Modal)", True, None))
         else:
-            tool_status.append(("Modal Execution", False, "run 'dag setup terminal'"))
+            tool_status.append(("Modal Execution", False, "run 'collar setup terminal'"))
     elif managed_nous_tools_enabled() and subscription_features.nous_auth_present:
         tool_status.append(("Modal Execution (optional via Nous subscription)", True, None))
 
@@ -571,7 +571,7 @@ def _print_setup_summary(config: dict, dag_home):
     disabled_tools = [(name, var) for name, avail, var in tool_status if not avail]
     if disabled_tools:
         print_warning(
-            "Some tools are disabled. Run 'dag setup tools' to configure them,"
+            "Some tools are disabled. Run 'collar setup tools' to configure them,"
         )
         from dag_constants import display_dag_home as _dhh
         print_warning(f"or edit {_dhh()}/.env directly to add the missing API keys.")
@@ -611,8 +611,8 @@ def _print_setup_summary(config: dict, dag_home):
     print()
     print(color("📝 To edit your configuration:", Colors.CYAN, Colors.BOLD))
     print()
-    print(f"   {color('dag setup', Colors.GREEN)}          Re-run the full wizard")
-    print(f"   {color('dag setup model', Colors.GREEN)}    Change model/provider")
+    'collar setup', Colors.GREEN)          Re-run the full wizard
+    'collar setup model', Colors.GREEN)    Change model/provider
     print(f"   {color('dag setup terminal', Colors.GREEN)} Change terminal backend")
     print(f"   {color('dag setup gateway', Colors.GREEN)}  Configure messaging")
     print(f"   {color('dag setup tools', Colors.GREEN)}    Configure tool providers")
@@ -2838,7 +2838,7 @@ def _run_portal_one_shot(config: dict) -> None:
             Colors.MAGENTA,
         )
     )
-    print(color("│     ⚕ Dag Setup — Nous Portal (one-shot)             │", Colors.MAGENTA))
+    print(color("│     🔗 Dag Setup — Nous Portal (one-shot)             │", Colors.MAGENTA))
     print(
         color(
             "└─────────────────────────────────────────────────────────┘",
@@ -2968,7 +2968,7 @@ def run_setup_wizard(args):
                         Colors.MAGENTA,
                     )
                 )
-                print(color(f"│     ⚕ Dag Setup — {label:<34s} │", Colors.MAGENTA))
+                print(color(f"│     🔗 Dag Setup — {label:<34s} │", Colors.MAGENTA))
                 print(
                     color(
                         "└─────────────────────────────────────────────────────────┘",
@@ -3004,7 +3004,7 @@ def run_setup_wizard(args):
     )
     print(
         color(
-            "│             ⚕ DAG Agent Setup Wizard                │", Colors.MAGENTA
+            "│             🔗 DAG Agent Setup Wizard                │", Colors.MAGENTA
         )
     )
     print(

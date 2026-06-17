@@ -228,7 +228,7 @@ def _print_fast_version_info() -> None:
     from dag_cli import __release_date__, __version__
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-    print(f"DAG Agent v{__version__} ({__release_date__})")
+    print(f"collar v{__version__} ({__release_date__})")
     print(f"Project: {project_root}")
     print(f"Python: {sys.version.split()[0]}")
 
@@ -2059,7 +2059,7 @@ def _launch_tui(
         from dag_cli.relaunch import relaunch
 
         print()
-        print("⚕ Launching update...")
+        print("🔗 Launching update...")
         print()
         relaunch(["update"], preserve_inherited=False)
 
@@ -2355,7 +2355,7 @@ def cmd_whatsapp(args):
     from dag_cli.config import get_env_value, save_env_value
 
     print()
-    print("⚕ WhatsApp Setup")
+    print("🔗 WhatsApp Setup")
     print("=" * 50)
 
     # ── Step 1: Choose mode ──────────────────────────────────────────────
@@ -2558,14 +2558,14 @@ def cmd_whatsapp(args):
             print("    2. Send a message to the bot's WhatsApp number")
             print("    3. The agent will reply automatically")
             print()
-            print("  Tip: Agent responses are prefixed with '⚕ DAG Agent'")
+            print("  Tip: Agent responses are prefixed with '🔗 DAG Agent'")
         else:
             print("  Next steps:")
             print("    1. Start the gateway:  dag gateway")
             print("    2. Open WhatsApp → Message Yourself")
             print("    3. Type a message — the agent will reply")
             print()
-            print("  Tip: Agent responses are prefixed with '⚕ DAG Agent'")
+            print("  Tip: Agent responses are prefixed with '🔗 DAG Agent'")
             print("  so you can tell them apart from your own messages.")
         print()
         print("  Or install as a service: dag gateway install")
@@ -2606,7 +2606,7 @@ def cmd_postinstall(args):
 
     stamp_install_method("pip")
 
-    print("⚕ Dag post-install bootstrap")
+    print("🔗 Dag post-install bootstrap")
     print()
 
     for dep in ("node", "browser", "ripgrep", "ffmpeg"):
@@ -7794,7 +7794,7 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
         elif result == 0:
             print("✓ Already up to date.")
         else:
-            print("⚕ Update available on PyPI.")
+            print("🔗 Update available on PyPI.")
             print(f"  Run '{recommended_update_command()}' to install.")
         return
 
@@ -7886,7 +7886,7 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
         print("✓ Already up to date.")
     else:
         commits_word = "commit" if behind == 1 else "commits"
-        print(f"⚕ Update available: {behind} {commits_word} behind {compare_branch}.")
+        print(f"🔗 Update available: {behind} {commits_word} behind {compare_branch}.")
         from dag_cli.config import recommended_update_command
 
         print(f"  Run '{recommended_update_command()}' to install.")
@@ -8442,7 +8442,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             logger.debug("Could not read updates.non_interactive_local_changes: %s", exc)
             discard_local_changes = False
 
-    print("⚕ Updating DAG Agent...")
+    print("🔗 Updating DAG Agent...")
     print()
 
     # On Windows, abort early if another dag.exe is holding the venv shim

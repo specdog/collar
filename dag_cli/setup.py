@@ -611,8 +611,8 @@ def _print_setup_summary(config: dict, dag_home):
     print()
     print(color("📝 To edit your configuration:", Colors.CYAN, Colors.BOLD))
     print()
-    'collar setup', Colors.GREEN)          Re-run the full wizard
-    'collar setup model', Colors.GREEN)    Change model/provider
+    print(f"   {color('dag setup', Colors.GREEN)}          Re-run the full wizard")
+    print(f"   {color('dag setup model', Colors.GREEN)}    Change model/provider")
     print(f"   {color('dag setup terminal', Colors.GREEN)} Change terminal backend")
     print(f"   {color('dag setup gateway', Colors.GREEN)}  Configure messaging")
     print(f"   {color('dag setup tools', Colors.GREEN)}    Configure tool providers")

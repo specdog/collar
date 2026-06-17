@@ -121,7 +121,8 @@ def _strip_yaml_frontmatter(content: str) -> str:
 # =========================================================================
 
 def _load_dag_text(name: str) -> str:
-    """Read <name>.dag from ~/.deepsuck/dags/. Returns sentinel if absent."""
+    """Read <name>.dag from ~/.deepsuck/dags/, fallback to harness dags/."""
+    # 1. User's custom .dag (overrides)
     try:
         from deepsuck_constants import get_deepsuck_home
         dag_file = get_deepsuck_home() / "dags" / f"{name}.dag"
@@ -131,7 +132,18 @@ def _load_dag_text(name: str) -> str:
                 return t
     except Exception:
         pass
-    return f"DAG_MISSING:{name}"  # sentinel — never exposed to model
+    # 2. Harness default .dag (shipped with repo, CI-safe)
+    try:
+        import os as _os
+        harness_dag = _os.path.join(_os.path.dirname(__file__), '..', 'dags', f'{name}.dag')
+        if _os.path.isfile(harness_dag):
+            with open(harness_dag, encoding='utf-8') as _f:
+                t = _f.read().strip()
+            if t:
+                return t
+    except Exception:
+        pass
+    return ""  # missing .dag → empty, safe for CI
 
 
 # =========================================================================

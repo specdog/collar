@@ -2999,8 +2999,8 @@ def _build_compact_banner() -> str:
     dim_color = _skin.get_color("banner_dim", "#722F37") if _skin else "#722F37"
 
     if skin_name == "default":
-        line1 = "🔗 NOUS COLLAR - AI Agent Framework"
-        tiny_line = "🔗 NOUS COLLAR"
+        line1 = "🦴 NOUS COLLAR - AI Agent Framework"
+        tiny_line = "🦴 NOUS COLLAR"
     else:
         agent_name = _skin.get_branding("agent_name", "collar") if _skin else "collar"
         line1 = f"{agent_name} - AI Agent Framework"
@@ -4240,7 +4240,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
             if width < 52:
                 frags = [
-                    ("class:status-bar", " 🔗 "),
+                    ("class:status-bar", "   "),
                     ("class:status-bar-strong", snapshot["model_short"]),
                     ("class:status-bar-dim", " · "),
                     ("class:status-bar-dim", duration_label),
@@ -4257,7 +4257,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     bg_count = snapshot.get("active_background_tasks", 0)
                     bg_proc_count = snapshot.get("active_background_processes", 0)
                     frags = [
-                        ("class:status-bar", " 🔗 "),
+                        ("class:status-bar", "   "),
                         ("class:status-bar-strong", snapshot["model_short"]),
                         ("class:status-bar-dim", " · "),
                         (self._status_bar_context_style(percent), percent_label),
@@ -4292,7 +4292,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     bg_count = snapshot.get("active_background_tasks", 0)
                     bg_proc_count = snapshot.get("active_background_processes", 0)
                     frags = [
-                        ("class:status-bar", " 🔗 "),
+                        ("class:status-bar", "   "),
                         ("class:status-bar-strong", snapshot["model_short"]),
                         ("class:status-bar-dim", " │ "),
                         ("class:status-bar-dim", context_label),

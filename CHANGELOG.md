@@ -6,7 +6,7 @@
 - DAG-first loading via `_load_dag_text()` with harness fallback
 - 13 default `.dag` files shipped in `dags/` directory
 - Skills curator auto-generates `SKILL.dag` on create/edit/patch
-- Rust router (`deepsuck-hooks`) — 2ms `--facts`, 21k char `--context`
+- Rust router (`dag-router`) — 2ms `--facts`, 21k char `--context`
 - `dag-regen.sh` regeneration script for batch DAG updates
 - `PLATFORM_HINTS` parsed from DAG with Python dict fallback
 - `SKILL.dag` priority check in `skill_view()` and `_serve_plugin_skill()`

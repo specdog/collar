@@ -23,9 +23,9 @@ Requires Python >= 3.11. Rust router pre-compiled for macOS arm64.
 ## Quick Start
 
 ```bash
-deepsuck-hooks              # merged DAG context (system + skills + projects)
-deepsuck-hooks --facts      # project entities only (2ms)
-deepsuck-hooks --context    # full context for system prompt injection
+dag-router              # merged DAG context (system + skills + projects)
+dag-router --facts      # project entities only (2ms)
+dag-router --context    # full context for system prompt injection
 ```
 
 ## Architecture
@@ -52,9 +52,9 @@ All `.dag` files use the same `Entity→Target:verb(card)` notation. The Rust ro
 
 | Command | Description |
 |---------|-------------|
-| `deepsuck-hooks` | Merged DAG context (system + skills + projects) |
-| `deepsuck-hooks --facts` | Project entity facts only (2ms) |
-| `deepsuck-hooks --all` | Full JSON debug output |
+| `dag-router` | Merged DAG context (system + skills + projects) |
+| `dag-router --facts` | Project entity facts only (2ms) |
+| `dag-router --all` | Full JSON debug output |
 | `dag-regen.sh --skills` | Regenerate all SKILL.dag files |
 | `dag-regen.sh --all` | Regenerate skills + system DAGs |
 
@@ -79,4 +79,4 @@ Markdown prose. Humans write `.dog`. Agents read `.dag`. Never mix.
 
 - [dotdog](https://github.com/specdog/dotdog) — `.dog` spec format + compiler
 - [specdog](https://github.com/specdog) — the org
-- [intelligence-amplifier](https://github.com/logohere/deepsuck) — DAG grounding engine
+- [intelligence-amplifier](https://github.com/logohere/dag-harness) — DAG grounding engine

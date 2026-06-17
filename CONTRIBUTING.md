@@ -16,8 +16,8 @@ dag/
   agent/                    System prompt assembly
   tools/                    Skill loader + curator
   dags/                     13 default .dag files (shipped)
-  .deepsuck/skills/         Skill DAGs (auto-generated)
-  rust-dag-router/           Rust source for deepsuck-hooks binary
+  .dag-harness/skills/         Skill DAGs (auto-generated)
+  rust-dag-router/           Rust source for dag-router binary
 ```
 
 ## Commit Conventions

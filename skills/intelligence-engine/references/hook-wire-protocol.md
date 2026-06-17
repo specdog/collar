@@ -1,4 +1,4 @@
-# Deepsuck Shell Hook Wire Protocol
+# Collar Shell Hook Wire Protocol
 
 Reference for building intelligence engine hook scripts. Extracted from `agent/shell_hooks.py`.
 

@@ -9,11 +9,11 @@ the user sees no progress, and if the timeout expires the auth is lost.
 The process MUST stay alive to receive the token callback from GitHub's servers
 after the user authorizes. Killing it = starting over.
 
-## Getting the code — Deepsuck terminal restrictions
+## Getting the code — Collar terminal restrictions
 
-**WARNING: On Deepsuck, both `--web` and `echo "" | gh auth login` get SIGINT (exit 130) in foreground mode.** The Deepsuck terminal sandbox sends SIGINT to interactive-auth processes that wait for browser input. Do NOT use foreground mode.
+**WARNING: On Collar, both `--web` and `echo "" | gh auth login` get SIGINT (exit 130) in foreground mode.** The Collar terminal sandbox sends SIGINT to interactive-auth processes that wait for browser input. Do NOT use foreground mode.
 
-**Bottom line: PAT (token) auth is the only reliable path in Deepsuck.** After 1 failed device-flow attempt, switch to token auth unconditionally. Don't debug, don't retry, don't background — just ask for a PAT and use `--with-token`.
+**Bottom line: PAT (token) auth is the only reliable path in Collar.** After 1 failed device-flow attempt, switch to token auth unconditionally. Don't debug, don't retry, don't background — just ask for a PAT and use `--with-token`.
 
 1. **Launch in background immediately** — don't try to grab the code in foreground:
    ```bash

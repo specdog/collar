@@ -136,15 +136,15 @@ if __name__ == "__main__":
 - **subprocess.run**: Hooks use `shell=False` with `shlex.split()`. No shell injection.
 - **Non-zero exit**: Logged as warning but stdout is still parsed for block/transform directives.
 - **stderr**: Logged at DEBUG level. Not shown to user.
-- **Allowlisting**: First-use consent gated by `~/.deepsuck/shell-hooks-allowlist.json`. Use `hooks_auto_accept: true` to skip.
+- **Allowlisting**: First-use consent gated by `~/.dag/shell-hooks-allowlist.json`. Use `hooks_auto_accept: true` to skip.
 - **Idempotency**: Same (event, matcher, command) triple registers only once. Safe to call register_from_config() from both CLI and gateway.
 - **Matcher field**: Only honored for `pre_tool_call` and `post_tool_call`. Regex matched against `tool_name`.
 
 ## CLI Commands
 
 ```bash
-deepsuck hooks list              # Show all configured hooks with status
-deepsuck hooks test <event>      # Fire hooks for <event> with synthetic payload
-deepsuck hooks doctor            # Check each hook: exec bit, allowlist, timing, JSON validity
-deepsuck hooks revoke <command>  # Remove allowlist entry (takes effect next restart)
+dag hooks list              # Show all configured hooks with status
+dag hooks test <event>      # Fire hooks for <event> with synthetic payload
+dag hooks doctor            # Check each hook: exec bit, allowlist, timing, JSON validity
+dag hooks revoke <command>  # Remove allowlist entry (takes effect next restart)
 ```

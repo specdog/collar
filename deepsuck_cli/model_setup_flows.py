@@ -1,21 +1,21 @@
-"""Per-provider model-selection wizard flows for ``deepsuck setup`` / ``deepsuck model``.
+"""Per-provider model-selection wizard flows for ``dag setup`` / ``dag model``.
 
-Extracted from ``deepsuck_cli/main.py`` as part of the god-file decomposition
-campaign (``~/.deepsuck/plans/god-file-decomposition.md``, Phase 2 — splitting
+Extracted from ``dag_cli/main.py`` as part of the god-file decomposition
+campaign (``~/.dag/plans/god-file-decomposition.md``, Phase 2 — splitting
 main.py handler/flow bodies out of the module). These 18 ``_model_flow_*``
 functions are the interactive provider-setup branches dispatched by
 ``select_provider_and_model`` (which stays in main.py).
 
 Behavior-neutral: each function is lifted verbatim. ``select_provider_and_model``
-in main.py re-imports them (``from deepsuck_cli.model_setup_flows import *``-style
+in main.py re-imports them (``from dag_cli.model_setup_flows import *``-style
 explicit import) so existing call sites — and test monkeypatches that target
-``deepsuck_cli.main._model_flow_*`` — keep resolving against main.py's namespace.
+``dag_cli.main._model_flow_*`` — keep resolving against main.py's namespace.
 
 main.py-internal helpers the flows call (``_prompt_api_key``, ``_save_custom_provider``,
 the reasoning-effort/stepfun/qwen helpers, ``_run_anthropic_oauth_flow``, …) are
-imported lazily inside the flows (``from deepsuck_cli.main import ...`` resolves at
+imported lazily inside the flows (``from dag_cli.main import ...`` resolves at
 call time, when main.py is fully loaded) so this module never imports
-``deepsuck_cli.main`` at import time -> no import cycle.
+``dag_cli.main`` at import time -> no import cycle.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def _prompt_auth_credentials_choice(title: str) -> str:
         "Cancel",
     ]
     try:
-        from deepsuck_cli.setup import _curses_prompt_choice
+        from dag_cli.setup import _curses_prompt_choice
 
         idx = _curses_prompt_choice(title, choices, 0)
         if idx >= 0:
@@ -65,20 +65,20 @@ def _prompt_auth_credentials_choice(title: str) -> str:
 
 def _model_flow_openrouter(config, current_model=""):
     """OpenRouter provider: ensure API key, then pick model."""
-    from deepsuck_cli.main import _prompt_api_key
-    from deepsuck_constants import OPENROUTER_BASE_URL
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _prompt_api_key
+    from dag_constants import OPENROUTER_BASE_URL
+    from dag_cli.auth import (
         ProviderConfig,
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import get_env_value
+    from dag_cli.config import get_env_value
 
     # Route through _prompt_api_key so users can replace a stale/broken key
-    # in-flow (K/R/C) instead of having to edit ~/.deepsuck/.env by hand. The
+    # in-flow (K/R/C) instead of having to edit ~/.dag/.env by hand. The
     # previous bypass-when-key-exists branch left no way to recover from a
-    # bad paste short of re-running `deepsuck setup` from scratch. OpenRouter
+    # bad paste short of re-running `dag setup` from scratch. OpenRouter
     # isn't in PROVIDER_REGISTRY so we synthesize a minimal pconfig.
     pconfig = ProviderConfig(
         id="openrouter",
@@ -94,7 +94,7 @@ def _model_flow_openrouter(config, current_model=""):
     if abort:
         return
 
-    from deepsuck_cli.models import model_ids, get_pricing_for_provider
+    from dag_cli.models import model_ids, get_pricing_for_provider
 
     openrouter_models = model_ids(force_refresh=True)
 
@@ -113,7 +113,7 @@ def _model_flow_openrouter(config, current_model=""):
         _save_model_choice(selected)
 
         # Update config provider and deactivate any OAuth provider
-        from deepsuck_cli.config import load_config, save_config
+        from dag_cli.config import load_config, save_config
 
         cfg = load_config()
         model = cfg.get("model")
@@ -131,7 +131,7 @@ def _model_flow_openrouter(config, current_model=""):
 
 def _model_flow_nous(config, current_model="", args=None):
     """Nous Portal provider: ensure logged in, then pick model."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         get_provider_auth_state,
         _prompt_model_selection,
         _save_model_choice,
@@ -142,13 +142,13 @@ def _model_flow_nous(config, current_model="", args=None):
         _login_nous,
         PROVIDER_REGISTRY,
     )
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         get_env_value,
         load_config,
         save_config,
         save_env_value,
     )
-    from deepsuck_cli.nous_subscription import prompt_enable_tool_gateway
+    from dag_cli.nous_subscription import prompt_enable_tool_gateway
 
     state = get_provider_auth_state("nous")
     if not state or not state.get("access_token"):
@@ -184,7 +184,7 @@ def _model_flow_nous(config, current_model="", args=None):
     # Already logged in — use curated model list (same as OpenRouter defaults).
     # The live /models endpoint returns hundreds of models; the curated list
     # shows only agentic models users recognize from OpenRouter.
-    from deepsuck_cli.models import (
+    from dag_cli.models import (
         get_curated_nous_model_ids,
         get_pricing_for_provider,
         check_nous_free_tier,
@@ -266,7 +266,7 @@ def _model_flow_nous(config, current_model="", args=None):
     unavailable_message = ""
     if free_tier:
         try:
-            from deepsuck_cli.nous_account import (
+            from dag_cli.nous_account import (
                 format_nous_portal_entitlement_message,
                 get_nous_portal_account_info,
             )
@@ -299,7 +299,7 @@ def _model_flow_nous(config, current_model="", args=None):
     if free_tier and not model_ids:
         print("No free models currently available.")
         if unavailable_models:
-            from deepsuck_cli.auth import DEFAULT_NOUS_PORTAL_URL
+            from dag_cli.auth import DEFAULT_NOUS_PORTAL_URL
 
             _url = (_nous_portal_url or DEFAULT_NOUS_PORTAL_URL).rstrip("/")
             print(unavailable_message or f"Upgrade at {_url} to access paid models.")
@@ -352,7 +352,7 @@ def _model_flow_nous(config, current_model="", args=None):
 
 def _model_flow_openai_codex(config, current_model=""):
     """OpenAI Codex provider: ensure logged in, then pick model."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         get_codex_auth_status,
         _prompt_model_selection,
         _save_model_choice,
@@ -361,7 +361,7 @@ def _model_flow_openai_codex(config, current_model=""):
         PROVIDER_REGISTRY,
         DEFAULT_CODEX_BASE_URL,
     )
-    from deepsuck_cli.codex_models import get_codex_model_ids
+    from dag_cli.codex_models import get_codex_model_ids
 
     status = get_codex_auth_status()
     if status.get("logged_in"):
@@ -405,7 +405,7 @@ def _model_flow_openai_codex(config, current_model=""):
             return
 
     _codex_token = None
-    # Prefer credential pool (where `deepsuck auth` stores device_code tokens),
+    # Prefer credential pool (where `dag auth` stores device_code tokens),
     # fall back to legacy provider state.
     try:
         _codex_status = get_codex_auth_status()
@@ -415,7 +415,7 @@ def _model_flow_openai_codex(config, current_model=""):
         pass
     if not _codex_token:
         try:
-            from deepsuck_cli.auth import resolve_codex_runtime_credentials
+            from dag_cli.auth import resolve_codex_runtime_credentials
 
             _codex_creds = resolve_codex_runtime_credentials()
             _codex_token = _codex_creds.get("api_key")
@@ -440,7 +440,7 @@ def _model_flow_openai_codex(config, current_model=""):
 
 def _model_flow_xai_oauth(_config, current_model="", *, args=None):
     """xAI Grok OAuth (SuperGrok / Premium+) provider: ensure logged in, then pick model."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         get_xai_oauth_auth_status,
         _prompt_model_selection,
         _save_model_choice,
@@ -450,7 +450,7 @@ def _model_flow_xai_oauth(_config, current_model="", *, args=None):
         DEFAULT_XAI_OAUTH_BASE_URL,
         PROVIDER_REGISTRY,
     )
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.models import _PROVIDER_MODELS
 
     status = get_xai_oauth_auth_status()
     if status.get("logged_in"):
@@ -464,10 +464,10 @@ def _model_flow_xai_oauth(_config, current_model="", *, args=None):
             print("Starting a fresh xAI OAuth login...")
             print()
             try:
-                # Forward CLI flags from ``deepsuck model --manual-paste``
+                # Forward CLI flags from ``dag model --manual-paste``
                 # / ``--no-browser`` / ``--timeout`` into the loopback
                 # login. Without this, browser-only remotes (#26923)
-                # can't reach the manual-paste path via ``deepsuck model``.
+                # can't reach the manual-paste path via ``dag model``.
                 mock_args = argparse.Namespace(
                     manual_paste=bool(getattr(args, "manual_paste", False)),
                     no_browser=bool(getattr(args, "no_browser", False)),
@@ -505,7 +505,7 @@ def _model_flow_xai_oauth(_config, current_model="", *, args=None):
 
     # Resolve a usable base URL.  ``resolve_xai_oauth_runtime_credentials``
     # only reads from the auth.json singleton — but credentials may legitimately
-    # live only in the pool (e.g. after ``deepsuck auth add xai-oauth``).  Fall
+    # live only in the pool (e.g. after ``dag auth add xai-oauth``).  Fall
     # back to the default base URL in that case so the model picker still
     # completes successfully instead of bailing out with
     # ``Could not resolve xAI OAuth credentials``.
@@ -527,8 +527,8 @@ def _model_flow_xai_oauth(_config, current_model="", *, args=None):
 
 def _model_flow_qwen_oauth(_config, current_model=""):
     """Qwen OAuth provider: reuse local Qwen CLI login, then pick model."""
-    from deepsuck_cli.main import _DEFAULT_QWEN_PORTAL_MODELS
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _DEFAULT_QWEN_PORTAL_MODELS
+    from dag_cli.auth import (
         get_qwen_auth_status,
         resolve_qwen_runtime_credentials,
         _prompt_model_selection,
@@ -536,7 +536,7 @@ def _model_flow_qwen_oauth(_config, current_model=""):
         _update_config_for_provider,
         DEFAULT_QWEN_BASE_URL,
     )
-    from deepsuck_cli.models import fetch_api_models
+    from dag_cli.models import fetch_api_models
 
     status = get_qwen_auth_status()
     if not status.get("logged_in"):
@@ -575,7 +575,7 @@ def _model_flow_qwen_oauth(_config, current_model=""):
 
 def _model_flow_minimax_oauth(config, current_model="", args=None):
     """MiniMax OAuth provider: ensure logged in, then pick model."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         get_provider_auth_state,
         _prompt_model_selection,
         _save_model_choice,
@@ -611,7 +611,7 @@ def _model_flow_minimax_oauth(config, current_model="", args=None):
         print(format_auth_error(exc))
         return
 
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.models import _PROVIDER_MODELS
 
     model_ids = _PROVIDER_MODELS.get("minimax-oauth", [])
     selected = _prompt_model_selection(
@@ -634,9 +634,9 @@ def _model_flow_google_gemini_cli(_config, current_model=""):
       2. If creds missing, run PKCE browser OAuth via agent.google_oauth.
       3. Resolve project context (env -> config -> auto-discover -> free tier).
       4. Prompt user to pick a model.
-      5. Save to ~/.deepsuck/config.yaml.
+      5. Save to ~/.dag/config.yaml.
     """
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         DEFAULT_GEMINI_CLOUDCODE_BASE_URL,
         get_gemini_oauth_auth_status,
         resolve_gemini_oauth_runtime_credentials,
@@ -644,7 +644,7 @@ def _model_flow_google_gemini_cli(_config, current_model=""):
         _save_model_choice,
         _update_config_for_provider,
     )
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.models import _PROVIDER_MODELS
 
     print()
     print("⚠  Google considers using the Gemini CLI OAuth client with third-party")
@@ -711,10 +711,10 @@ def _model_flow_custom(config):
     Automatically saves the endpoint to ``custom_providers`` in config.yaml
     so it appears in the provider menu on subsequent runs.
     """
-    from deepsuck_cli.main import _auto_provider_name, _prompt_custom_api_mode_selection, _save_custom_provider
-    from deepsuck_cli.auth import _save_model_choice, deactivate_provider
-    from deepsuck_cli.config import get_env_value, load_config, save_config
-    from deepsuck_cli.secret_prompt import masked_secret_prompt
+    from dag_cli.main import _auto_provider_name, _prompt_custom_api_mode_selection, _save_custom_provider
+    from dag_cli.auth import _save_model_choice, deactivate_provider
+    from dag_cli.config import get_env_value, load_config, save_config
+    from dag_cli.secret_prompt import masked_secret_prompt
 
     current_url = get_env_value("OPENAI_BASE_URL") or ""
     current_key = get_env_value("OPENAI_API_KEY") or ""
@@ -773,7 +773,7 @@ def _model_flow_custom(config):
             print(f"  Updated URL: {effective_url}")
         print()
 
-    from deepsuck_cli.models import probe_api_models
+    from dag_cli.models import probe_api_models
 
     probe = probe_api_models(effective_key, effective_url)
     if probe.get("used_fallback") and probe.get("resolved_base_url"):
@@ -792,7 +792,7 @@ def _model_flow_custom(config):
     else:
         print(
             f"Warning: could not verify this endpoint via {probe.get('probed_url')}. "
-            f"Deepsuck will still save it."
+            f"DAG will still save it."
         )
         if probe.get("suggested_base_url"):
             suggested = probe["suggested_base_url"]
@@ -912,7 +912,7 @@ def _model_flow_custom(config):
         else:
             _caller_model.pop("api_mode", None)
         config["model"] = _caller_model
-        print("Endpoint saved. Use `/model` in chat or `deepsuck model` to set a model.")
+        print("Endpoint saved. Use `/model` in chat or `dag model` to set a model.")
 
     # Auto-save to custom_providers so it appears in the menu next time
     _save_custom_provider(
@@ -957,14 +957,14 @@ def _model_flow_azure_foundry(config, current_model=""):
     :func:`agent.model_metadata.get_model_context_length` chain
     (models.dev, provider metadata, hardcoded family fallbacks).
     """
-    from deepsuck_cli.auth import _save_model_choice, deactivate_provider  # noqa: F401
-    from deepsuck_cli.config import (
+    from dag_cli.auth import _save_model_choice, deactivate_provider  # noqa: F401
+    from dag_cli.config import (
         get_env_value,
         save_env_value,
         load_config,
         save_config,
     )
-    from deepsuck_cli import azure_detect
+    from dag_cli import azure_detect
 
     # ── Load current Azure Foundry configuration ─────────────────────
     model_cfg = config.get("model", {})
@@ -987,7 +987,7 @@ def _model_flow_azure_foundry(config, current_model=""):
     print("=" * 50)
     print()
     print("Azure Foundry can host models with either OpenAI-style or")
-    print("Anthropic-style API endpoints.  Deepsuck will probe your")
+    print("Anthropic-style API endpoints.  Dag will probe your")
     print("endpoint to auto-detect the transport and the deployed")
     print("models when possible.")
     print()
@@ -1075,7 +1075,7 @@ def _model_flow_azure_foundry(config, current_model=""):
         if not has_azure_identity_installed():
             print("◐ The 'azure-identity' package is not installed yet.")
             print(
-                "  Deepsuck will install it now (the preflight below "
+                "  Dag will install it now (the preflight below "
                 "triggers the lazy-install). To skip lazy installs, "
                 "run:  pip install azure-identity"
             )
@@ -1127,7 +1127,7 @@ def _model_flow_azure_foundry(config, current_model=""):
             token_provider = None
     else:
         print()
-        from deepsuck_cli.secret_prompt import masked_secret_prompt
+        from dag_cli.secret_prompt import masked_secret_prompt
 
         try:
             api_key = masked_secret_prompt(
@@ -1298,10 +1298,10 @@ def _model_flow_named_custom(config, provider_info):
     If a model was previously saved, it is pre-selected in the menu.
     Falls back to the saved model if probing fails.
     """
-    from deepsuck_cli.main import _custom_provider_api_key_config_value, _custom_provider_base_url_config_value, _save_custom_provider
-    from deepsuck_cli.auth import _save_model_choice, deactivate_provider
-    from deepsuck_cli.config import load_config, save_config
-    from deepsuck_cli.models import fetch_api_models
+    from dag_cli.main import _custom_provider_api_key_config_value, _custom_provider_base_url_config_value, _save_custom_provider
+    from dag_cli.auth import _save_model_choice, deactivate_provider
+    from dag_cli.config import load_config, save_config
+    from dag_cli.models import fetch_api_models
 
     name = provider_info["name"]
     base_url = provider_info["base_url"]
@@ -1363,7 +1363,7 @@ def _model_flow_named_custom(config, provider_info):
 
         print(f"Found {len(models)} model(s):\n")
         try:
-            from deepsuck_cli.curses_ui import curses_radiolist
+            from dag_cli.curses_ui import curses_radiolist
 
             menu_items = [
                 f"{m} (current)" if m == saved_model else m for m in models
@@ -1485,16 +1485,16 @@ def _model_flow_named_custom(config, provider_info):
 
 def _model_flow_copilot(config, current_model=""):
     """GitHub Copilot flow using env vars, gh CLI, or OAuth device code."""
-    from deepsuck_cli.main import _current_reasoning_effort, _prompt_reasoning_effort_selection, _set_reasoning_effort
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _current_reasoning_effort, _prompt_reasoning_effort_selection, _set_reasoning_effort
+    from dag_cli.auth import (
         PROVIDER_REGISTRY,
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
         resolve_api_key_provider_credentials,
     )
-    from deepsuck_cli.config import save_env_value, load_config, save_config
-    from deepsuck_cli.models import (
+    from dag_cli.config import save_env_value, load_config, save_config
+    from dag_cli.models import (
         _PROVIDER_MODELS,
         fetch_api_models,
         fetch_github_model_catalog,
@@ -1534,7 +1534,7 @@ def _model_flow_copilot(config, current_model=""):
 
         if choice == "1":
             try:
-                from deepsuck_cli.copilot_auth import copilot_device_code_login
+                from dag_cli.copilot_auth import copilot_device_code_login
 
                 token = copilot_device_code_login()
                 if token:
@@ -1548,7 +1548,7 @@ def _model_flow_copilot(config, current_model=""):
                 print(f"  Login failed: {exc}")
                 return
         elif choice == "2":
-            from deepsuck_cli.secret_prompt import masked_secret_prompt
+            from dag_cli.secret_prompt import masked_secret_prompt
 
             try:
                 new_key = masked_secret_prompt("  Token (COPILOT_GITHUB_TOKEN): ").strip()
@@ -1560,7 +1560,7 @@ def _model_flow_copilot(config, current_model=""):
                 return
             # Validate token type
             try:
-                from deepsuck_cli.copilot_auth import validate_copilot_token
+                from dag_cli.copilot_auth import validate_copilot_token
 
                 valid, msg = validate_copilot_token(new_key)
                 if not valid:
@@ -1580,7 +1580,7 @@ def _model_flow_copilot(config, current_model=""):
         source = creds.get("source", "")
     else:
         if source in {"GITHUB_TOKEN", "GH_TOKEN"}:
-            from deepsuck_cli.env_loader import format_secret_source_suffix
+            from dag_cli.env_loader import format_secret_source_suffix
             bw_suffix = format_secret_source_suffix(source)
             print(f"  GitHub token: {api_key[:8]}... ✓ ({source}{bw_suffix})")
         elif source == "gh auth token":
@@ -1683,7 +1683,7 @@ def _model_flow_copilot(config, current_model=""):
 
 def _model_flow_copilot_acp(config, current_model=""):
     """GitHub Copilot ACP flow using the local Copilot CLI."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         PROVIDER_REGISTRY,
         _prompt_model_selection,
         _save_model_choice,
@@ -1692,12 +1692,12 @@ def _model_flow_copilot_acp(config, current_model=""):
         resolve_api_key_provider_credentials,
         resolve_external_process_provider_credentials,
     )
-    from deepsuck_cli.models import (
+    from dag_cli.models import (
         _PROVIDER_MODELS,
         fetch_github_model_catalog,
         normalize_copilot_model_id,
     )
-    from deepsuck_cli.config import load_config, save_config
+    from dag_cli.config import load_config, save_config
 
     del config
 
@@ -1710,9 +1710,9 @@ def _model_flow_copilot_acp(config, current_model=""):
     )
     effective_base = status.get("base_url") or pconfig.inference_base_url
 
-    print("  GitHub Copilot ACP delegates Deepsuck turns to `copilot --acp`.")
-    print("  Deepsuck currently starts its own ACP subprocess for each request.")
-    print("  Deepsuck uses your selected model as a hint for the Copilot ACP session.")
+    print("  GitHub Copilot ACP delegates Dag turns to `copilot --acp`.")
+    print("  Dag currently starts its own ACP subprocess for each request.")
+    print("  Dag uses your selected model as a hint for the Copilot ACP session.")
     print(f"  Command: {resolved_command}")
     print(f"  Backend marker: {effective_base}")
     print()
@@ -1805,21 +1805,21 @@ def _model_flow_kimi(config, current_model=""):
 
     No manual base URL prompt — endpoint is determined by key prefix.
     """
-    from deepsuck_cli.main import _prompt_api_key
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _prompt_api_key
+    from dag_cli.auth import (
         PROVIDER_REGISTRY,
         KIMI_CODE_BASE_URL,
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         get_env_value,
         save_env_value,
         load_config,
         save_config,
     )
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.models import _PROVIDER_MODELS
 
     provider_id = "kimi-coding"
     pconfig = PROVIDER_REGISTRY[provider_id]
@@ -1891,20 +1891,20 @@ def _model_flow_kimi(config, current_model=""):
 
 def _model_flow_stepfun(config, current_model=""):
     """StepFun Step Plan flow with region-specific endpoints."""
-    from deepsuck_cli.main import _infer_stepfun_region, _prompt_api_key, _prompt_provider_choice, _stepfun_base_url_for_region
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _infer_stepfun_region, _prompt_api_key, _prompt_provider_choice, _stepfun_base_url_for_region
+    from dag_cli.auth import (
         PROVIDER_REGISTRY,
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         get_env_value,
         save_env_value,
         load_config,
         save_config,
     )
-    from deepsuck_cli.models import _PROVIDER_MODELS, fetch_api_models
+    from dag_cli.models import _PROVIDER_MODELS, fetch_api_models
 
     provider_id = "stepfun"
     pconfig = PROVIDER_REGISTRY[provider_id]
@@ -2008,31 +2008,31 @@ def _model_flow_bedrock_api_key(config, region, current_model=""):
     For developers who don't have an AWS account but received a Bedrock API Key
     from their AWS admin. Works like any OpenAI-compatible endpoint.
     """
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         load_config,
         save_config,
         get_env_value,
         save_env_value,
     )
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.models import _PROVIDER_MODELS
 
     mantle_base_url = f"https://bedrock-mantle.{region}.api.aws/v1"
 
     # Prompt for API key
     existing_key = get_env_value("AWS_BEARER_TOKEN_BEDROCK") or ""
     if existing_key:
-        from deepsuck_cli.env_loader import format_secret_source_suffix
+        from dag_cli.env_loader import format_secret_source_suffix
         source_suffix = format_secret_source_suffix("AWS_BEARER_TOKEN_BEDROCK")
         print(f"  Bedrock API Key: {existing_key[:12]}... ✓{source_suffix}")
     else:
         print(f"  Endpoint: {mantle_base_url}")
         print()
-        from deepsuck_cli.secret_prompt import masked_secret_prompt
+        from dag_cli.secret_prompt import masked_secret_prompt
 
         try:
             api_key = masked_secret_prompt("  Bedrock API Key: ").strip()
@@ -2085,7 +2085,7 @@ def _model_flow_bedrock_api_key(config, region, current_model=""):
         bedrock_cfg["region"] = region
         cfg["bedrock"] = bedrock_cfg
 
-        # Save the API key env var name so deepsuck knows where to find it
+        # Save the API key env var name so dag knows where to find it
         save_env_value("OPENAI_API_KEY", existing_key)
         save_env_value("OPENAI_BASE_URL", mantle_base_url)
 
@@ -2104,13 +2104,13 @@ def _model_flow_bedrock(config, current_model=""):
     Auth is handled by the AWS SDK default credential chain (env vars, profile,
     instance role), so no API key prompt is needed.
     """
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import load_config, save_config
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.config import load_config, save_config
+    from dag_cli.models import _PROVIDER_MODELS
 
     # 1. Check for AWS credentials
     try:
@@ -2286,20 +2286,20 @@ def _model_flow_bedrock(config, current_model=""):
 
 def _model_flow_api_key_provider(config, provider_id, current_model=""):
     """Generic flow for API-key providers (z.ai, MiniMax, OpenCode, etc.)."""
-    from deepsuck_cli.main import _prompt_api_key
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _prompt_api_key
+    from dag_cli.auth import (
         PROVIDER_REGISTRY,
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         get_env_value,
         save_env_value,
         load_config,
         save_config,
     )
-    from deepsuck_cli.models import (
+    from dag_cli.models import (
         _PROVIDER_MODELS,
         fetch_api_models,
         opencode_model_api_mode,
@@ -2347,7 +2347,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
                     "(<= 250 requests/day for gemini-2.5-flash)."
                 )
                 print(
-                    "   Deepsuck typically makes 3-10 API calls per user turn "
+                    "   Dag typically makes 3-10 API calls per user turn "
                     "(tool iterations + auxiliary tasks),"
                 )
                 print(
@@ -2357,7 +2357,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
                 print("   an agent session.")
                 print()
                 print(
-                    "   To use Gemini with Deepsuck, enable billing on your "
+                    "   To use Gemini with Dag, enable billing on your "
                     "Google Cloud project and regenerate"
                 )
                 print(
@@ -2420,8 +2420,8 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
     # LM Studio: live /api/v1/models probe (no models.dev catalog).
     # Ollama Cloud: merged discovery (live API + models.dev + disk cache).
     if provider_id == "lmstudio":
-        from deepsuck_cli.auth import AuthError
-        from deepsuck_cli.models import fetch_lmstudio_models
+        from dag_cli.auth import AuthError
+        from dag_cli.models import fetch_lmstudio_models
 
         api_key_for_probe = existing_key or (get_env_value(key_env) if key_env else "")
         try:
@@ -2435,7 +2435,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
         if model_list:
             print(f"  Found {len(model_list)} model(s) from LM Studio")
     elif provider_id == "ollama-cloud":
-        from deepsuck_cli.models import fetch_ollama_cloud_models
+        from dag_cli.models import fetch_ollama_cloud_models
 
         api_key_for_probe = existing_key or (get_env_value(key_env) if key_env else "")
         # During setup, force a live refresh so the picker reflects newly
@@ -2450,7 +2450,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
         if model_list:
             print(f"  Found {len(model_list)} model(s) from Ollama Cloud")
     elif provider_id == "novita":
-        from deepsuck_cli.models import fetch_api_models
+        from dag_cli.models import fetch_api_models
 
         api_key_for_probe = existing_key or (get_env_value(key_env) if key_env else "")
         curated = _PROVIDER_MODELS.get(provider_id, [])
@@ -2576,22 +2576,22 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
 
 def _model_flow_anthropic(config, current_model=""):
     """Flow for Anthropic provider — OAuth subscription, API key, or Claude Code creds."""
-    from deepsuck_cli.main import _run_anthropic_oauth_flow
-    from deepsuck_cli.auth import (
+    from dag_cli.main import _run_anthropic_oauth_flow
+    from dag_cli.auth import (
         _prompt_model_selection,
         _save_model_choice,
         deactivate_provider,
     )
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         save_env_value,
         load_config,
         save_config,
         save_anthropic_api_key,
     )
-    from deepsuck_cli.models import _PROVIDER_MODELS
+    from dag_cli.models import _PROVIDER_MODELS
 
     # Check ALL credential sources
-    from deepsuck_cli.auth import get_anthropic_key
+    from dag_cli.auth import get_anthropic_key
 
     existing_key = get_anthropic_key()
     cc_available = False
@@ -2621,8 +2621,8 @@ def _model_flow_anthropic(config, current_model=""):
     if has_creds:
         # Show what we found
         if existing_key:
-            from deepsuck_cli.env_loader import format_secret_source_suffix
-            from deepsuck_cli.auth import PROVIDER_REGISTRY
+            from dag_cli.env_loader import format_secret_source_suffix
+            from dag_cli.auth import PROVIDER_REGISTRY
 
             # Surface which env var supplied the key so users with
             # Bitwarden see "(from Bitwarden)" — without this, a detected
@@ -2671,7 +2671,7 @@ def _model_flow_anthropic(config, current_model=""):
             print()
             print("  Get an API key at: https://platform.claude.com/settings/keys")
             print()
-            from deepsuck_cli.secret_prompt import masked_secret_prompt
+            from dag_cli.secret_prompt import masked_secret_prompt
 
             try:
                 api_key = masked_secret_prompt("  API key (sk-ant-...): ").strip()
@@ -2709,7 +2709,7 @@ def _model_flow_anthropic(config, current_model=""):
         # Update config with provider — clear base_url since
         # resolve_runtime_provider() always hardcodes Anthropic's URL.
         # Leaving a stale base_url in config can contaminate other
-        # providers if the user switches without running 'deepsuck model'.
+        # providers if the user switches without running 'dag model'.
         cfg = load_config()
         model = cfg.get("model")
         if not isinstance(model, dict):

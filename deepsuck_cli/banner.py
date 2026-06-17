@@ -1,6 +1,6 @@
 """Welcome banner, ASCII art, skills summary, and update check for the CLI.
 
-Pure display functions with no DeepsuckCLI state dependency.
+Pure display functions with no DagCLI state dependency.
 """
 
 import json
@@ -12,7 +12,7 @@ import threading
 import time
 from pathlib import Path
 from urllib.parse import urlparse
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 # rich and prompt_toolkit are imported lazily (inside the functions that use
@@ -51,7 +51,7 @@ def cprint(text: str):
 def _skin_color(key: str, fallback: str) -> str:
     """Get a color from the active skin, or return fallback."""
     try:
-        from deepsuck_cli.skin_engine import get_active_skin
+        from dag_cli.skin_engine import get_active_skin
         return get_active_skin().get_color(key, fallback)
     except Exception:
         return fallback
@@ -59,7 +59,7 @@ def _skin_color(key: str, fallback: str) -> str:
 # ASCII Art & Branding
 # =========================================================================
 
-from deepsuck_cli import __version__ as VERSION, __release_date__ as RELEASE_DATE
+from dag_cli import __version__ as VERSION, __release_date__ as RELEASE_DATE
 
 DEEPSUCK_AGENT_LOGO = """[bold #FFD700]D E E P S U C K[/]"""
 
@@ -113,11 +113,11 @@ def get_available_skills() -> Dict[str, List[str]]:
 _UPDATE_CHECK_CACHE_SECONDS = 6 * 3600
 
 # Sentinel returned when we know an update exists but can't count commits
-# (e.g. nix-built deepsuck — no local git history to count against).
+# (e.g. nix-built dag — no local git history to count against).
 UPDATE_AVAILABLE_NO_COUNT = -1
 
-_UPSTREAM_REPO_URL = "https://github.com/NousResearch/deepsuck-agent.git"
-_OFFICIAL_REPO_CANONICAL = "github.com/nousresearch/deepsuck-agent"
+_UPSTREAM_REPO_URL = "https://github.com/NousResearch/dag-agent.git"
+_OFFICIAL_REPO_CANONICAL = "github.com/nousresearch/dag-agent"
 
 
 def _canonical_github_remote(url: str | None) -> str:
@@ -227,7 +227,7 @@ def _version_tuple(v: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
-def _fetch_pypi_latest(package: str = "deepsuck-agent") -> Optional[str]:
+def _fetch_pypi_latest(package: str = "dag-agent") -> Optional[str]:
     """Fetch the latest version of a package from PyPI. Returns None on failure."""
     try:
         import urllib.request
@@ -259,7 +259,7 @@ def check_via_pypi() -> Optional[int]:
 
 
 def check_for_updates() -> Optional[int]:
-    """Check whether a Deepsuck update is available.
+    """Check whether a Dag update is available.
 
     Two paths: if ``DEEPSUCK_REVISION`` is set (nix builds embed it), compare
     it to upstream main via ``git ls-remote``. Otherwise look for a local
@@ -269,8 +269,8 @@ def check_for_updates() -> Optional[int]:
     if behind but the count is unknown, ``0`` if up-to-date, or ``None`` if
     the check failed or doesn't apply. Cached for 6 hours.
     """
-    deepsuck_home = get_deepsuck_home()
-    cache_file = deepsuck_home / ".update_check"
+    dag_home = get_dag_home()
+    cache_file = dag_home / ".update_check"
     embedded_rev = os.environ.get("DEEPSUCK_REVISION") or None
 
     # Docker images have no working tree to count commits against — the
@@ -279,14 +279,14 @@ def check_for_updates() -> Optional[int]:
     # fall through to `check_via_pypi()`, whose PyPI-version mismatch flag (1)
     # then gets rendered by the CLI banner and the TUI badge as a phantom
     # "1 commit behind" — even though no git repo or commit math is involved,
-    # and `deepsuck update` correctly refuses to run in-place inside the
-    # container anyway. The dashboard's REST `/api/deepsuck/update/check`
+    # and `dag update` correctly refuses to run in-place inside the
+    # container anyway. The dashboard's REST `/api/dag/update/check`
     # endpoint already short-circuits docker the same way (web_server.py);
     # mirror that here so the banner/TUI surfaces agree. Returning None makes
     # both the Rich banner (build_welcome_banner) and the Ink badge
     # (branding.tsx, guarded on `typeof === 'number' && > 0`) show nothing.
     try:
-        from deepsuck_cli.config import detect_install_method
+        from dag_cli.config import detect_install_method
         if detect_install_method() == "docker":
             return None
     except Exception:
@@ -314,11 +314,11 @@ def check_for_updates() -> Optional[int]:
         behind = _check_via_rev(embedded_rev)
     else:
         # Prefer the running code's location over the profile-scoped path.
-        # $DEEPSUCK_HOME/deepsuck-agent/ may be a stale copy from --clone-all;
+        # $DAG_HOME/dag-agent/ may be a stale copy from --clone-all;
         # Path(__file__) always resolves to the actual installed checkout.
         repo_dir = Path(__file__).parent.parent.resolve()
         if not (repo_dir / ".git").exists():
-            repo_dir = deepsuck_home / "deepsuck-agent"
+            repo_dir = dag_home / "dag-agent"
         if not (repo_dir / ".git").exists():
             behind = check_via_pypi()
         else:
@@ -335,16 +335,16 @@ def check_for_updates() -> Optional[int]:
 
 
 def _resolve_repo_dir() -> Optional[Path]:
-    """Return the active Deepsuck git checkout, or None if this isn't a git install.
+    """Return the active Dag git checkout, or None if this isn't a git install.
 
     Prefers the running code's location over the profile-scoped path
-    because ``$DEEPSUCK_HOME/deepsuck-agent/`` may be a stale copy carried
+    because ``$DAG_HOME/dag-agent/`` may be a stale copy carried
     over by ``--clone-all``.
     """
     repo_dir = Path(__file__).parent.parent.resolve()
     if not (repo_dir / ".git").exists():
-        deepsuck_home = get_deepsuck_home()
-        repo_dir = deepsuck_home / "deepsuck-agent"
+        dag_home = get_dag_home()
+        repo_dir = dag_home / "dag-agent"
     return repo_dir if (repo_dir / ".git").exists() else None
 
 
@@ -373,7 +373,7 @@ def get_git_banner_state(repo_dir: Optional[Path] = None) -> Optional[dict]:
     the active checkout.  When no checkout is available — the canonical case
     is the published Docker image, which excludes ``.git`` from the build
     context — we fall back to the baked-in build SHA (see
-    ``deepsuck_cli/build_info.py``) and return it as a frozen
+    ``dag_cli/build_info.py``) and return it as a frozen
     ``upstream == local`` state with ``ahead=0``.  A built image is by
     definition pinned to one commit, so "ahead" is always zero and the
     banner correctly shows ``· upstream <sha>`` with no carried-commits
@@ -383,7 +383,7 @@ def get_git_banner_state(repo_dir: Optional[Path] = None) -> Optional[dict]:
     if repo_dir is None:
         # No git checkout — try the baked build SHA (Docker image path).
         try:
-            from deepsuck_cli.build_info import get_build_sha
+            from dag_cli.build_info import get_build_sha
             baked = get_build_sha(short=8)
             if baked:
                 return {"upstream": baked, "local": baked, "ahead": 0}
@@ -397,7 +397,7 @@ def get_git_banner_state(repo_dir: Optional[Path] = None) -> Optional[dict]:
         # Live-git lookup failed (e.g. shallow clone without origin/main).
         # Fall back to the baked build SHA if available.
         try:
-            from deepsuck_cli.build_info import get_build_sha
+            from dag_cli.build_info import get_build_sha
             baked = get_build_sha(short=8)
             if baked:
                 return {"upstream": baked, "local": baked, "ahead": 0}
@@ -422,7 +422,7 @@ def get_git_banner_state(repo_dir: Optional[Path] = None) -> Optional[dict]:
     return {"upstream": upstream, "local": local, "ahead": max(ahead, 0)}
 
 
-_RELEASE_URL_BASE = "https://github.com/NousResearch/deepsuck-agent/releases/tag"
+_RELEASE_URL_BASE = "https://github.com/NousResearch/dag-agent/releases/tag"
 _latest_release_cache: Optional[tuple] = None  # (tag, url) once resolved
 
 
@@ -430,8 +430,8 @@ def get_latest_release_tag(repo_dir: Optional[Path] = None) -> Optional[tuple]:
     """Return ``(tag, release_url)`` for the latest git tag, or None.
 
     Local-only — runs ``git describe --tags --abbrev=0`` against the
-    Deepsuck checkout. Cached per-process. Release URL always points at the
-    canonical NousResearch/deepsuck-agent repo (forks don't get a link).
+    Dag checkout. Cached per-process. Release URL always points at the
+    canonical NousResearch/dag-agent repo (forks don't get a link).
     """
     global _latest_release_cache
     if _latest_release_cache is not None:
@@ -470,7 +470,7 @@ def get_latest_release_tag(repo_dir: Optional[Path] = None) -> Optional[tuple]:
 
 def format_banner_version_label() -> str:
     """Return the version label shown in the startup banner title."""
-    base = f"Deepsuck Agent v{VERSION} ({RELEASE_DATE})"
+    base = f"DAG Agent v{VERSION} ({RELEASE_DATE})"
     state = get_git_banner_state()
     if not state:
         return base
@@ -596,7 +596,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
 
     # Use skin's custom caduceus art if provided
     try:
-        from deepsuck_cli.skin_engine import get_active_skin
+        from dag_cli.skin_engine import get_active_skin
         _bskin = get_active_skin()
         _hero = _bskin.banner_hero if hasattr(_bskin, 'banner_hero') and _bskin.banner_hero else DEEPSUCK_CADUCEUS
     except Exception:
@@ -611,7 +611,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     ctx_str = f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]" if context_length else ""
     left_lines.append(f"[{accent}]{model_short}[/]{ctx_str} [dim {dim}]·[/] [dim {dim}]Nous Research[/]")
 
-    if os.getenv("DEEPSUCK_YOLO_MODE"):
+    if os.getenv("DAG_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
     left_lines.append(f"[dim {dim}]{cwd}[/]")
     if session_id:
@@ -744,8 +744,8 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     # understand why tool counts may not match what's actually reachable
     # (codex builds its own tool list inside the spawned subprocess).
     try:
-        from deepsuck_cli.codex_runtime_switch import get_current_runtime
-        from deepsuck_cli.config import load_config as _load_cfg
+        from dag_cli.codex_runtime_switch import get_current_runtime
+        from dag_cli.config import load_config as _load_cfg
         if get_current_runtime(_load_cfg()) == "codex_app_server":
             right_lines.append(
                 f"[bold {accent}]Runtime:[/] [{text}]codex app-server[/] "
@@ -755,7 +755,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         pass
     # Show active profile name when not 'default'
     try:
-        from deepsuck_cli.profiles import get_active_profile_name
+        from dag_cli.profiles import get_active_profile_name
         _profile_name = get_active_profile_name()
         if _profile_name and _profile_name != "default":
             right_lines.append(f"[bold {accent}]Profile:[/] [{text}]{_profile_name}[/]")
@@ -768,7 +768,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     try:
         behind = get_update_result(timeout=0.5)
         if behind is not None and behind != 0:
-            from deepsuck_cli.config import get_managed_update_command, recommended_update_command
+            from dag_cli.config import get_managed_update_command, recommended_update_command
             if behind > 0:
                 commits_word = "commit" if behind == 1 else "commits"
                 right_lines.append(
@@ -776,7 +776,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
                     f"[dim yellow] — run [bold]{recommended_update_command()}[/bold] to update[/]"
                 )
             else:
-                # UPDATE_AVAILABLE_NO_COUNT: nix-built deepsuck; we know an update
+                # UPDATE_AVAILABLE_NO_COUNT: nix-built dag; we know an update
                 # exists but not by how much, and we don't know how the user
                 # installed it (nix run, profile, system flake, home-manager).
                 managed_cmd = get_managed_update_command()
@@ -787,12 +787,12 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     except Exception:
         pass  # Never break the banner over an update check
 
-    # Pip-install warning — `pip install deepsuck-agent` is not the supported
+    # Pip-install warning — `pip install dag-agent` is not the supported
     # install path (it exists on PyPI for internal/CI reasons, not end users).
     # Such installs miss the git checkout + installer-managed deps, so updates,
     # self-update, and issue triage don't behave correctly. Warn, don't block.
     try:
-        from deepsuck_cli.config import detect_install_method
+        from dag_cli.config import detect_install_method
         if detect_install_method() == "pip":
             right_lines.append(
                 "[bold yellow]⚠ pip install not officially supported[/]"

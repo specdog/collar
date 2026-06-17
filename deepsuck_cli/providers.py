@@ -1,5 +1,5 @@
 """
-Single source of truth for provider identity in Deepsuck Agent.
+Single source of truth for provider identity in DAG Agent.
 
 Two data sources, merged at runtime:
 
@@ -7,7 +7,7 @@ Two data sources, merged at runtime:
    names, and full model metadata (context, cost, capabilities).  This is
    the primary database.
 
-2. **Deepsuck overlays** — transport type, auth patterns, aggregator flags,
+2. **DAG overlays** — transport type, auth patterns, aggregator flags,
    and additional env vars that models.dev doesn't track.  Small dict,
    maintained here.
 
@@ -28,12 +28,12 @@ from utils import base_url_host_matches, base_url_hostname
 logger = logging.getLogger(__name__)
 
 
-# -- Deepsuck overlay ----------------------------------------------------------
-# Deepsuck-specific metadata that models.dev doesn't provide.
+# -- Dag overlay ----------------------------------------------------------
+# Dag-specific metadata that models.dev doesn't provide.
 
 @dataclass(frozen=True)
-class DeepsuckOverlay:
-    """Deepsuck-specific provider metadata layered on top of models.dev."""
+class DagOverlay:
+    """DAG-specific provider metadata layered on top of models.dev."""
 
     transport: str = "openai_chat"        # openai_chat | anthropic_messages | codex_responses
     is_aggregator: bool = False
@@ -43,171 +43,171 @@ class DeepsuckOverlay:
     base_url_env_var: str = ""            # env var for user-custom base URL
 
 
-DEEPSUCK_OVERLAYS: Dict[str, DeepsuckOverlay] = {
-    "openrouter": DeepsuckOverlay(
+DEEPSUCK_OVERLAYS: Dict[str, DagOverlay] = {
+    "openrouter": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
         base_url_env_var="OPENROUTER_BASE_URL",
     ),
-    "nous": DeepsuckOverlay(
+    "nous": DagOverlay(
         transport="openai_chat",
         auth_type="oauth_device_code",
         base_url_override="https://inference-api.nousresearch.com/v1",
     ),
-    "openai-codex": DeepsuckOverlay(
+    "openai-codex": DagOverlay(
         transport="codex_responses",
         auth_type="oauth_external",
         base_url_override="https://chatgpt.com/backend-api/codex",
     ),
-    "openai-api": DeepsuckOverlay(
+    "openai-api": DagOverlay(
         transport="codex_responses",
         base_url_override="https://api.openai.com/v1",
         base_url_env_var="OPENAI_BASE_URL",
     ),
-    "xai-oauth": DeepsuckOverlay(
+    "xai-oauth": DagOverlay(
         transport="codex_responses",
         auth_type="oauth_external",
         base_url_override="https://api.x.ai/v1",
         base_url_env_var="XAI_BASE_URL",
     ),
-    "qwen-oauth": DeepsuckOverlay(
+    "qwen-oauth": DagOverlay(
         transport="openai_chat",
         auth_type="oauth_external",
         base_url_override="https://portal.qwen.ai/v1",
         base_url_env_var="DEEPSUCK_QWEN_BASE_URL",
     ),
-    "google-gemini-cli": DeepsuckOverlay(
+    "google-gemini-cli": DagOverlay(
         transport="openai_chat",
         auth_type="oauth_external",
         base_url_override="cloudcode-pa://google",
     ),
-    "lmstudio": DeepsuckOverlay(
+    "lmstudio": DagOverlay(
         transport="openai_chat",
         auth_type="api_key",
         extra_env_vars=("LM_API_KEY",),
         base_url_override="http://127.0.0.1:1234/v1",
         base_url_env_var="LM_BASE_URL",
     ),
-    "copilot-acp": DeepsuckOverlay(
+    "copilot-acp": DagOverlay(
         transport="codex_responses",
         auth_type="external_process",
         base_url_override="acp://copilot",
         base_url_env_var="COPILOT_ACP_BASE_URL",
     ),
-    "github-copilot": DeepsuckOverlay(
+    "github-copilot": DagOverlay(
         transport="openai_chat",
         extra_env_vars=("COPILOT_GITHUB_TOKEN", "GH_TOKEN"),
     ),
-    "anthropic": DeepsuckOverlay(
+    "anthropic": DagOverlay(
         transport="anthropic_messages",
         extra_env_vars=("ANTHROPIC_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"),
     ),
-    "zai": DeepsuckOverlay(
+    "zai": DagOverlay(
         transport="openai_chat",
         extra_env_vars=("GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY"),
         base_url_env_var="GLM_BASE_URL",
     ),
-    "kimi-for-coding": DeepsuckOverlay(
+    "kimi-for-coding": DagOverlay(
         transport="openai_chat",
         base_url_env_var="KIMI_BASE_URL",
     ),
-    "stepfun": DeepsuckOverlay(
+    "stepfun": DagOverlay(
         transport="openai_chat",
         extra_env_vars=("STEPFUN_API_KEY",),
         base_url_override="https://api.stepfun.ai/step_plan/v1",
         base_url_env_var="STEPFUN_BASE_URL",
     ),
-    "minimax": DeepsuckOverlay(
+    "minimax": DagOverlay(
         transport="anthropic_messages",
         base_url_env_var="MINIMAX_BASE_URL",
     ),
-    "minimax-oauth": DeepsuckOverlay(
+    "minimax-oauth": DagOverlay(
         transport="anthropic_messages",
         auth_type="oauth_external",
         base_url_override="https://api.minimax.io/anthropic",
     ),
-    "minimax-cn": DeepsuckOverlay(
+    "minimax-cn": DagOverlay(
         transport="anthropic_messages",
         base_url_env_var="MINIMAX_CN_BASE_URL",
     ),
-    "deepseek": DeepsuckOverlay(
+    "deepseek": DagOverlay(
         transport="openai_chat",
         base_url_env_var="DEEPSEEK_BASE_URL",
     ),
-    "alibaba": DeepsuckOverlay(
+    "alibaba": DagOverlay(
         transport="openai_chat",
         base_url_env_var="DASHSCOPE_BASE_URL",
     ),
-    "alibaba-coding-plan": DeepsuckOverlay(
+    "alibaba-coding-plan": DagOverlay(
         transport="openai_chat",
         base_url_env_var="ALIBABA_CODING_PLAN_BASE_URL",
     ),
-    "opencode": DeepsuckOverlay(
+    "opencode": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
         base_url_env_var="OPENCODE_ZEN_BASE_URL",
     ),
-    "opencode-go": DeepsuckOverlay(
+    "opencode-go": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
         base_url_env_var="OPENCODE_GO_BASE_URL",
     ),
-    "kilo": DeepsuckOverlay(
+    "kilo": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
         base_url_env_var="KILOCODE_BASE_URL",
     ),
-    "huggingface": DeepsuckOverlay(
+    "huggingface": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
         base_url_env_var="HF_BASE_URL",
     ),
-    "novita": DeepsuckOverlay(
+    "novita": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
         base_url_env_var="NOVITA_BASE_URL",
     ),
-    "xai": DeepsuckOverlay(
+    "xai": DagOverlay(
         transport="codex_responses",
         base_url_override="https://api.x.ai/v1",
         base_url_env_var="XAI_BASE_URL",
     ),
-    "nvidia": DeepsuckOverlay(
+    "nvidia": DagOverlay(
         transport="openai_chat",
         base_url_override="https://integrate.api.nvidia.com/v1",
         base_url_env_var="NVIDIA_BASE_URL",
     ),
-    "xiaomi": DeepsuckOverlay(
+    "xiaomi": DagOverlay(
         transport="openai_chat",
         base_url_env_var="XIAOMI_BASE_URL",
     ),
-    "tencent-tokenhub": DeepsuckOverlay(
+    "tencent-tokenhub": DagOverlay(
         transport="openai_chat",
         base_url_env_var="TOKENHUB_BASE_URL",
     ),
-    "arcee": DeepsuckOverlay(
+    "arcee": DagOverlay(
         transport="openai_chat",
         base_url_override="https://api.arcee.ai/api/v1",
         base_url_env_var="ARCEE_BASE_URL",
     ),
-    "gmi": DeepsuckOverlay(
+    "gmi": DagOverlay(
         transport="openai_chat",
         extra_env_vars=("GMI_API_KEY",),
         base_url_override="https://api.gmi-serving.com/v1",
         base_url_env_var="GMI_BASE_URL",
     ),
-    "ollama-cloud": DeepsuckOverlay(
+    "ollama-cloud": DagOverlay(
         transport="openai_chat",
         base_url_override="https://ollama.com/v1",
         base_url_env_var="OLLAMA_BASE_URL",
     ),
     # Azure Foundry: supports both OpenAI-style and Anthropic-style endpoints.
     # The transport is determined at runtime from config.yaml model.api_mode.
-    "azure-foundry": DeepsuckOverlay(
+    "azure-foundry": DagOverlay(
         transport="openai_chat",  # default; overridden by api_mode in config
         base_url_env_var="AZURE_FOUNDRY_BASE_URL",
     ),
-    "bedrock": DeepsuckOverlay(
+    "bedrock": DagOverlay(
         transport="bedrock_converse",
         auth_type="aws_sdk",
     ),
@@ -230,7 +230,7 @@ class ProviderDef:
     is_aggregator: bool = False
     auth_type: str = "api_key"
     doc: str = ""
-    source: str = ""                      # "models.dev", "deepsuck", "user-config"
+    source: str = ""                      # "models.dev", "dag", "user-config"
 
 
 # -- Aliases ------------------------------------------------------------------
@@ -406,8 +406,8 @@ def get_provider(name: str) -> Optional[ProviderDef]:
     """Look up a built-in provider by id or alias.
 
     Resolution order:
-      1. Deepsuck overlays (for providers not in models.dev: nous, openai-codex, etc.)
-      2. models.dev catalog + Deepsuck overlay
+      1. Dag overlays (for providers not in models.dev: nous, openai-codex, etc.)
+      2. models.dev catalog + Dag overlay
 
     User-defined providers from config.yaml (``providers:`` / ``custom_providers:``)
     are resolved by :func:`resolve_provider_full`, which layers ``resolve_user_provider``
@@ -435,7 +435,7 @@ def get_provider(name: str) -> Optional[ProviderDef]:
         base_url_env = overlay.base_url_env_var if overlay else ""
         base_url_override = overlay.base_url_override if overlay else ""
 
-        # Combine env vars: models.dev env + deepsuck extra
+        # Combine env vars: models.dev env + dag extra
         env_vars = list(mdev_info.env)
         if overlay and overlay.extra_env_vars:
             for ev in overlay.extra_env_vars:
@@ -456,7 +456,7 @@ def get_provider(name: str) -> Optional[ProviderDef]:
         )
 
     if overlay is not None:
-        # Deepsuck-only provider (not in models.dev)
+        # Dag-only provider (not in models.dev)
         return ProviderDef(
             id=canonical,
             name=_LABEL_OVERRIDES.get(canonical, canonical),
@@ -466,7 +466,7 @@ def get_provider(name: str) -> Optional[ProviderDef]:
             base_url_env_var=overlay.base_url_env_var,
             is_aggregator=overlay.is_aggregator,
             auth_type=overlay.auth_type,
-            source="deepsuck",
+            source="dag",
         )
 
     return None

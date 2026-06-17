@@ -1,12 +1,12 @@
-"""Shared CLI output helpers for Deepsuck CLI modules.
+"""Shared CLI output helpers for Dag CLI modules.
 
 Extracts the identical ``print_info/success/warning/error`` and ``prompt()``
 functions previously duplicated across setup.py, tools_config.py,
 mcp_config.py, and memory_setup.py.
 """
 
-from deepsuck_cli.colors import Colors, color
-from deepsuck_cli.secret_prompt import masked_secret_prompt
+from dag_cli.colors import Colors, color
+from dag_cli.secret_prompt import masked_secret_prompt
 
 
 # ─── Print Helpers ────────────────────────────────────────────────────────────

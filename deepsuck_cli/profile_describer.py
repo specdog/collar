@@ -1,6 +1,6 @@
 """Profile describer — auto-generate ``description`` for a profile.
 
-Used by ``deepsuck profile describe <name> --auto`` and the dashboard's
+Used by ``dag profile describe <name> --auto`` and the dashboard's
 "auto-generate description" button. Reads the profile's installed
 skills, model+provider, name, and optionally a small slice of memory,
 then asks the auxiliary LLM to produce a 1-2 sentence description of
@@ -12,7 +12,7 @@ badge. User can edit afterward to confirm.
 
 Design notes
 ------------
-- Mirrors the shape of ``deepsuck_cli/kanban_specify.py``: lazy aux
+- Mirrors the shape of ``dag_cli/kanban_specify.py``: lazy aux
   client import inside the function, lenient response parse, never
   raises on expected failure modes.
 - Reads at most ``MAX_SKILLS_FOR_PROMPT`` skill names to keep the
@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from deepsuck_cli import profiles as profiles_mod
+from dag_cli import profiles as profiles_mod
 from agent.skill_utils import is_excluded_skill_path
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 MAX_SKILLS_FOR_PROMPT = 60
 
 
-_SYSTEM_PROMPT = """You are a profile-describer for the Deepsuck Agent kanban board.
+_SYSTEM_PROMPT = """You are a profile-describer for the DAG Agent kanban board.
 
 A user runs multiple "profiles" — distinct agent identities, each with their
 own skills, model, and configuration. The kanban board's orchestrator routes
@@ -70,7 +70,7 @@ Rules:
                          refactors functions, opens GitHub PRs."
   - 1-2 sentences, <= 280 characters total.
   - Never invent capabilities the skills don't suggest.
-  - Never write "Deepsuck Agent profile" or other meta-narration.
+  - Never write "DAG Agent profile" or other meta-narration.
   - No code fences, no preamble, no closing remarks. Output only JSON.
 """
 
@@ -179,8 +179,8 @@ def describe_profile(
 
     try:
         if canon == "default":
-            from deepsuck_constants import get_deepsuck_home  # type: ignore
-            profile_dir = Path(get_deepsuck_home())
+            from dag_constants import get_dag_home  # type: ignore
+            profile_dir = Path(get_dag_home())
         else:
             profile_dir = profiles_mod.get_profile_dir(canon)
     except Exception as exc:

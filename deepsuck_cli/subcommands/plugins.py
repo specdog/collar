@@ -1,6 +1,6 @@
-"""``deepsuck plugins`` subcommand parser.
+"""``dag plugins`` subcommand parser.
 
-Extracted from ``deepsuck_cli/main.py:main()`` (god-file Phase 2 follow-up).
+Extracted from ``dag_cli/main.py:main()`` (god-file Phase 2 follow-up).
 Handler injected to avoid importing ``main``.
 """
 
@@ -23,7 +23,7 @@ def build_plugins_parser(subparsers, *, cmd_plugins: Callable) -> None:
     )
     plugins_install.add_argument(
         "identifier",
-        help="Git URL or owner/repo shorthand (e.g. anpicasso/deepsuck-plugin-chrome-profiles)",
+        help="Git URL or owner/repo shorthand (e.g. anpicasso/dag-plugin-chrome-profiles)",
     )
     plugins_install.add_argument(
         "--force",
@@ -40,7 +40,7 @@ def build_plugins_parser(subparsers, *, cmd_plugins: Callable) -> None:
     _install_enable_group.add_argument(
         "--no-enable",
         action="store_true",
-        help="Install disabled (skip confirmation prompt); enable later with `deepsuck plugins enable <name>`",
+        help="Install disabled (skip confirmation prompt); enable later with `dag plugins enable <name>`",
     )
 
     plugins_update = plugins_subparsers.add_parser(

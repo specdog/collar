@@ -30,7 +30,7 @@ import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 from typing import Dict, Any, List, Optional
 
 from utils import atomic_replace
@@ -49,12 +49,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Where memory files live — resolved dynamically so profile overrides
-# (DEEPSUCK_HOME env var changes) are always respected.  The old module-level
+# (DAG_HOME env var changes) are always respected.  The old module-level
 # constant was cached at import time and could go stale if a profile switch
 # happened after the first import.
 def get_memory_dir() -> Path:
     """Return the profile-scoped memories directory."""
-    return get_deepsuck_home() / "memories"
+    return get_dag_home() / "memories"
 
 ENTRY_DELIMITER = "\n§\n"
 

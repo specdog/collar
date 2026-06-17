@@ -1,8 +1,8 @@
 """Helpers for X-Forwarded-Prefix support.
 
 Mission-control style deploys reverse-proxy the dashboard at a path
-prefix (e.g. ``mission-control.tilos.com/deepsuck/*`` -> dashboard on
-:9119), injecting ``X-Forwarded-Prefix: /deepsuck`` so the backend can
+prefix (e.g. ``mission-control.tilos.com/dag/*`` -> dashboard on
+:9119), injecting ``X-Forwarded-Prefix: /dag`` so the backend can
 reconstruct prefixed URLs (Location: headers, OAuth redirect_uri,
 cookie Path attributes, SPA asset URLs).
 
@@ -44,8 +44,8 @@ def _warn_if_malformed(source: str, raw: str) -> None:
     was rejected by :func:`_normalise_public_url`.
 
     A non-empty value that normalises to ``""`` is almost always a
-    missing scheme (``deepsuck.example.com`` instead of
-    ``https://deepsuck.example.com``) — the single most common cause of
+    missing scheme (``dag.example.com`` instead of
+    ``https://dag.example.com``) — the single most common cause of
     "I set DEEPSUCK_DASHBOARD_PUBLIC_URL but the OAuth callback is still
     http://". Without this warning the value is silently discarded and
     the dashboard falls back to reconstructing the redirect URI from
@@ -68,14 +68,14 @@ def _warn_if_malformed(source: str, raw: str) -> None:
         "scheme behind a reverse proxy.",
         source,
         cleaned,
-        cleaned.split("://")[-1] or "deepsuck.example.com",
+        cleaned.split("://")[-1] or "dag.example.com",
     )
 
 
 def normalise_prefix(raw: Optional[str]) -> str:
     """Normalise an X-Forwarded-Prefix header value.
 
-    Returns a string like ``"/deepsuck"`` (no trailing slash) or ``""``
+    Returns a string like ``"/dag"`` (no trailing slash) or ``""``
     when no prefix is set / the header is malformed. We deliberately
     reject anything containing ``..`` or non-printable bytes so a
     hostile proxy can't inject HTML or path-traversal sequences via the
@@ -156,7 +156,7 @@ def _load_dashboard_section() -> dict:
     ``.get(...)`` access.
     """
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
     except Exception:
         return {}
     try:

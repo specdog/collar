@@ -1,12 +1,12 @@
 """Cookie helpers for dashboard auth.
 
 Three cookies in play:
-  - deepsuck_session_at:   the OAuth access token
+  - dag_session_at:   the OAuth access token
                          (HttpOnly, lifetime = token TTL, ~15 min)
-  - deepsuck_session_rt:   the OAuth refresh token
+  - dag_session_rt:   the OAuth refresh token
                          (HttpOnly, lifetime = 24h, ROTATING + reuse-detected)
                          Nous Portal issues a rotating refresh token for the
-                         dashboard auth-code grant (Portal NAS #293 / deepsuck
+                         dashboard auth-code grant (Portal NAS #293 / dag
                          #37247). ``set_session_cookies`` writes this cookie
                          whenever the provider returns a non-empty
                          ``refresh_token``; the middleware uses it to rotate a
@@ -14,7 +14,7 @@ Three cookies in play:
                          provider that omits the refresh token (empty string)
                          degrades gracefully to access-token-only sessions —
                          the RT cookie is simply not written.
-  - deepsuck_session_pkce: short-lived PKCE state + CSRF nonce + provider
+  - dag_session_pkce: short-lived PKCE state + CSRF nonce + provider
                          hint (HttpOnly, lifetime = 10 minutes)
 
 All three are ``SameSite=Lax`` (browser will send on cross-site GET
@@ -34,15 +34,15 @@ https://datatracker.ietf.org/doc/html/draft-west-cookie-prefixes):
   * Gated HTTPS, direct deploy (Path=/) — ``__Host-`` prefix. Binds the
     cookie to the exact origin (no Domain attribute) — strongest spec
     guarantee.
-  * Gated HTTPS, behind a reverse-proxy prefix (Path=/deepsuck) —
+  * Gated HTTPS, behind a reverse-proxy prefix (Path=/dag) —
     ``__Secure-`` prefix. ``__Host-`` is disallowed when Path != "/";
     ``__Secure-`` keeps the Secure-required hardening without the
-    Path constraint, and the explicit ``Path=/deepsuck`` covers
+    Path constraint, and the explicit ``Path=/dag`` covers
     same-origin app isolation.
 
 The setters and readers BOTH consult the active prefix because the
 cookie *name* changes — a reader that looked up the bare name when the
-setter wrote ``__Secure-deepsuck_session_at`` would never find the value.
+setter wrote ``__Secure-dag_session_at`` would never find the value.
 
 Refresh-token handling:
    ``set_session_cookies`` accepts ``refresh_token=""`` (provider omitted
@@ -64,9 +64,9 @@ from fastapi.responses import Response
 # Bare cookie names — the request-scoped ``_resolved_name`` helper
 # decides whether to prepend ``__Host-`` / ``__Secure-`` based on the
 # request's HTTPS + prefix combination.
-SESSION_AT_COOKIE = "deepsuck_session_at"
-SESSION_RT_COOKIE = "deepsuck_session_rt"
-PKCE_COOKIE = "deepsuck_session_pkce"
+SESSION_AT_COOKIE = "dag_session_at"
+SESSION_RT_COOKIE = "dag_session_rt"
+PKCE_COOKIE = "dag_session_pkce"
 
 # Possible name variants we may have to read back. Sorted so most-strict
 # wins on iteration when both happen to be present (shouldn't happen in
@@ -102,7 +102,7 @@ def _resolved_name(bare: str, *, use_https: bool, prefix: str) -> str:
 def _cookie_path(prefix: str) -> str:
     """Cookie ``Path`` attribute for the active deploy shape.
 
-    Under ``X-Forwarded-Prefix: /deepsuck`` we want ``Path=/deepsuck`` so:
+    Under ``X-Forwarded-Prefix: /dag`` we want ``Path=/dag`` so:
       a) the browser sends the cookie back on requests under the prefix
          (browsers omit the cookie if request path doesn't start with
          Path);
@@ -140,12 +140,12 @@ def set_session_cookies(
     TTL for the access token.
 
     ``refresh_token`` is written as the RT cookie when non-empty. Nous Portal
-    issues a 24h rotating refresh token (deepsuck #37247); a provider that
+    issues a 24h rotating refresh token (dag #37247); a provider that
     omits it returns ``Session.refresh_token == ""`` and we simply don't
     persist the RT cookie — the session then behaves as access-token-only
     until the AT expires. No other branch changes between the two cases.
 
-    ``prefix`` is the normalised X-Forwarded-Prefix value (e.g. ``/deepsuck``)
+    ``prefix`` is the normalised X-Forwarded-Prefix value (e.g. ``/dag``)
     or ``""`` for a direct deploy. It influences both the cookie name
     (``__Host-`` vs ``__Secure-`` vs bare) and the ``Path`` attribute.
     """

@@ -7,28 +7,28 @@ from pathlib import Path
 from typing import Optional
 
 
-def _deepsuck_home_path() -> Path:
-    """Resolve the active DEEPSUCK_HOME (profile-aware) without circular imports."""
+def _dag_home_path() -> Path:
+    """Resolve the active DAG_HOME (profile-aware) without circular imports."""
     try:
-        from deepsuck_constants import get_deepsuck_home  # local import to avoid cycles
-        return get_deepsuck_home()
+        from dag_constants import get_dag_home  # local import to avoid cycles
+        return get_dag_home()
     except Exception:
-        return Path(os.path.expanduser("~/.deepsuck"))
+        return Path(os.path.expanduser("~/.dag"))
 
 
-def _deepsuck_root_path() -> Path:
-    """Resolve the Deepsuck root dir (always the parent of any profile, never per-profile)."""
+def _dag_root_path() -> Path:
+    """Resolve the Dag root dir (always the parent of any profile, never per-profile)."""
     try:
-        from deepsuck_constants import get_default_deepsuck_root  # local import to avoid cycles
-        return get_default_deepsuck_root()
+        from dag_constants import get_default_dag_root  # local import to avoid cycles
+        return get_default_dag_root()
     except Exception:
-        return Path(os.path.expanduser("~/.deepsuck"))
+        return Path(os.path.expanduser("~/.dag"))
 
 
 def build_write_denied_paths(home: str) -> set[str]:
     """Return exact sensitive paths that must never be written."""
-    deepsuck_home = _deepsuck_home_path()
-    deepsuck_root = _deepsuck_root_path()
+    dag_home = _dag_home_path()
+    dag_root = _dag_root_path()
     return {
         os.path.realpath(p)
         for p in [
@@ -37,15 +37,15 @@ def build_write_denied_paths(home: str) -> set[str]:
             os.path.join(home, ".ssh", "id_ed25519"),
             os.path.join(home, ".ssh", "config"),
             # Active profile .env (or top-level .env when not in profile mode).
-            str(deepsuck_home / ".env"),
+            str(dag_home / ".env"),
             # Top-level .env, even when running under a profile — overwriting it
             # leaks credentials across every profile that inherits from root (#15981).
-            str(deepsuck_root / ".env"),
+            str(dag_root / ".env"),
             # Active profile Anthropic PKCE credential store.
-            str(deepsuck_home / ".anthropic_oauth.json"),
+            str(dag_home / ".anthropic_oauth.json"),
             # Top-level Anthropic PKCE credential store remains sensitive even
             # when a profile is active; default/non-profile sessions still read it.
-            str(deepsuck_root / ".anthropic_oauth.json"),
+            str(dag_root / ".anthropic_oauth.json"),
             os.path.join(home, ".netrc"),
             os.path.join(home, ".pgpass"),
             os.path.join(home, ".npmrc"),
@@ -101,16 +101,16 @@ def is_write_denied(path: str) -> bool:
 
     mcp_tokens_dir_name = "mcp-tokens"
 
-    deepsuck_dirs = []
-    for base in (_deepsuck_home_path(), _deepsuck_root_path()):
+    dag_dirs = []
+    for base in (_dag_home_path(), _dag_root_path()):
         try:
             real = os.path.realpath(base)
-            if real not in deepsuck_dirs:
-                deepsuck_dirs.append(real)
+            if real not in dag_dirs:
+                dag_dirs.append(real)
         except Exception:
             continue
 
-    for base_real in deepsuck_dirs:
+    for base_real in dag_dirs:
         try:
             mcp_real = os.path.realpath(os.path.join(base_real, mcp_tokens_dir_name))
             if resolved == mcp_real or resolved.startswith(mcp_real + os.sep):
@@ -146,14 +146,14 @@ _BLOCKED_PROJECT_ENV_BASENAMES: set[str] = {
 
 
 def get_read_block_error(path: str) -> Optional[str]:
-    """Return an error message when a read targets a denied Deepsuck path.
+    """Return an error message when a read targets a denied Dag path.
 
     Three categories are blocked:
 
-      * Internal Deepsuck cache files under ``DEEPSUCK_HOME/skills/.hub`` —
+      * Internal Dag cache files under ``DAG_HOME/skills/.hub`` —
         readable metadata that an attacker could use as a prompt-injection
         carrier.
-      * Credential / secret stores under DEEPSUCK_HOME and the global Deepsuck
+      * Credential / secret stores under DAG_HOME and the global Dag
         root: ``auth.json``, ``auth.lock``, ``.anthropic_oauth.json``,
         ``.env``, ``webhook_subscriptions.json``, ``auth/google_oauth.json``,
         and anything under ``mcp-tokens/``. These hold plaintext provider keys,
@@ -170,7 +170,7 @@ def get_read_block_error(path: str) -> Optional[str]:
 
     **This is NOT a security boundary.** The terminal tool runs as the
     same OS user with shell access; the agent can still ``cat auth.json``
-    or ``cat ~/.deepsuck/.env`` and exfiltrate the file. The read-deny exists
+    or ``cat ~/.dag/.env`` and exfiltrate the file. The read-deny exists
     as defense-in-depth that:
 
       * Returns a clear error to models that respect tool denials, which
@@ -192,22 +192,22 @@ def get_read_block_error(path: str) -> Optional[str]:
     """
     resolved = Path(path).expanduser().resolve()
 
-    # Resolve BOTH the active DEEPSUCK_HOME (profile-aware) AND the global
-    # Deepsuck root so credential stores at <root>/auth.json etc. are also
-    # blocked when running under a profile (DEEPSUCK_HOME points at
+    # Resolve BOTH the active DAG_HOME (profile-aware) AND the global
+    # Dag root so credential stores at <root>/auth.json etc. are also
+    # blocked when running under a profile (DAG_HOME points at
     # <root>/profiles/<name> in profile mode). Same shape as the write
     # deny widening (#15981, #14157).
-    deepsuck_dirs: list[Path] = []
-    for base in (_deepsuck_home_path(), _deepsuck_root_path()):
+    dag_dirs: list[Path] = []
+    for base in (_dag_home_path(), _dag_root_path()):
         try:
             real = base.resolve()
-            if real not in deepsuck_dirs:
-                deepsuck_dirs.append(real)
+            if real not in dag_dirs:
+                dag_dirs.append(real)
         except Exception:
             continue
 
     # Skills .hub: prompt-injection carriers.
-    for hd in deepsuck_dirs:
+    for hd in dag_dirs:
         blocked_dirs = [
             hd / "skills" / ".hub" / "index-cache",
             hd / "skills" / ".hub",
@@ -218,13 +218,13 @@ def get_read_block_error(path: str) -> Optional[str]:
             except ValueError:
                 continue
             return (
-                f"Access denied: {path} is an internal Deepsuck cache file "
+                f"Access denied: {path} is an internal Dag cache file "
                 "and cannot be read directly to prevent prompt injection. "
                 "Use the skills_list or skill_view tools instead."
             )
 
     # Credential / secret stores. Exact-file matches under either
-    # DEEPSUCK_HOME or <root>.
+    # DAG_HOME or <root>.
     credential_file_names = (
         "auth.json",
         "auth.lock",
@@ -237,7 +237,7 @@ def get_read_block_error(path: str) -> Optional[str]:
         # was introduced by #31968 but not added to this guard.
         os.path.join("cache", "bws_cache.json"),
     )
-    for hd in deepsuck_dirs:
+    for hd in dag_dirs:
         for name in credential_file_names:
             try:
                 blocked = (hd / name).resolve()
@@ -245,7 +245,7 @@ def get_read_block_error(path: str) -> Optional[str]:
                 continue
             if resolved == blocked:
                 return (
-                    f"Access denied: {path} is a Deepsuck credential store "
+                    f"Access denied: {path} is a Dag credential store "
                     "and cannot be read directly. Provider tools consume "
                     "these credentials through internal channels. "
                     "(Defense-in-depth — not a security boundary; the "
@@ -254,14 +254,14 @@ def get_read_block_error(path: str) -> Optional[str]:
 
     # mcp-tokens/: directory prefix match — anything inside is OAuth
     # token material.
-    for hd in deepsuck_dirs:
+    for hd in dag_dirs:
         try:
             mcp_tokens = (hd / "mcp-tokens").resolve()
         except Exception:
             continue
         if resolved == mcp_tokens:
             return (
-                f"Access denied: {path} is the Deepsuck MCP token directory "
+                f"Access denied: {path} is the Dag MCP token directory "
                 "and cannot be read directly. (Defense-in-depth — not a "
                 "security boundary; the terminal tool can still bypass.)"
             )
@@ -270,7 +270,7 @@ def get_read_block_error(path: str) -> Optional[str]:
         except ValueError:
             continue
         return (
-            f"Access denied: {path} is a Deepsuck MCP token file "
+            f"Access denied: {path} is a Dag MCP token file "
             "and cannot be read directly. (Defense-in-depth — not a "
             "security boundary; the terminal tool can still bypass.)"
         )
@@ -294,7 +294,7 @@ def get_read_block_error(path: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Cross-profile write guard (#TBD)
 #
-# Deepsuck profiles are separate DEEPSUCK_HOME dirs under
+# Dag profiles are separate DAG_HOME dirs under
 # ``<root>/profiles/<name>/``. Each profile has its own skills/, plugins/,
 # cron/, memories/. When an agent runs under one profile, writing into
 # ANOTHER profile's directories is almost always wrong — those skills /
@@ -307,30 +307,30 @@ def get_read_block_error(path: str) -> Optional[str]:
 # as the dangerous-command approval flow — the agent is told the boundary
 # exists, and explicit user direction is required to cross it.
 #
-# Reference: May 2026 incident where a deepsuck-security profile session
-# edited skills under both ``~/.deepsuck/profiles/deepsuck-security/skills/``
-# AND ``~/.deepsuck/skills/`` (the default profile's skills) without realizing
+# Reference: May 2026 incident where a dag-security profile session
+# edited skills under both ``~/.dag/profiles/dag-security/skills/``
+# AND ``~/.dag/skills/`` (the default profile's skills) without realizing
 # the second path belonged to a different profile.
 # ---------------------------------------------------------------------------
 
-# Profile-scoped directories under DEEPSUCK_HOME / <root> / <root>/profiles/<X>/
+# Profile-scoped directories under DAG_HOME / <root> / <root>/profiles/<X>/
 # that should be guarded. Adding a new area here extends the guard with no
 # other code change.
 PROFILE_SCOPED_AREAS = ("skills", "plugins", "cron", "memories")
 
 
 def _resolve_active_profile_name() -> str:
-    """Return the active profile name derived from DEEPSUCK_HOME.
+    """Return the active profile name derived from DAG_HOME.
 
-    ``~/.deepsuck``              -> ``"default"``
-    ``~/.deepsuck/profiles/X``  -> ``"X"``
+    ``~/.dag``              -> ``"default"``
+    ``~/.dag/profiles/X``  -> ``"X"``
 
     Falls back to ``"default"`` on any resolution failure so the guard
     never raises into the tool path.
     """
     try:
-        home_real = _deepsuck_home_path().resolve()
-        root_real = _deepsuck_root_path().resolve()
+        home_real = _dag_home_path().resolve()
+        root_real = _dag_root_path().resolve()
     except (OSError, RuntimeError):
         return "default"
     profiles_dir = root_real / "profiles"
@@ -348,7 +348,7 @@ def classify_cross_profile_target(path: str) -> Optional[dict]:
     """Classify a write target as cross-profile if it lands in another
     profile's scoped area (skills/plugins/cron/memories).
 
-    Returns ``None`` when the target is outside Deepsuck scope, or is inside
+    Returns ``None`` when the target is outside Dag scope, or is inside
     the ACTIVE profile, or doesn't hit a profile-scoped area. Otherwise
     returns a dict with:
 
@@ -363,7 +363,7 @@ def classify_cross_profile_target(path: str) -> Optional[dict]:
     """
     try:
         target = Path(os.path.expanduser(str(path))).resolve()
-        root_real = _deepsuck_root_path().resolve()
+        root_real = _dag_root_path().resolve()
     except (OSError, RuntimeError):
         return None
 
@@ -411,7 +411,7 @@ def get_cross_profile_warning(path: str) -> Optional[str]:
     """Return a model-facing warning string when ``path`` is cross-profile.
 
     Returns ``None`` when the write is in-scope (same profile) or outside
-    Deepsuck entirely. Caller is expected to surface the warning to the
+    Dag entirely. Caller is expected to surface the warning to the
     agent as a tool-result error, NOT to silently allow the write — the
     agent must either get explicit user direction to proceed, or pass
     ``cross_profile=True`` to its write tool.
@@ -425,7 +425,7 @@ def get_cross_profile_warning(path: str) -> Optional[str]:
         return None
     return (
         f"Cross-profile write blocked by soft guard: {info['target_path']} "
-        f"belongs to Deepsuck profile {info['target_profile']!r}, but the "
+        f"belongs to Dag profile {info['target_profile']!r}, but the "
         f"agent is running under profile {info['active_profile']!r}. "
         f"Editing another profile's {info['area']}/ will affect that "
         f"profile's future sessions, not the one you are currently in. "
@@ -442,7 +442,7 @@ def get_cross_profile_warning(path: str) -> Optional[str]:
 # Non-local terminal backends (Docker, Daytona, etc.) bind a sandbox-local
 # directory to the container's ``$HOME``. The on-disk layout looks like
 #
-#   <DEEPSUCK_HOME>/profiles/<name>/sandboxes/<backend>/<task>/home/.deepsuck/...
+#   <DAG_HOME>/profiles/<name>/sandboxes/<backend>/<task>/home/.dag/...
 #
 # When the agent (running host-side) speculates that authoritative profile
 # state lives at one of those sandbox-mirror paths, the write lands on the
@@ -451,48 +451,48 @@ def get_cross_profile_warning(path: str) -> Optional[str]:
 # disk two divergent copies accumulate. See #32049 for evidence.
 #
 # This guard is path-shape-only: it detects the
-# ``…/sandboxes/<backend>/<task>/home/.deepsuck/…`` segment and warns
-# regardless of which Deepsuck profile is active. It does NOT cover the
+# ``…/sandboxes/<backend>/<task>/home/.dag/…`` segment and warns
+# regardless of which Dag profile is active. It does NOT cover the
 # inner-container case where the bind mount strips the ``sandboxes/`` prefix
-# (the agent's view inside the container is plain ``/root/.deepsuck/...``);
+# (the agent's view inside the container is plain ``/root/.dag/...``);
 # that case needs a separate dispatch-layer or host-side ``profile_state``
 # tool.
 # ---------------------------------------------------------------------------
 
 
 def _find_sandbox_mirror_segments(parts: tuple) -> Optional[int]:
-    """Return the index of the inner ``.deepsuck`` part in a sandbox-mirror path.
+    """Return the index of the inner ``.dag`` part in a sandbox-mirror path.
 
-    Matches ``…/sandboxes/<backend>/<task>/home/.deepsuck/…`` and returns the
-    index where the inner Deepsuck-state portion starts. Returns ``None`` for
+    Matches ``…/sandboxes/<backend>/<task>/home/.dag/…`` and returns the
+    index where the inner Dag-state portion starts. Returns ``None`` for
     paths that do not contain the sandbox-mirror shape.
     """
     for i, part in enumerate(parts):
         if part != "sandboxes":
             continue
-        # Need at least: sandboxes / <backend> / <task> / home / .deepsuck / <thing>
+        # Need at least: sandboxes / <backend> / <task> / home / .dag / <thing>
         if i + 5 >= len(parts):
             continue
-        if parts[i + 3] == "home" and parts[i + 4] == ".deepsuck":
+        if parts[i + 3] == "home" and parts[i + 4] == ".dag":
             return i + 4
     return None
 
 
 def classify_sandbox_mirror_target(path: str) -> Optional[dict]:
-    """Classify a write target as a sandbox-mirror of authoritative Deepsuck state.
+    """Classify a write target as a sandbox-mirror of authoritative Dag state.
 
     Returns ``None`` when the path does not match the sandbox-mirror shape.
     Otherwise returns a dict with:
 
       * ``target_path``: the resolved path string
-      * ``mirror_root``: the ``…/sandboxes/<backend>/<task>/home/.deepsuck``
+      * ``mirror_root``: the ``…/sandboxes/<backend>/<task>/home/.dag``
         prefix (so callers can show users which sandbox owns the mirror)
-      * ``inner_path``: the portion under the mirror's ``.deepsuck`` (what the
+      * ``inner_path``: the portion under the mirror's ``.dag`` (what the
         agent likely meant to address on the host)
 
-    Detection is path-shape-only — does not require any Deepsuck resolver to
+    Detection is path-shape-only — does not require any Dag resolver to
     succeed, so it works correctly even when called from contexts where
-    DEEPSUCK_HOME resolution would be ambiguous.
+    DAG_HOME resolution would be ambiguous.
     """
     try:
         target = Path(os.path.expanduser(str(path))).resolve()
@@ -535,9 +535,9 @@ def get_sandbox_mirror_warning(path: str) -> Optional[str]:
         f"Sandbox-mirror write blocked by soft guard: {info['target_path']} "
         f"sits under {info['mirror_root']!r}, which is a per-task mirror "
         f"created by a non-local terminal backend (docker/daytona/etc.). "
-        f"Writes here land on a copy that the host Deepsuck process never "
+        f"Writes here land on a copy that the host Dag process never "
         f"reads — the authoritative file is likely {info['inner_path']!r} "
-        f"under the real DEEPSUCK_HOME. Use the host-side tool for "
+        f"under the real DAG_HOME. Use the host-side tool for "
         f"authoritative state (e.g. ``memory`` for memories), or address "
         f"the host path directly. To bypass this guard after explicit "
         f"user direction, retry the call with ``cross_profile=True``. "
@@ -550,9 +550,9 @@ def get_sandbox_mirror_warning(path: str) -> Optional[str]:
 # Container-context mirror guard (inner-container case — #32049 follow-up)
 #
 # Brian's shape-based detector (#32213) catches paths that still carry the
-# full ``…/sandboxes/<backend>/<task>/home/.deepsuck/…`` prefix on the host.
+# full ``…/sandboxes/<backend>/<task>/home/.dag/…`` prefix on the host.
 # But when file tools execute *inside* the container the bind-mount strips
-# that prefix: the agent sees plain ``/root/.deepsuck/…``.  The root:root
+# that prefix: the agent sees plain ``/root/.dag/…``.  The root:root
 # ownership on the divergent SOUL.md in #32049 confirms this is the primary
 # failure mode.
 #
@@ -576,7 +576,7 @@ def classify_container_mirror_target(
       * ``target_path``: resolved path string
       * ``mirror_root``: the declared container mirror prefix
       * ``inner_path``: portion under the mirror root (what the agent
-        likely meant to address in the host DEEPSUCK_HOME)
+        likely meant to address in the host DAG_HOME)
     """
     if not mirror_prefix:
         return None
@@ -598,7 +598,7 @@ def get_container_mirror_warning(
     mirror_prefix: str | None = None,
 ) -> Optional[str]:
     """Return a model-facing warning when *path* lands in the container's
-    sandbox mirror of authoritative Deepsuck state.
+    sandbox mirror of authoritative Dag state.
 
     The caller supplies ``mirror_prefix`` only when the current file-tool
     backend is known to execute inside a Docker sandbox. Same contract as
@@ -612,9 +612,9 @@ def get_container_mirror_warning(
     return (
         f"Sandbox-mirror write blocked by soft guard: {info['target_path']} "
         f"sits under {info['mirror_root']!r}, which is the container's "
-        f"bind-mounted home — a per-task mirror that the host Deepsuck "
+        f"bind-mounted home — a per-task mirror that the host Dag "
         f"process never reads. The authoritative file is "
-        f"{info['inner_path']!r} under the real DEEPSUCK_HOME. Use the "
+        f"{info['inner_path']!r} under the real DAG_HOME. Use the "
         f"host-side tool for authoritative state (e.g. ``memory`` for "
         f"memories), or address the host path directly. To bypass after "
         f"explicit user direction, retry with ``cross_profile=True``. "

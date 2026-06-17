@@ -6,7 +6,7 @@ author: Deepsuck Agent
 license: MIT
 platforms: [macos]
 metadata:
-  deepsuck:
+  dag:
     tags: [iMessage, SMS, messaging, macOS, Apple]
 prerequisites:
   commands: [imsg]

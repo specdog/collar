@@ -11,7 +11,7 @@ Operational failures (spawn error, timeout, unknown exit code) respect
 the fail_open config setting. Programming errors propagate.
 
 Auto-install: if tirith is not found on PATH or at the configured path,
-it is automatically downloaded from GitHub releases to $DEEPSUCK_HOME/bin/tirith.
+it is automatically downloaded from GitHub releases to $DAG_HOME/bin/tirith.
 The download always verifies SHA-256 checksums.  When cosign is available on
 PATH, provenance verification (GitHub Actions workflow signature) is also
 performed.  If cosign is not installed, the download proceeds with SHA-256
@@ -34,7 +34,7 @@ import threading
 import time
 import urllib.request
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def _load_security_config() -> dict:
         "tirith_fail_open": True,
     }
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         cfg = load_config().get("security", {}) or {}
     except Exception:
         cfg = {}
@@ -133,14 +133,14 @@ def _reset_spawn_warning_state() -> None:
 _MARKER_TTL = 86400  # 24 hours
 
 
-def _get_deepsuck_home() -> str:
-    """Return the Deepsuck home directory, respecting DEEPSUCK_HOME env var."""
-    return str(get_deepsuck_home())
+def _get_dag_home() -> str:
+    """Return the Dag home directory, respecting DAG_HOME env var."""
+    return str(get_dag_home())
 
 
 def _failure_marker_path() -> str:
     """Return the path to the install-failure marker file."""
-    return os.path.join(_get_deepsuck_home(), ".tirith-install-failed")
+    return os.path.join(_get_dag_home(), ".tirith-install-failed")
 
 
 def _read_failure_reason() -> str | None:
@@ -206,9 +206,9 @@ def _clear_install_failed():
         pass
 
 
-def _deepsuck_bin_dir() -> str:
-    """Return $DEEPSUCK_HOME/bin, creating it if needed."""
-    d = os.path.join(_get_deepsuck_home(), "bin")
+def _dag_bin_dir() -> str:
+    """Return $DAG_HOME/bin, creating it if needed."""
+    d = os.path.join(_get_dag_home(), "bin")
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -354,7 +354,7 @@ def _extract_tirith_binary(tar: tarfile.TarFile, dest_dir: str, log) -> tuple[st
 
 
 def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
-    """Download and install tirith to $DEEPSUCK_HOME/bin/tirith.
+    """Download and install tirith to $DAG_HOME/bin/tirith.
 
     Verifies provenance via cosign and SHA-256 checksum.
     Returns (installed_path, failure_reason).  On success failure_reason is "".
@@ -425,7 +425,7 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
             if src is None:
                 return None, reason
 
-        dest = os.path.join(_deepsuck_bin_dir(), "tirith")
+        dest = os.path.join(_dag_bin_dir(), "tirith")
         try:
             shutil.move(src, dest)
         except OSError:
@@ -465,8 +465,8 @@ def _resolve_tirith_path(configured_path: str) -> str:
 
     For the default "tirith":
     1. PATH lookup via shutil.which
-    2. $DEEPSUCK_HOME/bin/tirith (previously auto-installed)
-    3. Auto-install from GitHub releases → $DEEPSUCK_HOME/bin/tirith
+    2. $DAG_HOME/bin/tirith (previously auto-installed)
+    3. Auto-install from GitHub releases → $DAG_HOME/bin/tirith
 
     Failed installs are cached for the process lifetime (and persisted to
     disk for 24h) to avoid repeated network attempts.
@@ -515,12 +515,12 @@ def _resolve_tirith_path(configured_path: str) -> str:
         _clear_install_failed()
         return found
 
-    deepsuck_bin = os.path.join(_deepsuck_bin_dir(), "tirith")
-    if os.path.isfile(deepsuck_bin) and os.access(deepsuck_bin, os.X_OK):
-        _resolved_path = deepsuck_bin
+    dag_bin = os.path.join(_dag_bin_dir(), "tirith")
+    if os.path.isfile(dag_bin) and os.access(dag_bin, os.X_OK):
+        _resolved_path = dag_bin
         _install_failure_reason = ""
         _clear_install_failed()
-        return deepsuck_bin
+        return dag_bin
 
     # Local checks failed.  If a previous install attempt already failed,
     # skip the network retry — UNLESS the failure was "cosign_missing" and
@@ -579,9 +579,9 @@ def _background_install(*, log_failures: bool = True):
             _install_failure_reason = ""
             return
 
-        deepsuck_bin = os.path.join(_deepsuck_bin_dir(), "tirith")
-        if os.path.isfile(deepsuck_bin) and os.access(deepsuck_bin, os.X_OK):
-            _resolved_path = deepsuck_bin
+        dag_bin = os.path.join(_dag_bin_dir(), "tirith")
+        if os.path.isfile(dag_bin) and os.access(dag_bin, os.X_OK):
+            _resolved_path = dag_bin
             _install_failure_reason = ""
             return
 
@@ -649,12 +649,12 @@ def ensure_installed(*, log_failures: bool = True):
         _clear_install_failed()
         return found
 
-    deepsuck_bin = os.path.join(_deepsuck_bin_dir(), "tirith")
-    if os.path.isfile(deepsuck_bin) and os.access(deepsuck_bin, os.X_OK):
-        _resolved_path = deepsuck_bin
+    dag_bin = os.path.join(_dag_bin_dir(), "tirith")
+    if os.path.isfile(dag_bin) and os.access(dag_bin, os.X_OK):
+        _resolved_path = dag_bin
         _install_failure_reason = ""
         _clear_install_failed()
-        return deepsuck_bin
+        return dag_bin
 
     # If previously failed in-memory, check if the cause is now resolved
     if _resolved_path is _INSTALL_FAILED:

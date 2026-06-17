@@ -25,17 +25,17 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
-from deepsuck_cli.dashboard_auth import (
+from dag_cli.dashboard_auth import (
     get_provider,
     list_providers,
 )
-from deepsuck_cli.dashboard_auth.audit import AuditEvent, audit_log
-from deepsuck_cli.dashboard_auth.base import (
+from dag_cli.dashboard_auth.audit import AuditEvent, audit_log
+from dag_cli.dashboard_auth.base import (
     InvalidCodeError,
     InvalidCredentialsError,
     ProviderError,
 )
-from deepsuck_cli.dashboard_auth.cookies import (
+from dag_cli.dashboard_auth.cookies import (
     clear_pkce_cookie,
     clear_session_cookies,
     detect_https,
@@ -44,7 +44,7 @@ from deepsuck_cli.dashboard_auth.cookies import (
     set_pkce_cookie,
     set_session_cookies,
 )
-from deepsuck_cli.dashboard_auth.login_page import render_login_html
+from dag_cli.dashboard_auth.login_page import render_login_html
 
 _log = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def _redirect_uri(request: Request) -> str:
          Relief valve for deploys behind reverse proxies whose forwarded
          headers aren't reliable.
 
-      2. ``X-Forwarded-Prefix: /deepsuck`` (Mission Control deploys) — we
+      2. ``X-Forwarded-Prefix: /dag`` (Mission Control deploys) — we
          prepend the prefix to the path FastAPI's ``url_for`` produces
          (it doesn't natively honour this header — it isn't part of the
          Starlette/uvicorn proxy_headers set).
@@ -79,7 +79,7 @@ def _redirect_uri(request: Request) -> str:
     """
     from urllib.parse import urlparse, urlunparse
 
-    from deepsuck_cli.dashboard_auth.prefix import (
+    from dag_cli.dashboard_auth.prefix import (
         prefix_from_request,
         resolve_public_url,
     )
@@ -116,9 +116,9 @@ def _prefix(request: Request) -> str:
     Local indirection so the routes pass a consistent value to the
     cookie helpers (cookie name + Path attribute) and the gate's
     redirect builders (login_url construction). See
-    ``deepsuck_cli.dashboard_auth.prefix`` for the normalisation rules.
+    ``dag_cli.dashboard_auth.prefix`` for the normalisation rules.
     """
-    from deepsuck_cli.dashboard_auth.prefix import prefix_from_request
+    from dag_cli.dashboard_auth.prefix import prefix_from_request
     return prefix_from_request(request)
 
 
@@ -208,7 +208,7 @@ async def auth_login(request: Request, provider: str, next: str = ""):
     # Pack the provider name into the PKCE cookie so the callback can
     # find it without a separate cookie. Provider may or may not have
     # already included a ``provider=`` segment.
-    pkce = ls.cookie_payload.get("deepsuck_session_pkce", "")
+    pkce = ls.cookie_payload.get("dag_session_pkce", "")
     if "provider=" not in pkce:
         pkce = f"provider={provider};{pkce}" if pkce else f"provider={provider}"
     # Carry ``next=`` through the round trip in the PKCE cookie. Real
@@ -609,7 +609,7 @@ async def api_auth_ws_ticket(request: Request):
 
     # Import here so the routes module stays usable in test contexts that
     # don't load the ticket store.
-    from deepsuck_cli.dashboard_auth.ws_tickets import TTL_SECONDS, mint_ticket
+    from dag_cli.dashboard_auth.ws_tickets import TTL_SECONDS, mint_ticket
 
     ticket = mint_ticket(user_id=sess.user_id, provider=sess.provider)
     audit_log(

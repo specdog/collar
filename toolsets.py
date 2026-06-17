@@ -64,7 +64,7 @@ _DEEPSUCK_CORE_TOOLS = [
     # Home Assistant smart home control (gated on HASS_TOKEN via check_fn)
     "ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service",
     # Kanban multi-agent coordination — only in schema when the agent is
-    # spawned as a kanban worker (DEEPSUCK_KANBAN_TASK env set) or the current
+    # spawned as a kanban worker (DAG_KANBAN_TASK env set) or the current
     # profile explicitly enables the kanban toolset. Gated via check_fn in
     # tools/kanban_tools.py.
     "kanban_show", "kanban_list",
@@ -107,7 +107,7 @@ TOOLSETS = {
             "Search X (Twitter) posts and threads via xAI's built-in "
             "x_search Responses tool. Available when xAI credentials are "
             "configured (SuperGrok OAuth or XAI_API_KEY). Off by default; "
-            "enable in `deepsuck tools` → X (Twitter) Search."
+            "enable in `dag tools` → X (Twitter) Search."
         ),
         "tools": ["x_search"],
         "includes": []
@@ -136,7 +136,7 @@ TOOLSETS = {
             "Video generation tools. Single ``video_generate`` tool covers "
             "text-to-video (prompt only) and image-to-video (prompt + "
             "image_url) — the active backend auto-routes. Configure via "
-            "``deepsuck tools`` → Video Generation."
+            "``dag tools`` → Video Generation."
         ),
         "tools": ["video_generate"],
         "includes": []
@@ -261,7 +261,7 @@ TOOLSETS = {
     "kanban": {
         "description": (
             "Kanban multi-agent coordination — only active when the agent "
-            "is spawned by the kanban dispatcher (DEEPSUCK_KANBAN_TASK env "
+            "is spawned by the kanban dispatcher (DAG_KANBAN_TASK env "
             "set). The dispatcher runs inside the gateway by default; see "
             "`kanban.dispatch_in_gateway` in config.yaml. Lets workers mark "
             "tasks done with structured handoffs, block for human input, "
@@ -340,7 +340,7 @@ TOOLSETS = {
         "includes": ["web", "vision", "image_gen"]
     },
 
-    # Coding posture (base Deepsuck — CLI/TUI/desktop/ACP). Auto-selected in a
+    # Coding posture (base Dag — CLI/TUI/desktop/ACP). Auto-selected in a
     # code workspace; see agent/coding_context.py. Keeps everything you reach
     # for while pairing on code and drops the rest (messaging, tts, image_gen,
     # spotify, home-assistant, cron, computer-use).
@@ -363,18 +363,18 @@ TOOLSETS = {
         "includes": [],
         # Posture toolset: selected per-session by agent/coding_context.py,
         # never auto-recovered into per-platform tool config (see the
-        # non-configurable-toolset recovery loop in deepsuck_cli/tools_config.py).
+        # non-configurable-toolset recovery loop in dag_cli/tools_config.py).
         "posture": True,
     },
     
     # ==========================================================================
-    # Full Deepsuck toolsets (CLI + messaging platforms)
+    # Full DAG toolsets (CLI + messaging platforms)
     #
     # All platforms share the same core tools (including send_message,
     # which is gated on gateway running via its check_fn).
     # ==========================================================================
 
-    "deepsuck-acp": {
+    "dag-acp": {
         "description": "Editor integration (VS Code, Zed, JetBrains) — coding-focused tools without messaging, audio, or clarify UI",
         "tools": [
             "web_search", "web_extract",
@@ -393,7 +393,7 @@ TOOLSETS = {
         "includes": []
     },
 
-    "deepsuck-api-server": {
+    "dag-api-server": {
         "description": "OpenAI-compatible API server — full agent tools accessible via HTTP (no interactive UI tools like clarify or send_message)",
         "tools": [
             # Web
@@ -426,30 +426,30 @@ TOOLSETS = {
         "includes": []
     },
     
-    "deepsuck-cli": {
+    "dag-cli": {
         "description": "Full interactive CLI toolset - all default tools plus cronjob management",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-cron": {
-        # Mirrors deepsuck-cli so cron's "default" toolset is the same set of
-        # core tools users see interactively — then `deepsuck tools` filters
+    "dag-cron": {
+        # Mirrors dag-cli so cron's "default" toolset is the same set of
+        # core tools users see interactively — then `dag tools` filters
         # them down per the platform config. _DEFAULT_OFF_TOOLSETS (moa,
         # homeassistant) are excluded by _get_platform_tools() unless
         # the user explicitly enables them.
-        "description": "Default cron toolset - same core tools as deepsuck-cli; gated by `deepsuck tools`",
+        "description": "Default cron toolset - same core tools as dag-cli; gated by `dag tools`",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-telegram": {
+    "dag-telegram": {
         "description": "Telegram bot toolset - full access for personal use (terminal has safety checks)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
     
-    "deepsuck-discord": {
+    "dag-discord": {
         "description": "Discord bot toolset - full access (terminal has safety checks via dangerous command approval)",
         "tools": _DEEPSUCK_CORE_TOOLS + [
             "discord",
@@ -458,61 +458,61 @@ TOOLSETS = {
         "includes": []
     },
     
-    "deepsuck-whatsapp": {
+    "dag-whatsapp": {
         "description": "WhatsApp bot toolset - similar to Telegram (personal messaging, more trusted)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
     
-    "deepsuck-slack": {
+    "dag-slack": {
         "description": "Slack bot toolset - full access for workspace use (terminal has safety checks)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
     
-    "deepsuck-signal": {
+    "dag-signal": {
         "description": "Signal bot toolset - encrypted messaging platform (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-bluebubbles": {
+    "dag-bluebubbles": {
         "description": "BlueBubbles iMessage bot toolset - Apple iMessage via local BlueBubbles server",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-homeassistant": {
+    "dag-homeassistant": {
         "description": "Home Assistant bot toolset - smart home event monitoring and control",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-email": {
-        "description": "Email bot toolset - interact with Deepsuck via email (IMAP/SMTP)",
+    "dag-email": {
+        "description": "Email bot toolset - interact with Dag via email (IMAP/SMTP)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-mattermost": {
+    "dag-mattermost": {
         "description": "Mattermost bot toolset - self-hosted team messaging (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-matrix": {
+    "dag-matrix": {
         "description": "Matrix bot toolset - decentralized encrypted messaging (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-dingtalk": {
+    "dag-dingtalk": {
         "description": "DingTalk bot toolset - enterprise messaging platform (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-feishu": {
+    "dag-feishu": {
         "description": "Feishu/Lark bot toolset - enterprise messaging via Feishu/Lark (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS + [
             "feishu_doc_read",
@@ -524,31 +524,31 @@ TOOLSETS = {
         "includes": []
     },
 
-    "deepsuck-weixin": {
+    "dag-weixin": {
         "description": "Weixin bot toolset - personal WeChat messaging via iLink (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-qqbot": {
+    "dag-qqbot": {
         "description": "QQBot toolset - QQ messaging via Official Bot API v2 (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-wecom": {
+    "dag-wecom": {
         "description": "WeCom bot toolset - enterprise WeChat messaging (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-wecom-callback": {
+    "dag-wecom-callback": {
         "description": "WeCom callback toolset - enterprise self-built app messaging (full access)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-yuanbao": {
+    "dag-yuanbao": {
         "description": "Yuanbao Bot 元宝消息平台工具集 - 群信息、成员查询、私聊、贴纸表情",
         "tools": _DEEPSUCK_CORE_TOOLS + [
             "yb_query_group_info",
@@ -561,22 +561,22 @@ TOOLSETS = {
         "includes": []
     },
 
-    "deepsuck-sms": {
-        "description": "SMS bot toolset - interact with Deepsuck via SMS (Twilio)",
+    "dag-sms": {
+        "description": "SMS bot toolset - interact with Dag via SMS (Twilio)",
         "tools": _DEEPSUCK_CORE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-webhook": {
+    "dag-webhook": {
         "description": "Webhook toolset - receive and process external webhook events",
         "tools": _DEEPSUCK_WEBHOOK_SAFE_TOOLS,
         "includes": []
     },
 
-    "deepsuck-gateway": {
+    "dag-gateway": {
         "description": "Gateway toolset - union of all messaging platform tools",
         "tools": [],
-        "includes": ["deepsuck-telegram", "deepsuck-discord", "deepsuck-whatsapp", "deepsuck-slack", "deepsuck-signal", "deepsuck-bluebubbles", "deepsuck-homeassistant", "deepsuck-email", "deepsuck-sms", "deepsuck-mattermost", "deepsuck-matrix", "deepsuck-dingtalk", "deepsuck-feishu", "deepsuck-wecom", "deepsuck-wecom-callback", "deepsuck-weixin", "deepsuck-qqbot", "deepsuck-webhook", "deepsuck-yuanbao"]
+        "includes": ["dag-telegram", "dag-discord", "dag-whatsapp", "dag-slack", "dag-signal", "dag-bluebubbles", "dag-homeassistant", "dag-email", "dag-sms", "dag-mattermost", "dag-matrix", "dag-dingtalk", "dag-feishu", "dag-wecom", "dag-wecom-callback", "dag-weixin", "dag-qqbot", "dag-webhook", "dag-yuanbao"]
     }
 }
 
@@ -671,11 +671,11 @@ def resolve_toolset(name: str, visited: Set[str] = None) -> List[str]:
     # Get toolset definition
     toolset = get_toolset(name)
     if not toolset:
-        # Auto-generate a toolset for plugin platforms (deepsuck-<name>).
+        # Auto-generate a toolset for plugin platforms (dag-<name>).
         # Gives them _DEEPSUCK_CORE_TOOLS plus any tools the plugin registered
         # into a toolset matching the platform name.
-        if name.startswith("deepsuck-"):
-            platform_name = name[len("deepsuck-"):]
+        if name.startswith("dag-"):
+            platform_name = name[len("dag-"):]
             try:
                 from gateway.platform_registry import platform_registry
                 if platform_registry.is_registered(platform_name):

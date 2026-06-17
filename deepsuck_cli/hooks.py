@@ -1,14 +1,14 @@
-"""deepsuck hooks — inspect and manage shell-script hooks.
+"""dag hooks — inspect and manage shell-script hooks.
 
 Usage::
 
-    deepsuck hooks list
-    deepsuck hooks test <event> [--for-tool X] [--payload-file F]
-    deepsuck hooks revoke <command>
-    deepsuck hooks doctor
+    dag hooks list
+    dag hooks test <event> [--for-tool X] [--payload-file F]
+    dag hooks revoke <command>
+    dag hooks doctor
 
-Consent records live under ``~/.deepsuck/shell-hooks-allowlist.json`` and
-hook definitions come from the ``hooks:`` block in ``~/.deepsuck/config.yaml``
+Consent records live under ``~/.dag/shell-hooks-allowlist.json`` and
+hook definitions come from the ``hooks:`` block in ``~/.dag/config.yaml``
 (the same config read by the CLI / gateway at startup).
 
 This module is a thin CLI shell over :mod:`agent.shell_hooks`; every
@@ -24,12 +24,12 @@ from typing import Any, Dict, List
 
 
 def hooks_command(args) -> None:
-    """Entry point for ``deepsuck hooks`` — dispatches to the requested action."""
+    """Entry point for ``dag hooks`` — dispatches to the requested action."""
     sub = getattr(args, "hooks_action", None)
 
     if not sub:
-        print("Usage: deepsuck hooks {list|test|revoke|doctor}")
-        print("Run 'deepsuck hooks --help' for details.")
+        print("Usage: dag hooks {list|test|revoke|doctor}")
+        print("Run 'dag hooks --help' for details.")
         return
 
     if sub in {"list", "ls"}:
@@ -49,14 +49,14 @@ def hooks_command(args) -> None:
 # ---------------------------------------------------------------------------
 
 def _cmd_list(_args) -> None:
-    from deepsuck_cli.config import load_config
+    from dag_cli.config import load_config
     from agent import shell_hooks
 
     specs = shell_hooks.iter_configured_hooks(load_config())
 
     if not specs:
-        print("No shell hooks configured in ~/.deepsuck/config.yaml.")
-        print("See `deepsuck hooks --help` or")
+        print("No shell hooks configured in ~/.dag/config.yaml.")
+        print("See `dag hooks --help` or")
         print("    website/docs/user-guide/features/hooks.md")
         print("for the config schema and worked examples.")
         return
@@ -95,7 +95,7 @@ def _cmd_list(_args) -> None:
                         print(
                             f"      ⚠ script modified since approval "
                             f"(was {mtime_at}, now {mtime_now}) — "
-                            f"run `deepsuck hooks doctor` to re-validate"
+                            f"run `dag hooks doctor` to re-validate"
                         )
         print()
 
@@ -107,7 +107,7 @@ def _cmd_list(_args) -> None:
 # Synthetic kwargs matching the real invoke_hook() call sites — these are
 # passed verbatim to agent.shell_hooks.run_once(), which routes them through
 # the same _serialize_payload() that production firings use.  That way the
-# stdin a script sees under `deepsuck hooks test` and `deepsuck hooks doctor`
+# stdin a script sees under `dag hooks test` and `dag hooks doctor`
 # is identical in shape to what it will see at runtime.
 _DEFAULT_PAYLOADS = {
     "pre_tool_call": {
@@ -186,8 +186,8 @@ _DEFAULT_PAYLOADS = {
 
 
 def _cmd_test(args) -> None:
-    from deepsuck_cli.config import load_config
-    from deepsuck_cli.plugins import VALID_HOOKS
+    from dag_cli.config import load_config
+    from dag_cli.plugins import VALID_HOOKS
     from agent import shell_hooks
 
     event = args.event
@@ -259,7 +259,7 @@ def _print_run_result(result: Dict[str, Any]) -> None:
 
     parsed = result.get("parsed")
     if parsed:
-        print(f"      parsed (Deepsuck wire shape): {json.dumps(parsed)}")
+        print(f"      parsed (DAG wire shape): {json.dumps(parsed)}")
     else:
         print("      parsed: <none — hook contributed nothing to the dispatcher>")
 
@@ -291,7 +291,7 @@ def _cmd_revoke(args) -> None:
 # ---------------------------------------------------------------------------
 
 def _cmd_doctor(_args) -> None:
-    from deepsuck_cli.config import load_config
+    from dag_cli.config import load_config
     from agent import shell_hooks
 
     specs = shell_hooks.iter_configured_hooks(load_config())
@@ -342,19 +342,19 @@ def _doctor_one(spec, shell_hooks) -> int:
             problems += 1
             print(f"      ⚠ script modified since approval "
                   f"(was {mtime_at}, now {mtime_now}) — review changes, "
-                  f"then `deepsuck hooks revoke` + re-approve to refresh")
+                  f"then `dag hooks revoke` + re-approve to refresh")
         elif mtime_now and mtime_at and mtime_now == mtime_at:
             print("      ✓ script unchanged since approval")
 
     # 4. Produces valid JSON for a synthetic payload — only when the entry
-    # is already allowlisted.  Otherwise `deepsuck hooks doctor` would execute
+    # is already allowlisted.  Otherwise `dag hooks doctor` would execute
     # every script listed in a freshly-pulled config before the user has
     # reviewed them, which directly contradicts the documented workflow
     # ("spot newly-added hooks *before they register*").
     if not entry:
         print("      ℹ skipped JSON smoke test — not allowlisted yet. "
               "Approve the hook first (via TTY prompt or --accept-hooks), "
-              "then re-run `deepsuck hooks doctor`.")
+              "then re-run `dag hooks doctor`.")
     elif shell_hooks.script_is_executable(spec.command):
         payload = _DEFAULT_PAYLOADS.get(spec.event, {"extra": {}})
         result = shell_hooks.run_once(spec, payload)

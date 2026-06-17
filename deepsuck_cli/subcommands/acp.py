@@ -1,6 +1,6 @@
-"""``deepsuck acp`` subcommand parser.
+"""``dag acp`` subcommand parser.
 
-Extracted from ``deepsuck_cli/main.py:main()`` (god-file Phase 2 follow-up).
+Extracted from ``dag_cli/main.py:main()`` (god-file Phase 2 follow-up).
 Handler injected to avoid importing ``main``.
 """
 
@@ -8,22 +8,22 @@ from __future__ import annotations
 
 from typing import Callable
 
-from deepsuck_cli.subcommands._shared import add_accept_hooks_flag
+from dag_cli.subcommands._shared import add_accept_hooks_flag
 
 
 def build_acp_parser(subparsers, *, cmd_acp: Callable) -> None:
     """Attach the ``acp`` subcommand to ``subparsers``."""
     acp_parser = subparsers.add_parser(
         "acp",
-        help="Run Deepsuck Agent as an ACP (Agent Client Protocol) server",
-        description="Start Deepsuck Agent in ACP mode for editor integration (VS Code, Zed, JetBrains)",
+        help="Run DAG Agent as an ACP (Agent Client Protocol) server",
+        description="Start DAG Agent in ACP mode for editor integration (VS Code, Zed, JetBrains)",
     )
     add_accept_hooks_flag(acp_parser)
     acp_parser.add_argument(
         "--version",
         action="store_true",
         dest="acp_version",
-        help="Print Deepsuck ACP version and exit",
+        help="Print Dag ACP version and exit",
     )
     acp_parser.add_argument(
         "--check",
@@ -33,12 +33,12 @@ def build_acp_parser(subparsers, *, cmd_acp: Callable) -> None:
     acp_parser.add_argument(
         "--setup",
         action="store_true",
-        help="Run interactive Deepsuck provider/model setup for ACP terminal auth",
+        help="Run interactive Dag provider/model setup for ACP terminal auth",
     )
     acp_parser.add_argument(
         "--setup-browser",
         action="store_true",
-        help="Install agent-browser + Playwright Chromium into ~/.deepsuck/node/ "
+        help="Install agent-browser + Playwright Chromium into ~/.dag/node/ "
              "for browser tool support (idempotent).",
     )
     acp_parser.add_argument(

@@ -1,27 +1,27 @@
-"""Unified removal contract for every credential source Deepsuck reads from.
+"""Unified removal contract for every credential source Dag reads from.
 
-Deepsuck seeds its credential pool from many places:
+Dag seeds its credential pool from many places:
 
-    env:<VAR>     — os.environ / ~/.deepsuck/.env
+    env:<VAR>     — os.environ / ~/.dag/.env
     claude_code   — ~/.claude/.credentials.json
-    deepsuck_pkce   — ~/.deepsuck/.anthropic_oauth.json
+    dag_pkce   — ~/.dag/.anthropic_oauth.json
     device_code   — auth.json providers.<provider> (nous, openai-codex, ...)
     qwen-cli      — ~/.qwen/oauth_creds.json
     gh_cli        — gh auth token
     config:<name> — custom_providers config entry
     model_config  — model.api_key when model.provider == "custom"
-    manual        — user ran `deepsuck auth add`
+    manual        — user ran `dag auth add`
 
 Each source has its own reader inside ``agent.credential_pool._seed_from_*``
 (which keep their existing shape — we haven't restructured them).  What we
 unify here is **removal**:
 
-    ``deepsuck auth remove <provider> <N>`` must make the pool entry stay gone.
+    ``dag auth remove <provider> <N>`` must make the pool entry stay gone.
 
 Before this module, every source had an ad-hoc removal branch in
 ``auth_remove_command``, and several sources had no branch at all — so
 ``auth remove`` silently reverted on the next ``load_pool()`` call for
-qwen-cli, nous device_code (partial), deepsuck_pkce, copilot gh_cli, and
+qwen-cli, nous device_code (partial), dag_pkce, copilot gh_cli, and
 custom-config sources.
 
 Now every source registers a ``RemovalStep`` that does exactly three things
@@ -144,12 +144,12 @@ def _remove_env_source(provider: str, removed) -> RemovalResult:
     """env:<VAR> — the most common case.
 
     Handles three user situations:
-      1. Var lives only in ~/.deepsuck/.env  → clear it
+      1. Var lives only in ~/.dag/.env  → clear it
       2. Var lives only in the user's shell (shell profile, systemd
          EnvironmentFile, launchd plist) → hint them where to unset it
       3. Var lives in both → clear from .env, hint about shell
     """
-    from deepsuck_cli.config import get_env_path, remove_env_value
+    from dag_cli.config import get_env_path, remove_env_value
 
     result = RemovalResult()
     env_var = removed.source[len("env:"):]
@@ -177,11 +177,11 @@ def _remove_env_source(provider: str, removed) -> RemovalResult:
     if shell_exported:
         result.hints.extend([
             f"Note: {env_var} is still set in your shell environment "
-            f"(not in ~/.deepsuck/.env).",
+            f"(not in ~/.dag/.env).",
             "  Unset it there (shell profile, systemd EnvironmentFile, "
-            "launchd plist, etc.) or it will keep being visible to Deepsuck.",
-            f"  The pool entry is now suppressed — Deepsuck will ignore "
-            f"{env_var} until you run `deepsuck auth add {provider}`.",
+            "launchd plist, etc.) or it will keep being visible to Dag.",
+            f"  The pool entry is now suppressed — Dag will ignore "
+            f"{env_var} until you run `dag auth add {provider}`.",
         ])
     else:
         result.hints.append(
@@ -195,25 +195,25 @@ def _remove_claude_code(provider: str, removed) -> RemovalResult:
     """~/.claude/.credentials.json is owned by Claude Code itself.
 
     We don't delete it — the user's Claude Code install still needs to
-    work.  We just suppress it so Deepsuck stops reading it.
+    work.  We just suppress it so Dag stops reading it.
     """
     return RemovalResult(hints=[
         "Suppressed claude_code credential — it will not be re-seeded.",
         "Note: Claude Code credentials still live in ~/.claude/.credentials.json",
-        "Run `deepsuck auth add anthropic` to re-enable if needed.",
+        "Run `dag auth add anthropic` to re-enable if needed.",
     ])
 
 
-def _remove_deepsuck_pkce(provider: str, removed) -> RemovalResult:
-    """~/.deepsuck/.anthropic_oauth.json is ours — delete it outright."""
-    from deepsuck_constants import get_deepsuck_home
+def _remove_dag_pkce(provider: str, removed) -> RemovalResult:
+    """~/.dag/.anthropic_oauth.json is ours — delete it outright."""
+    from dag_constants import get_dag_home
 
     result = RemovalResult()
-    oauth_file = get_deepsuck_home() / ".anthropic_oauth.json"
+    oauth_file = get_dag_home() / ".anthropic_oauth.json"
     if oauth_file.exists():
         try:
             oauth_file.unlink()
-            result.cleaned.append("Cleared Deepsuck Anthropic OAuth credentials")
+            result.cleaned.append("Cleared Dag Anthropic OAuth credentials")
         except OSError as exc:
             result.hints.append(f"Could not delete {oauth_file}: {exc}")
     return result
@@ -221,7 +221,7 @@ def _remove_deepsuck_pkce(provider: str, removed) -> RemovalResult:
 
 def _clear_auth_store_provider(provider: str) -> bool:
     """Delete auth_store.providers[provider].  Returns True if deleted."""
-    from deepsuck_cli.auth import (
+    from dag_cli.auth import (
         _auth_store_lock,
         _load_auth_store,
         _save_auth_store,
@@ -241,9 +241,9 @@ def _remove_nous_device_code(provider: str, removed) -> RemovalResult:
     """Nous OAuth lives in auth.json providers.nous — clear it and suppress.
 
     We suppress in addition to clearing because nothing else stops a future
-    `deepsuck auth add nous` (or any other path that writes providers.nous)
+    `dag auth add nous` (or any other path that writes providers.nous)
     from re-seeding before the user has decided to.  Suppression forces
-    them to go through `deepsuck auth add nous` to re-engage, which is the
+    them to go through `dag auth add nous` to re-engage, which is the
     documented re-add path and clears the suppression atomically.
     """
     result = RemovalResult()
@@ -268,7 +268,7 @@ def _remove_minimax_oauth(provider: str, removed) -> RemovalResult:
 def _remove_xai_oauth_loopback_pkce(provider: str, removed) -> RemovalResult:
     """xAI OAuth tokens live in auth.json providers.xai-oauth — clear them.
 
-    Without this step, ``deepsuck auth remove xai-oauth <N>`` silently undoes
+    Without this step, ``dag auth remove xai-oauth <N>`` silently undoes
     itself: the central dispatcher only removes the in-memory pool entry,
     leaves ``providers.xai-oauth`` in auth.json intact, and on the next
     ``load_pool("xai-oauth")`` call ``_seed_from_singletons`` re-seeds the
@@ -276,7 +276,7 @@ def _remove_xai_oauth_loopback_pkce(provider: str, removed) -> RemovalResult:
     user feedback. Clearing the singleton in step with the suppression set
     by the central dispatcher makes the removal stick.
 
-    Belt-and-braces against the manual entry path: ``deepsuck auth add
+    Belt-and-braces against the manual entry path: ``dag auth add
     xai-oauth`` produces a ``manual:xai_pkce`` entry whose removal step
     falls through to "unregistered → nothing to clean up" (correct —
     manual entries are pool-only).
@@ -285,7 +285,7 @@ def _remove_xai_oauth_loopback_pkce(provider: str, removed) -> RemovalResult:
     if _clear_auth_store_provider(provider):
         result.cleaned.append(f"Cleared {provider} OAuth tokens from auth store")
     result.hints.append(
-        "Run `deepsuck model` → xAI Grok OAuth (SuperGrok / Premium+) to re-authenticate if needed."
+        "Run `dag model` → xAI Grok OAuth (SuperGrok / Premium+) to re-authenticate if needed."
     )
     return result
 
@@ -294,7 +294,7 @@ def _remove_codex_device_code(provider: str, removed) -> RemovalResult:
     """Codex tokens live in TWO places: our auth store AND ~/.codex/auth.json.
 
     refresh_codex_oauth_pure() writes both every time, so clearing only
-    the Deepsuck auth store is not enough — _seed_from_singletons() would
+    the Dag auth store is not enough — _seed_from_singletons() would
     re-import from ~/.codex/auth.json on the next load_pool() call and
     the removal would be instantly undone.  We suppress instead of
     deleting Codex CLI's file, so the Codex CLI itself keeps working.
@@ -302,12 +302,12 @@ def _remove_codex_device_code(provider: str, removed) -> RemovalResult:
     The canonical source name in ``_seed_from_singletons`` is
     ``"device_code"`` (no prefix).  Entries may show up in the pool as
     either ``"device_code"`` (seeded) or ``"manual:device_code"`` (added
-    via ``deepsuck auth add openai-codex``), but in both cases the re-seed
+    via ``dag auth add openai-codex``), but in both cases the re-seed
     gate lives at the ``"device_code"`` suppression key.  We suppress
     that canonical key here; the central dispatcher also suppresses
     ``removed.source`` which is fine — belt-and-suspenders, idempotent.
     """
-    from deepsuck_cli.auth import suppress_credential_source
+    from dag_cli.auth import suppress_credential_source
 
     result = RemovalResult()
     if _clear_auth_store_provider(provider):
@@ -319,7 +319,7 @@ def _remove_codex_device_code(provider: str, removed) -> RemovalResult:
     result.hints.extend([
         "Suppressed openai-codex device_code source — it will not be re-seeded.",
         "Note: Codex CLI credentials still live in ~/.codex/auth.json",
-        "Run `deepsuck auth add openai-codex` to re-enable if needed.",
+        "Run `dag auth add openai-codex` to re-enable if needed.",
     ])
     return result
 
@@ -333,7 +333,7 @@ def _remove_qwen_cli(provider: str, removed) -> RemovalResult:
     return RemovalResult(hints=[
         "Suppressed qwen-cli credential — it will not be re-seeded.",
         "Note: Qwen CLI credentials still live in ~/.qwen/oauth_creds.json",
-        "Run `deepsuck auth add qwen-oauth` to re-enable if needed.",
+        "Run `dag auth add qwen-oauth` to re-enable if needed.",
     ])
 
 
@@ -348,13 +348,13 @@ def _remove_copilot_gh(provider: str, removed) -> RemovalResult:
     user clicked.
 
     We don't touch the user's gh CLI or shell state — just suppress so
-    Deepsuck stops picking the token up.
+    Dag stops picking the token up.
     """
     # Suppress ALL copilot source variants up-front so no path resurrects
     # the pool entry.  The central dispatcher in auth_remove_command will
     # ALSO suppress removed.source, but it's idempotent so double-calling
     # is harmless.
-    from deepsuck_cli.auth import suppress_credential_source
+    from dag_cli.auth import suppress_credential_source
     suppress_credential_source(provider, "gh_cli")
     for env_var in ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"):
         suppress_credential_source(provider, f"env:{env_var}")
@@ -362,7 +362,7 @@ def _remove_copilot_gh(provider: str, removed) -> RemovalResult:
     return RemovalResult(hints=[
         "Suppressed all copilot token sources (gh_cli + env vars) — they will not be re-seeded.",
         "Note: Your gh CLI / shell environment is unchanged.",
-        "Run `deepsuck auth add copilot` to re-enable if needed.",
+        "Run `dag auth add copilot` to re-enable if needed.",
     ])
 
 
@@ -407,9 +407,9 @@ def _register_all_sources() -> None:
         description="~/.claude/.credentials.json",
     ))
     register(RemovalStep(
-        provider="anthropic", source_id="deepsuck_pkce",
-        remove_fn=_remove_deepsuck_pkce,
-        description="~/.deepsuck/.anthropic_oauth.json",
+        provider="anthropic", source_id="dag_pkce",
+        remove_fn=_remove_dag_pkce,
+        description="~/.dag/.anthropic_oauth.json",
     ))
     register(RemovalStep(
         provider="nous", source_id="device_code",

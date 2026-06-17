@@ -15,7 +15,7 @@ MD = "deepseek-chat"
 def load_key():
     global AK
     if AK: return
-    env_file = os.path.expanduser("~/.deepsuck/.env")
+    env_file = os.path.expanduser("~/.dag/.env")
     if os.path.exists(env_file):
         for line in open(env_file):
             if "DEEPSEEK_API_KEY" in line and "=" in line:

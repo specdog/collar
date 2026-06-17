@@ -1,9 +1,9 @@
 """
-Deepsuck Agent Uninstaller.
+DAG Agent Uninstaller.
 
 Provides options for:
 - Full uninstall: Remove everything including configs and data
-- Keep data: Remove code but keep ~/.deepsuck/ (configs, sessions, logs)
+- Keep data: Remove code but keep ~/.dag/ (configs, sessions, logs)
 """
 
 import os
@@ -12,9 +12,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 
-from deepsuck_cli.colors import Colors, color
+from dag_cli.colors import Colors, color
 
 def log_info(msg: str):
     print(f"{color('→', Colors.CYAN)} {msg}")
@@ -51,7 +51,7 @@ def find_shell_configs() -> list:
 
 
 def remove_path_from_shell_configs():
-    """Remove Deepsuck PATH entries from shell configuration files."""
+    """Remove Dag PATH entries from shell configuration files."""
     configs = find_shell_configs()
     removed_from = []
     
@@ -60,22 +60,22 @@ def remove_path_from_shell_configs():
             content = config_path.read_text()
             original_content = content
             
-            # Remove lines containing deepsuck-agent or deepsuck PATH entries
+            # Remove lines containing dag-agent or dag PATH entries
             new_lines = []
             skip_next = False
             
             for line in content.split('\n'):
-                # Skip the "# Deepsuck Agent" comment and following line
-                if '# Deepsuck Agent' in line or '# deepsuck-agent' in line:
+                # Skip the "# DAG Agent" comment and following line
+                if '# DAG Agent' in line or '# dag-agent' in line:
                     skip_next = True
                     continue
-                if skip_next and ('deepsuck' in line.lower() and 'PATH' in line):
+                if skip_next and ('dag' in line.lower() and 'PATH' in line):
                     skip_next = False
                     continue
                 skip_next = False
                 
-                # Remove any PATH line containing deepsuck
-                if 'deepsuck' in line.lower() and ('PATH=' in line or 'path=' in line.lower()):
+                # Remove any PATH line containing dag
+                if 'dag' in line.lower() and ('PATH=' in line or 'path=' in line.lower()):
                     continue
                     
                 new_lines.append(line)
@@ -97,19 +97,19 @@ def remove_path_from_shell_configs():
 
 
 def remove_wrapper_script():
-    """Remove the deepsuck wrapper script if it exists."""
+    """Remove the dag wrapper script if it exists."""
     wrapper_paths = [
-        Path.home() / ".local" / "bin" / "deepsuck",
-        Path("/usr/local/bin/deepsuck"),
+        Path.home() / ".local" / "bin" / "dag",
+        Path("/usr/local/bin/dag"),
     ]
     
     removed = []
     for wrapper in wrapper_paths:
         if wrapper.exists():
             try:
-                # Check if it's our wrapper (contains deepsuck_cli reference)
+                # Check if it's our wrapper (contains dag_cli reference)
                 content = wrapper.read_text()
-                if 'deepsuck_cli' in content or 'deepsuck-agent' in content:
+                if 'dag_cli' in content or 'dag-agent' in content:
                     wrapper.unlink()
                     removed.append(wrapper)
             except Exception as e:
@@ -131,11 +131,11 @@ def _node_symlink_candidate_dirs() -> "list[Path]":
     return dirs
 
 
-def remove_node_symlinks(deepsuck_home: Path) -> list:
+def remove_node_symlinks(dag_home: Path) -> list:
     """Remove the node/npm/npx symlinks the installer placed on PATH.
 
     The POSIX installer (``scripts/install.sh`` / ``scripts/lib/node-bootstrap.sh``)
-    symlinks node/npm/npx into the same directory as the ``deepsuck`` command:
+    symlinks node/npm/npx into the same directory as the ``dag`` command:
 
     - ``/usr/local/bin/`` on root FHS installs (Linux, uid 0)
     - ``$PREFIX/bin/`` on Termux
@@ -144,11 +144,11 @@ def remove_node_symlinks(deepsuck_home: Path) -> list:
     We check all candidate directories so that uninstall works regardless of
     how the install was done (e.g. a root FHS install that placed links in
     ``/usr/local/bin``, or an older install that used ``~/.local/bin`` before
-    the FHS fix).  Only symlinks that resolve into this Deepsuck home's ``node``
+    the FHS fix).  Only symlinks that resolve into this Dag home's ``node``
     directory are removed — links the user has repointed elsewhere (nvm, fnm,
     etc.) are left untouched.
     """
-    node_dir = (deepsuck_home / "node").resolve()
+    node_dir = (dag_home / "node").resolve()
     removed = []
 
     for name in ("node", "npm", "npx"):
@@ -184,7 +184,7 @@ def uninstall_gateway_service():
     - Linux: user + system systemd services (with proper DBUS env setup)
     - macOS: launchd plists
     - Windows: Scheduled Task + Startup-folder fallback, via ``gateway_windows``
-    - All platforms: standalone ``deepsuck gateway run`` processes
+    - All platforms: standalone ``dag gateway run`` processes
     - Termux/Android: skips systemd (no systemd on Android), still kills standalone processes
     """
     import platform
@@ -192,7 +192,7 @@ def uninstall_gateway_service():
 
     # 1. Kill any standalone gateway processes (all platforms, including Termux)
     try:
-        from deepsuck_cli.gateway import kill_gateway_processes, find_gateway_pids
+        from dag_cli.gateway import kill_gateway_processes, find_gateway_pids
         pids = find_gateway_pids()
         if pids:
             killed = kill_gateway_processes()
@@ -213,7 +213,7 @@ def uninstall_gateway_service():
     # 2. Linux: uninstall systemd services (both user and system scopes)
     if system == "Linux":
         try:
-            from deepsuck_cli.gateway import (
+            from dag_cli.gateway import (
                 get_systemd_unit_path,
                 get_service_name,
                 _systemctl_cmd,
@@ -250,7 +250,7 @@ def uninstall_gateway_service():
     # 3. macOS: uninstall launchd plist
     elif system == "Darwin":
         try:
-            from deepsuck_cli.gateway import get_launchd_plist_path
+            from dag_cli.gateway import get_launchd_plist_path
             plist_path = get_launchd_plist_path()
             if plist_path.exists():
                 subprocess.run(["launchctl", "unload", str(plist_path)],
@@ -268,7 +268,7 @@ def uninstall_gateway_service():
     #    uninstall logic stays in exactly one place.
     elif system == "Windows":
         try:
-            from deepsuck_cli import gateway_windows
+            from dag_cli import gateway_windows
             if gateway_windows.is_installed() or gateway_windows.is_task_registered() \
                     or gateway_windows.is_startup_entry_installed():
                 try:
@@ -294,20 +294,20 @@ def uninstall_gateway_service():
 # The installer (``scripts/install.ps1``) does four Windows-only things that
 # ``remove_path_from_shell_configs`` / ``remove_wrapper_script`` don't cover:
 #
-#   1. Sets User-scope env vars ``DEEPSUCK_HOME`` and ``DEEPSUCK_GIT_BASH_PATH``
+#   1. Sets User-scope env vars ``DAG_HOME`` and ``DEEPSUCK_GIT_BASH_PATH``
 #      via ``[Environment]::SetEnvironmentVariable(..., "User")``.  These
 #      don't live in ~/.bashrc — they're in the Windows registry at
 #      HKCU\Environment.
 #   2. Prepends to User-scope ``PATH`` (same registry location) entries
-#      like ``%LOCALAPPDATA%\deepsuck\git\cmd``, ``%LOCALAPPDATA%\deepsuck\git\bin``,
-#      ``%LOCALAPPDATA%\deepsuck\git\usr\bin``, ``%LOCALAPPDATA%\deepsuck\node``.
+#      like ``%LOCALAPPDATA%\dag\git\cmd``, ``%LOCALAPPDATA%\dag\git\bin``,
+#      ``%LOCALAPPDATA%\dag\git\usr\bin``, ``%LOCALAPPDATA%\dag\node``.
 #      Again not in any rc file — only accessible via the registry or the
 #      .NET [Environment] API.
-#   3. Downloads PortableGit to ``%LOCALAPPDATA%\deepsuck\git\`` and Node to
-#      ``%LOCALAPPDATA%\deepsuck\node\`` as user-scoped, isolated copies.
+#   3. Downloads PortableGit to ``%LOCALAPPDATA%\dag\git\`` and Node to
+#      ``%LOCALAPPDATA%\dag\node\`` as user-scoped, isolated copies.
 #      These are ~200MB combined and serve no purpose after uninstall.
-#   4. On the ``deepsuck dashboard`` + gateway paths, drops files into
-#      ``%LOCALAPPDATA%\deepsuck\gateway-service\`` and sometimes
+#   4. On the ``dag dashboard`` + gateway paths, drops files into
+#      ``%LOCALAPPDATA%\dag\gateway-service\`` and sometimes
 #      ``%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\`` — the
 #      latter is handled by ``gateway_windows.uninstall()`` already.
 #
@@ -319,21 +319,21 @@ def uninstall_gateway_service():
 # or open a new terminal anyway).
 
 
-def _deepsuck_path_markers(deepsuck_home: Path) -> list[str]:
-    """Path-entry substrings that identify Deepsuck-owned User-PATH entries."""
-    root = str(deepsuck_home).rstrip("\\/")
+def _dag_path_markers(dag_home: Path) -> list[str]:
+    """Path-entry substrings that identify DAG-owned User-PATH entries."""
+    root = str(dag_home).rstrip("\\/")
     # Match on prefix so sub-entries (git\cmd, git\bin, git\usr\bin, node, etc.)
-    # all get swept.  Also match the bare deepsuck-agent install dir.
-    markers = [root + "\\deepsuck-agent", root + "\\git", root + "\\node", root + "\\venv"]
-    # Also match if DEEPSUCK_HOME was customised to somewhere else — find-and-nuke
-    # any entry whose path component contains "deepsuck".  We don't want to catch
-    # unrelated entries like "cdeepsuck-foo" or "ephermeral", so we look for
-    # backslash-deepsuck as a word-ish boundary.
+    # all get swept.  Also match the bare dag-agent install dir.
+    markers = [root + "\\dag-agent", root + "\\git", root + "\\node", root + "\\venv"]
+    # Also match if DAG_HOME was customised to somewhere else — find-and-nuke
+    # any entry whose path component contains "dag".  We don't want to catch
+    # unrelated entries like "cdag-foo" or "ephermeral", so we look for
+    # backslash-dag as a word-ish boundary.
     return markers
 
 
-def remove_path_from_windows_registry(deepsuck_home: Path) -> list[str]:
-    """Strip Deepsuck-owned entries from User-scope PATH in the registry.
+def remove_path_from_windows_registry(dag_home: Path) -> list[str]:
+    """Strip DAG-owned entries from User-scope PATH in the registry.
 
     Returns the list of removed path entries.  Operates on HKCU\\Environment,
     same key the installer wrote to via ``[Environment]::SetEnvironmentVariable``.
@@ -354,7 +354,7 @@ def remove_path_from_windows_registry(deepsuck_home: Path) -> list[str]:
                 return []
             # Preserve REG_EXPAND_SZ vs REG_SZ so unexpanded %VARS% survive.
             entries = [e for e in path_value.split(";") if e]
-            markers = _deepsuck_path_markers(deepsuck_home)
+            markers = _dag_path_markers(dag_home)
             kept: list[str] = []
             for entry in entries:
                 entry_norm = entry.rstrip("\\/")
@@ -371,8 +371,8 @@ def remove_path_from_windows_registry(deepsuck_home: Path) -> list[str]:
     return removed
 
 
-def remove_deepsuck_env_vars_windows() -> list[str]:
-    """Delete DEEPSUCK_HOME and DEEPSUCK_GIT_BASH_PATH from User-scope env vars."""
+def remove_dag_env_vars_windows() -> list[str]:
+    """Delete DAG_HOME and DEEPSUCK_GIT_BASH_PATH from User-scope env vars."""
     try:
         import winreg
     except ImportError:
@@ -382,7 +382,7 @@ def remove_deepsuck_env_vars_windows() -> list[str]:
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0,
                             winreg.KEY_READ | winreg.KEY_WRITE) as key:
-            for name in ("DEEPSUCK_HOME", "DEEPSUCK_GIT_BASH_PATH"):
+            for name in ("DAG_HOME", "DEEPSUCK_GIT_BASH_PATH"):
                 try:
                     winreg.QueryValueEx(key, name)
                 except FileNotFoundError:
@@ -397,13 +397,13 @@ def remove_deepsuck_env_vars_windows() -> list[str]:
     return removed
 
 
-def remove_portable_tooling_windows(deepsuck_home: Path) -> list[Path]:
+def remove_portable_tooling_windows(dag_home: Path) -> list[Path]:
     """Delete PortableGit and Node installs the Windows installer created under
-    ``%LOCALAPPDATA%\\deepsuck\\``.  Only called on full uninstall; they're
+    ``%LOCALAPPDATA%\\dag\\``.  Only called on full uninstall; they're
     isolated from any system Git / Node so they cannot break other tools."""
     removed: list[Path] = []
     for sub in ("git", "node", "gateway-service"):
-        target = deepsuck_home / sub
+        target = dag_home / sub
         if target.exists():
             try:
                 shutil.rmtree(target, ignore_errors=False)
@@ -418,11 +418,11 @@ def _is_windows() -> bool:
     return sys.platform == "win32"
 
 
-def _is_default_deepsuck_home(deepsuck_home: Path) -> bool:
-    """Return True when ``deepsuck_home`` points at the default (non-profile) root."""
+def _is_default_dag_home(dag_home: Path) -> bool:
+    """Return True when ``dag_home`` points at the default (non-profile) root."""
     try:
-        from deepsuck_constants import get_default_deepsuck_root
-        return deepsuck_home.resolve() == get_default_deepsuck_root().resolve()
+        from dag_constants import get_default_dag_root
+        return dag_home.resolve() == get_default_dag_root().resolve()
     except Exception:
         return False
 
@@ -432,7 +432,7 @@ def _discover_named_profiles():
     if profile support is unavailable or nothing is installed beyond the
     default root."""
     try:
-        from deepsuck_cli.profiles import list_profiles
+        from dag_cli.profiles import list_profiles
     except Exception:
         return []
     try:
@@ -444,11 +444,11 @@ def _discover_named_profiles():
 
 def _uninstall_profile(profile) -> None:
     """Fully uninstall a single named profile: stop its gateway service,
-    remove its alias wrapper, and wipe its DEEPSUCK_HOME directory.
+    remove its alias wrapper, and wipe its DAG_HOME directory.
 
-    We shell out to ``deepsuck -p <name> gateway stop|uninstall`` because
+    We shell out to ``dag -p <name> gateway stop|uninstall`` because
     service names, unit paths, and plist paths are all derived from the
-    current DEEPSUCK_HOME and can't be easily switched in-process.
+    current DAG_HOME and can't be easily switched in-process.
     """
     import sys as _sys
     name = profile.name
@@ -457,13 +457,13 @@ def _uninstall_profile(profile) -> None:
     log_info(f"Uninstalling profile '{name}'...")
 
     # 1. Stop and remove this profile's gateway service.
-    #    Use `python -m deepsuck_cli.main` so we don't depend on a `deepsuck`
+    #    Use `python -m dag_cli.main` so we don't depend on a `dag`
     #    wrapper that may be half-removed mid-uninstall.
-    deepsuck_invocation = [_sys.executable, "-m", "deepsuck_cli.main", "--profile", name]
+    dag_invocation = [_sys.executable, "-m", "dag_cli.main", "--profile", name]
     for subcmd in ("stop", "uninstall"):
         try:
             subprocess.run(
-                deepsuck_invocation + ["gateway", subcmd],
+                dag_invocation + ["gateway", subcmd],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -483,7 +483,7 @@ def _uninstall_profile(profile) -> None:
         except Exception as e:
             log_warn(f"  Could not remove alias {alias_path}: {e}")
 
-    # 3. Wipe the profile's DEEPSUCK_HOME directory.
+    # 3. Wipe the profile's DAG_HOME directory.
     try:
         if profile_home.exists():
             shutil.rmtree(profile_home)
@@ -495,33 +495,33 @@ def _uninstall_profile(profile) -> None:
 def run_gui_uninstall(args):
     """GUI-only uninstall: remove the Chat GUI, leave the agent + data intact.
 
-    Mirrors ``deepsuck uninstall --gui``. Removes the desktop app's built
+    Mirrors ``dag uninstall --gui``. Removes the desktop app's built
     artifacts, the packaged app bundle (best-effort), and the Electron
-    userData dir — nothing under ``$DEEPSUCK_HOME`` config/sessions/.env, and
+    userData dir — nothing under ``$DAG_HOME`` config/sessions/.env, and
     never the Python agent or its venv.
     """
-    from deepsuck_cli.gui_uninstall import (
+    from dag_cli.gui_uninstall import (
         agent_is_installed,
         gui_install_summary,
         uninstall_gui,
     )
 
-    deepsuck_home = get_deepsuck_home()
-    summary = gui_install_summary(deepsuck_home)
+    dag_home = get_dag_home()
+    summary = gui_install_summary(dag_home)
     skip_confirm = bool(getattr(args, "yes", False))
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.MAGENTA, Colors.BOLD))
-    print(color("│         ⚕ Deepsuck Chat GUI Uninstaller                  │", Colors.MAGENTA, Colors.BOLD))
+    print(color("│         ⚕ Dag Chat GUI Uninstaller                  │", Colors.MAGENTA, Colors.BOLD))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.MAGENTA, Colors.BOLD))
     print()
 
     if not summary["gui_installed"]:
-        print("No Deepsuck Chat GUI installation was found.")
-        print(f"  Checked: {deepsuck_home}, and the standard app locations for this OS.")
+        print("No Dag Chat GUI installation was found.")
+        print(f"  Checked: {dag_home}, and the standard app locations for this OS.")
         return
 
-    print(color("This removes the Chat GUI only. The Deepsuck agent stays installed.", Colors.CYAN))
+    print(color("This removes the Chat GUI only. The Dag agent stays installed.", Colors.CYAN))
     print()
     print(color("Will remove:", Colors.YELLOW, Colors.BOLD))
     for p in summary["source_built_artifacts"]:
@@ -531,10 +531,10 @@ def run_gui_uninstall(args):
     if summary["userdata_exists"]:
         print(f"  • {summary['userdata_dir']}  (desktop app data)")
     print()
-    if agent_is_installed(deepsuck_home):
+    if agent_is_installed(dag_home):
         print(color("Kept intact:", Colors.GREEN, Colors.BOLD))
-        print(f"  • The Deepsuck agent at {deepsuck_home / 'deepsuck-agent'}")
-        print(f"  • Your config, sessions, and secrets under {deepsuck_home}")
+        print(f"  • The Dag agent at {dag_home / 'dag-agent'}")
+        print(f"  • Your config, sessions, and secrets under {dag_home}")
         print()
 
     if not skip_confirm:
@@ -552,15 +552,15 @@ def run_gui_uninstall(args):
     print()
     print(color("Uninstalling Chat GUI...", Colors.CYAN, Colors.BOLD))
     print()
-    uninstall_gui(deepsuck_home)
+    uninstall_gui(dag_home)
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.GREEN, Colors.BOLD))
     print(color("│            ✓ Chat GUI Uninstalled!                      │", Colors.GREEN, Colors.BOLD))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.GREEN, Colors.BOLD))
     print()
-    print("The Deepsuck agent is still installed. Run 'deepsuck' to use the CLI,")
-    print("or 'deepsuck uninstall' to remove the agent too.")
+    print("The Dag agent is still installed. Run 'dag' to use the CLI,")
+    print("or 'dag uninstall' to remove the agent too.")
     print()
 
 
@@ -569,20 +569,20 @@ def run_uninstall(args):
     Run the uninstall process.
     
     Options:
-    - Full uninstall: removes code + ~/.deepsuck/ (configs, data, logs)
-    - Keep data: removes code but keeps ~/.deepsuck/ for future reinstall
+    - Full uninstall: removes code + ~/.dag/ (configs, data, logs)
+    - Keep data: removes code but keeps ~/.dag/ for future reinstall
     """
     project_root = get_project_root()
-    deepsuck_home = get_deepsuck_home()
+    dag_home = get_dag_home()
 
     # Detect named profiles when uninstalling from the default root —
-    # offer to clean them up too instead of leaving zombie DEEPSUCK_HOMEs
+    # offer to clean them up too instead of leaving zombie DAG_HOMEs
     # and systemd units behind.
-    is_default_profile = _is_default_deepsuck_home(deepsuck_home)
+    is_default_profile = _is_default_dag_home(dag_home)
     named_profiles = _discover_named_profiles() if is_default_profile else []
 
     # Non-interactive fast path (``--yes``): no prompts. ``--full`` selects a
-    # full wipe (code + ~/.deepsuck data); otherwise keep-data. Named profiles
+    # full wipe (code + ~/.dag data); otherwise keep-data. Named profiles
     # are NOT auto-removed here — that's a destructive, surprising default for
     # an unattended run, so it stays opt-in to the interactive flow. This is
     # the path the desktop app's detached cleanup script uses for its
@@ -592,7 +592,7 @@ def run_uninstall(args):
         full_uninstall = bool(getattr(args, "full", False))
         _perform_uninstall(
             project_root=project_root,
-            deepsuck_home=deepsuck_home,
+            dag_home=dag_home,
             full_uninstall=full_uninstall,
             remove_profiles=False,
             named_profiles=named_profiles,
@@ -601,16 +601,16 @@ def run_uninstall(args):
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.MAGENTA, Colors.BOLD))
-    print(color("│            ⚕ Deepsuck Agent Uninstaller                  │", Colors.MAGENTA, Colors.BOLD))
+    print(color("│            ⚕ DAG Agent Uninstaller                  │", Colors.MAGENTA, Colors.BOLD))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.MAGENTA, Colors.BOLD))
     print()
     
     # Show what will be affected
     print(color("Current Installation:", Colors.CYAN, Colors.BOLD))
     print(f"  Code:    {project_root}")
-    print(f"  Config:  {deepsuck_home / 'config.yaml'}")
-    print(f"  Secrets: {deepsuck_home / '.env'}")
-    print(f"  Data:    {deepsuck_home / 'cron/'}, {deepsuck_home / 'sessions/'}, {deepsuck_home / 'logs/'}")
+    print(f"  Config:  {dag_home / 'config.yaml'}")
+    print(f"  Secrets: {dag_home / '.env'}")
+    print(f"  Data:    {dag_home / 'cron/'}, {dag_home / 'sessions/'}, {dag_home / 'logs/'}")
     print()
 
     if named_profiles:
@@ -648,7 +648,7 @@ def run_uninstall(args):
 
     # When doing a full uninstall from the default profile, also offer to
     # remove any named profiles — stopping their gateway services, unlinking
-    # their alias wrappers, and wiping their DEEPSUCK_HOME dirs. Otherwise
+    # their alias wrappers, and wiping their DAG_HOME dirs. Otherwise
     # those leave zombie services and data behind.
     remove_profiles = False
     if full_uninstall and named_profiles:
@@ -671,7 +671,7 @@ def run_uninstall(args):
     # Final confirmation
     print()
     if full_uninstall:
-        print(color("⚠️  WARNING: This will permanently delete ALL Deepsuck data!", Colors.RED, Colors.BOLD))
+        print(color("⚠️  WARNING: This will permanently delete ALL Dag data!", Colors.RED, Colors.BOLD))
         print(color("   Including: configs, API keys, sessions, scheduled jobs, logs", Colors.RED))
         if remove_profiles:
             print(color(
@@ -680,7 +680,7 @@ def run_uninstall(args):
                 Colors.RED
             ))
     else:
-        print("This will remove the Deepsuck code but keep your configuration and data.")
+        print("This will remove the Dag code but keep your configuration and data.")
     
     print()
     try:
@@ -697,7 +697,7 @@ def run_uninstall(args):
 
     _perform_uninstall(
         project_root=project_root,
-        deepsuck_home=deepsuck_home,
+        dag_home=dag_home,
         full_uninstall=full_uninstall,
         remove_profiles=remove_profiles,
         named_profiles=named_profiles,
@@ -707,7 +707,7 @@ def run_uninstall(args):
 def _perform_uninstall(
     *,
     project_root: Path,
-    deepsuck_home: Path,
+    dag_home: Path,
     full_uninstall: bool,
     remove_profiles: bool,
     named_profiles: list,
@@ -716,9 +716,9 @@ def _perform_uninstall(
     paths so the destructive sequence lives in exactly one place.
 
     Steps: stop gateway → strip PATH (rc files + Windows registry) → remove the
-    ``deepsuck`` wrapper + node symlinks → remove the desktop Chat GUI artifacts →
+    ``dag`` wrapper + node symlinks → remove the desktop Chat GUI artifacts →
     delete the code checkout → (Windows) remove PortableGit/Node → optionally
-    wipe ``$DEEPSUCK_HOME`` data and named profiles on full uninstall.
+    wipe ``$DAG_HOME`` data and named profiles on full uninstall.
     """
     print()
     print(color("Uninstalling...", Colors.CYAN, Colors.BOLD))
@@ -742,26 +742,26 @@ def _perform_uninstall(
 
     if _is_windows():
         log_info("Removing PATH entries from Windows User environment...")
-        # Expand %LOCALAPPDATA% etc. in deepsuck_home so the marker matching is
+        # Expand %LOCALAPPDATA% etc. in dag_home so the marker matching is
         # against fully resolved paths — installer writes literal strings
-        # like C:\Users\<u>\AppData\Local\deepsuck\git\cmd, not %LOCALAPPDATA%.
-        removed_path_entries = remove_path_from_windows_registry(Path(os.path.expandvars(str(deepsuck_home))))
+        # like C:\Users\<u>\AppData\Local\dag\git\cmd, not %LOCALAPPDATA%.
+        removed_path_entries = remove_path_from_windows_registry(Path(os.path.expandvars(str(dag_home))))
         if removed_path_entries:
             for entry in removed_path_entries:
                 log_success(f"Removed from User PATH: {entry}")
         else:
-            log_info("No Deepsuck-owned PATH entries in User environment")
+            log_info("No DAG-owned PATH entries in User environment")
 
-        log_info("Removing DEEPSUCK_HOME / DEEPSUCK_GIT_BASH_PATH User env vars...")
-        removed_env = remove_deepsuck_env_vars_windows()
+        log_info("Removing DAG_HOME / DEEPSUCK_GIT_BASH_PATH User env vars...")
+        removed_env = remove_dag_env_vars_windows()
         if removed_env:
             for name in removed_env:
                 log_success(f"Removed User env var: {name}")
         else:
-            log_info("No Deepsuck-set User env vars to remove")
+            log_info("No Dag-set User env vars to remove")
     
     # 3. Remove wrapper script
-    log_info("Removing deepsuck command...")
+    log_info("Removing dag command...")
     removed_wrappers = remove_wrapper_script()
     if removed_wrappers:
         for wrapper in removed_wrappers:
@@ -770,15 +770,15 @@ def _perform_uninstall(
         log_info("No wrapper script found")
 
     # 3b. Remove node/npm/npx symlinks the installer left in ~/.local/bin
-    #     (only when they still point into this Deepsuck home's node dir, so we
+    #     (only when they still point into this Dag home's node dir, so we
     #     never clobber an existing nvm / user-managed Node).
-    log_info("Removing Deepsuck-managed node/npm/npx symlinks...")
-    removed_node_links = remove_node_symlinks(deepsuck_home)
+    log_info("Removing Dag-managed node/npm/npx symlinks...")
+    removed_node_links = remove_node_symlinks(dag_home)
     if removed_node_links:
         for link in removed_node_links:
             log_success(f"Removed {link}")
     else:
-        log_info("No Deepsuck-managed node/npm/npx symlinks found")
+        log_info("No Dag-managed node/npm/npx symlinks found")
 
     # 3c. Remove the desktop Chat GUI's artifacts too (built renderer/release,
     #     node_modules, the packaged app bundle, and the Electron userData
@@ -786,13 +786,13 @@ def _perform_uninstall(
     #     code, so the GUI — which is just another consumer of the same
     #     checkout — should go with it. uninstall_gui() never touches config /
     #     sessions / .env, so it's safe in keep-data mode; on full uninstall the
-    #     step-5 rmtree(deepsuck_home) would sweep the in-tree artifacts anyway,
-    #     but the packaged app + Electron userData live OUTSIDE DEEPSUCK_HOME and
+    #     step-5 rmtree(dag_home) would sweep the in-tree artifacts anyway,
+    #     but the packaged app + Electron userData live OUTSIDE DAG_HOME and
     #     must be cleaned explicitly here.
     log_info("Removing desktop Chat GUI artifacts...")
     try:
-        from deepsuck_cli.gui_uninstall import uninstall_gui
-        gui_removed = uninstall_gui(deepsuck_home)
+        from dag_cli.gui_uninstall import uninstall_gui
+        gui_removed = uninstall_gui(dag_home)
         if not gui_removed:
             log_info("No desktop GUI artifacts found")
     except Exception as e:
@@ -805,8 +805,8 @@ def _perform_uninstall(
     # We need to be careful here
     try:
         if project_root.exists():
-            # If the install is inside ~/.deepsuck/, just remove the deepsuck-agent subdir
-            if deepsuck_home in project_root.parents or project_root.parent == deepsuck_home:
+            # If the install is inside ~/.dag/, just remove the dag-agent subdir
+            if dag_home in project_root.parents or project_root.parent == dag_home:
                 shutil.rmtree(project_root)
                 log_success(f"Removed {project_root}")
             else:
@@ -819,23 +819,23 @@ def _perform_uninstall(
 
     # 4b. Remove Windows-only installer artifacts that are NOT user data:
     #     PortableGit, bundled Node, gateway-service dir.  Installer put them
-    #     under DEEPSUCK_HOME but they're install tooling, not config — safe to
+    #     under DAG_HOME but they're install tooling, not config — safe to
     #     remove even in "keep data" mode.  If we're doing a full uninstall
-    #     the step-5 rmtree(deepsuck_home) would sweep them anyway; calling
+    #     the step-5 rmtree(dag_home) would sweep them anyway; calling
     #     this helper there is a no-op since they'll already be gone.
     if _is_windows():
         log_info("Removing Windows installer artifacts (PortableGit, Node, gateway-service)...")
-        removed_artifacts = remove_portable_tooling_windows(deepsuck_home)
+        removed_artifacts = remove_portable_tooling_windows(dag_home)
         if removed_artifacts:
             for path in removed_artifacts:
                 log_success(f"Removed {path}")
         else:
             log_info("No Windows installer artifacts to remove")
     
-    # 5. Optionally remove ~/.deepsuck/ data directory (and named profiles)
+    # 5. Optionally remove ~/.dag/ data directory (and named profiles)
     if full_uninstall:
         # 5a. Stop and remove each named profile's gateway service and
-        #     alias wrapper. The profile DEEPSUCK_HOME dirs live under
+        #     alias wrapper. The profile DAG_HOME dirs live under
         #     ``<default>/profiles/<name>/`` and will be swept away by the
         #     rmtree below, but services + alias scripts live OUTSIDE the
         #     default root and have to be cleaned up explicitly.
@@ -845,14 +845,14 @@ def _perform_uninstall(
 
         log_info("Removing configuration and data...")
         try:
-            if deepsuck_home.exists():
-                shutil.rmtree(deepsuck_home)
-                log_success(f"Removed {deepsuck_home}")
+            if dag_home.exists():
+                shutil.rmtree(dag_home)
+                log_success(f"Removed {dag_home}")
         except Exception as e:
-            log_warn(f"Could not fully remove {deepsuck_home}: {e}")
+            log_warn(f"Could not fully remove {dag_home}: {e}")
             log_info("You may need to manually remove it")
     else:
-        log_info(f"Keeping configuration and data in {deepsuck_home}")
+        log_info(f"Keeping configuration and data in {dag_home}")
     
     # Done
     print()
@@ -863,13 +863,13 @@ def _perform_uninstall(
     
     if not full_uninstall:
         print(color("Your configuration and data have been preserved:", Colors.CYAN))
-        print(f"  {deepsuck_home}/")
+        print(f"  {dag_home}/")
         print()
         print("To reinstall later with your existing settings:")
         if _is_windows():
-            print(color("  iex (irm https://deepsuck-agent.nousresearch.com/install.ps1)", Colors.DIM))
+            print(color("  iex (irm https://dag-agent.nousresearch.com/install.ps1)", Colors.DIM))
         else:
-            print(color("  curl -fsSL https://deepsuck-agent.nousresearch.com/install.sh | bash", Colors.DIM))
+            print(color("  curl -fsSL https://dag-agent.nousresearch.com/install.sh | bash", Colors.DIM))
         print()
 
     if _is_windows():
@@ -879,7 +879,7 @@ def _perform_uninstall(
         print(color("Reload your shell to complete the process:", Colors.YELLOW))
         print("  source ~/.bashrc  # or ~/.zshrc")
     print()
-    print("Thank you for using Deepsuck Agent! ⚕")
+    print("Thank you for using DAG Agent! ⚕")
     print()
 
 
@@ -894,22 +894,22 @@ class _UninstallArgs:
 
 
 def main(argv=None) -> int:
-    """Module entrypoint: ``python -m deepsuck_cli.uninstall --mode <gui|lite|full>``.
+    """Module entrypoint: ``python -m dag_cli.uninstall --mode <gui|lite|full>``.
 
     Exists so the desktop app can run the uninstall under a Python interpreter
     OUTSIDE the venv being deleted. On Windows, ``lite``/``full`` rmtree the
     venv that contains the running ``python.exe`` — and a running .exe is
     mandatory-locked, so doing that from the venv's own interpreter half-fails.
     The desktop launches this with the system Python + ``PYTHONPATH=<agentRoot>``
-    so ``import deepsuck_cli`` resolves from source while the venv is torn down.
+    so ``import dag_cli`` resolves from source while the venv is torn down.
 
-    This module imports only stdlib + ``deepsuck_constants`` + ``deepsuck_cli.colors``
-    (and lazily ``deepsuck_cli.gui_uninstall``), so it runs fine under a bare
+    This module imports only stdlib + ``dag_constants`` + ``dag_cli.colors``
+    (and lazily ``dag_cli.gui_uninstall``), so it runs fine under a bare
     system Python with no site-packages from the venv.
     """
     import argparse
 
-    parser = argparse.ArgumentParser(prog="python -m deepsuck_cli.uninstall")
+    parser = argparse.ArgumentParser(prog="python -m dag_cli.uninstall")
     parser.add_argument(
         "--mode",
         choices=["gui", "lite", "full"],

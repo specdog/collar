@@ -130,7 +130,7 @@ class NousPortalAccountInfo:
 def nous_portal_billing_url(account_info: Optional[NousPortalAccountInfo] = None) -> str:
     """Return the billing URL for a normalized Nous account snapshot."""
     try:
-        from deepsuck_cli.auth import DEFAULT_NOUS_PORTAL_URL
+        from dag_cli.auth import DEFAULT_NOUS_PORTAL_URL
     except Exception:
         DEFAULT_NOUS_PORTAL_URL = "https://portal.nousresearch.com"
 
@@ -205,33 +205,33 @@ def format_nous_portal_entitlement_message(
 
     if account_info is None:
         return (
-            f"Deepsuck could not verify your Nous Portal entitlement, so {capability} "
-            f"is unavailable. Run `deepsuck model` to refresh your login, or check "
+            f"DAG could not verify your Nous Portal entitlement, so {capability} "
+            f"is unavailable. Run `dag model` to refresh your login, or check "
             f"billing at {billing_url}."
         )
 
     if not account_info.logged_in:
         if account_info.inference_credential_present:
             return (
-                f"Nous inference credentials are configured, but Deepsuck cannot verify "
+                f"Nous inference credentials are configured, but Dag cannot verify "
                 f"your Nous Portal paid access for {capability}. Log in with "
-                f"`deepsuck model` to enable Portal-managed features. Billing and "
+                f"`dag model` to enable Portal-managed features. Billing and "
                 f"credits are managed at {billing_url}."
             )
         return (
-            f"Log in to Nous Portal to use {capability}: run `deepsuck model`. "
+            f"Log in to Nous Portal to use {capability}: run `dag model`. "
             f"Billing and credits are managed at {billing_url}."
         )
 
     if account_info.paid_service_access is None:
         detail = (
-            f"Deepsuck could not verify your Nous Portal paid access, so {capability} "
+            f"DAG could not verify your Nous Portal paid access, so {capability} "
             f"is unavailable."
         )
         if account_info.error:
             detail += f" Account lookup failed: {account_info.error}."
         if include_refresh_hint:
-            detail += " Run `deepsuck model` to refresh your session."
+            detail += " Run `dag model` to refresh your session."
         detail += f" Check billing at {billing_url}."
         return detail
 
@@ -239,15 +239,15 @@ def format_nous_portal_entitlement_message(
     reason = access.reason if access else None
     if reason == "account_missing":
         return (
-            f"Deepsuck could not find a Nous Portal account or organisation for this "
-            f"login, so {capability} is unavailable. Run `deepsuck model` to "
+            f"DAG could not find a Nous Portal account or organisation for this "
+            f"login, so {capability} is unavailable. Run `dag model` to "
             f"authenticate again; if the problem persists, contact Nous support."
         )
 
     if reason == "no_usable_credits" or account_info.paid_service_access is False:
         message = _no_paid_access_message(account_info, capability, billing_url)
         if include_refresh_hint and not account_info.fresh:
-            message += " If you recently bought credits, run `deepsuck model` to refresh Deepsuck."
+            message += " If you recently bought credits, run `dag model` to refresh Dag."
         return message
 
     return (
@@ -332,7 +332,7 @@ def get_nous_portal_account_info(
     decoded locally for UX gating only; server APIs remain authoritative.
     """
     try:
-        from deepsuck_cli.auth import get_provider_auth_state
+        from dag_cli.auth import get_provider_auth_state
 
         state = get_provider_auth_state("nous") or {}
     except Exception as exc:
@@ -384,7 +384,7 @@ def _fresh_account_info(
     global _account_info_cache
 
     try:
-        from deepsuck_cli.auth import get_provider_auth_state, resolve_nous_access_token
+        from dag_cli.auth import get_provider_auth_state, resolve_nous_access_token
 
         access_token = resolve_nous_access_token()
         refreshed_state = get_provider_auth_state("nous") or state
@@ -584,7 +584,7 @@ def _info_from_valid_jwt(
     min_jwt_ttl_seconds: int,
 ) -> Optional[NousPortalAccountInfo]:
     try:
-        from deepsuck_cli.auth import _decode_jwt_claims
+        from dag_cli.auth import _decode_jwt_claims
     except Exception:
         return None
 

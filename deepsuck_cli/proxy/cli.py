@@ -1,4 +1,4 @@
-"""CLI handlers for the ``deepsuck proxy`` subcommand."""
+"""CLI handlers for the ``dag proxy`` subcommand."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import logging
 import sys
 from typing import Any
 
-from deepsuck_cli.proxy.adapters import ADAPTERS, get_adapter
-from deepsuck_cli.proxy.server import (
+from dag_cli.proxy.adapters import ADAPTERS, get_adapter
+from dag_cli.proxy.server import (
     AIOHTTP_AVAILABLE,
     DEFAULT_HOST,
     DEFAULT_PORT,
@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 def _print_aiohttp_missing() -> None:
     print(
-        "deepsuck proxy requires aiohttp. Install one of:\n"
-        "  pip install 'deepsuck-agent[messaging]'\n"
+        "dag proxy requires aiohttp. Install one of:\n"
+        "  pip install 'dag-agent[messaging]'\n"
         "  pip install aiohttp",
         file=sys.stderr,
     )
@@ -44,7 +44,7 @@ def cmd_proxy_start(args: Any) -> int:
         return 2
 
     if not adapter.is_authenticated():
-        auth_hint = getattr(adapter, "auth_hint", f"deepsuck auth add {adapter.name}")
+        auth_hint = getattr(adapter, "auth_hint", f"dag auth add {adapter.name}")
         print(
             f"Not logged into {adapter.display_name}. "
             f"Run `{auth_hint}` first.",
@@ -56,7 +56,7 @@ def cmd_proxy_start(args: Any) -> int:
     port = getattr(args, "port", None) or DEFAULT_PORT
 
     print(
-        f"Starting Deepsuck proxy for {adapter.display_name}\n"
+        f"Starting Dag proxy for {adapter.display_name}\n"
         f"  Listening on:  http://{host}:{port}/v1\n"
         f"  Forwarding to: (resolved per-request from your subscription)\n"
         f"  Use any bearer token in the client — the proxy attaches your real credential.\n"
@@ -77,7 +77,7 @@ def cmd_proxy_start(args: Any) -> int:
 
 def cmd_proxy_status(args: Any) -> int:
     """Print the status of each configured upstream adapter."""
-    print("Deepsuck proxy upstream adapters\n")
+    print("DAG proxy upstream adapters\n")
     for name in sorted(ADAPTERS):
         adapter = get_adapter(name)
         if not adapter.is_authenticated():
@@ -94,7 +94,7 @@ def cmd_proxy_status(args: Any) -> int:
         expires = f" (bearer expires {cred.expires_at})" if cred.expires_at else ""
         print(f"  [{name:8s}] {adapter.display_name} — ready{expires}")
     print(
-        "\nStart the proxy with: deepsuck proxy start [--provider <name>]"
+        "\nStart the proxy with: dag proxy start [--provider <name>]"
     )
     return 0
 
@@ -109,7 +109,7 @@ def cmd_proxy_list_providers(args: Any) -> int:
 
 
 def cmd_proxy(args: Any) -> int:
-    """Dispatch ``deepsuck proxy <subcommand>``."""
+    """Dispatch ``dag proxy <subcommand>``."""
     sub = getattr(args, "proxy_command", None)
     if sub == "start":
         return cmd_proxy_start(args)
@@ -119,15 +119,15 @@ def cmd_proxy(args: Any) -> int:
         return cmd_proxy_list_providers(args)
     # No subcommand → print short help.
     print(
-        "deepsuck proxy — local OpenAI-compatible proxy that attaches your\n"
+        "dag proxy — local OpenAI-compatible proxy that attaches your\n"
         "OAuth-authenticated provider credentials to outbound requests.\n"
         "\n"
         "Subcommands:\n"
-        "  deepsuck proxy start [--provider nous|xai] [--host 127.0.0.1] [--port 8645]\n"
+        "  dag proxy start [--provider nous|xai] [--host 127.0.0.1] [--port 8645]\n"
         "      Run the proxy in the foreground.\n"
-        "  deepsuck proxy status\n"
+        "  dag proxy status\n"
         "      Show which upstream adapters are ready.\n"
-        "  deepsuck proxy providers\n"
+        "  dag proxy providers\n"
         "      List available upstream providers.\n",
         file=sys.stderr,
     )

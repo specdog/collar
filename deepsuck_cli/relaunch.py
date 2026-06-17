@@ -1,11 +1,11 @@
 """
-Unified self-relaunch for Deepsuck CLI.
+Unified self-relaunch for Dag CLI.
 
 Preserves critical flags (--tui, --dev, --profile, --model, etc.) across
-process replacement so that ``deepsuck sessions browse`` or post-setup relaunch
+process replacement so that ``dag sessions browse`` or post-setup relaunch
 doesn't silently drop the user's UI mode or other preferences.
 
-Also works when ``deepsuck`` is not on PATH (e.g. ``nix run`` or ``python -m``).
+Also works when ``dag`` is not on PATH (e.g. ``nix run`` or ``python -m``).
 """
 
 import os
@@ -13,7 +13,7 @@ import shutil
 import sys
 from typing import Optional, Sequence
 
-from deepsuck_cli._parser import (
+from dag_cli._parser import (
     PRE_ARGPARSE_INHERITED_FLAGS,
     build_top_level_parser,
 )
@@ -22,7 +22,7 @@ from deepsuck_cli._parser import (
 def _build_inherited_flag_table() -> list[tuple[str, bool]]:
     """Build the ``(option_string, takes_value)`` table of flags that must
     survive a self-relaunch, by introspecting the real parser used by
-    ``deepsuck`` itself.
+    ``dag`` itself.
 
     A flag participates if its argparse Action carries
     ``inherit_on_relaunch = True`` — set by ``_parser._inherited_flag``.
@@ -52,7 +52,7 @@ _INHERITED_FLAGS_TABLE = _build_inherited_flag_table()
 
 
 def _extract_inherited_flags(argv: Sequence[str]) -> list[str]:
-    """Pull out flags that should carry over into a self-relaunched deepsuck."""
+    """Pull out flags that should carry over into a self-relaunched dag."""
     flags: list[str] = []
     i = 0
     while i < len(argv):
@@ -77,13 +77,13 @@ def _extract_inherited_flags(argv: Sequence[str]) -> list[str]:
     return flags
 
 
-def resolve_deepsuck_bin() -> Optional[str]:
-    """Find the deepsuck entry point.
+def resolve_dag_bin() -> Optional[str]:
+    """Find the dag entry point.
 
     Priority:
       1. ``sys.argv[0]`` if it resolves to a real executable.
-      2. ``shutil.which("deepsuck")`` on PATH.
-      3. ``None`` → caller should fall back to ``python -m deepsuck_cli.main``.
+      2. ``shutil.which("dag")`` on PATH.
+      3. ``None`` → caller should fall back to ``python -m dag_cli.main``.
 
     Windows note: ``os.access(path, os.X_OK)`` returns True for ``.py`` and
     ``.pyc`` files on Windows (the OS treats anything listed in PATHEXT as
@@ -92,7 +92,7 @@ def resolve_deepsuck_bin() -> Optional[str]:
     directly — CreateProcessW needs a real .exe, not a script associated
     with the Python launcher.  On Windows we therefore skip the argv[0]
     fast-path when it points at a .py file and fall through to either
-    ``deepsuck.exe`` on PATH or the ``sys.executable -m deepsuck_cli.main``
+    ``dag.exe`` on PATH or the ``sys.executable -m dag_cli.main``
     fallback.
     """
     argv0 = sys.argv[0]
@@ -114,7 +114,7 @@ def resolve_deepsuck_bin() -> Optional[str]:
                 return abs_path
 
     # PATH lookup
-    path_bin = shutil.which("deepsuck")
+    path_bin = shutil.which("dag")
     if path_bin:
         return path_bin
 
@@ -127,7 +127,7 @@ def build_relaunch_argv(
     preserve_inherited: bool = True,
     original_argv: Optional[Sequence[str]] = None,
 ) -> list[str]:
-    """Construct an argv list for replacing the current process with deepsuck.
+    """Construct an argv list for replacing the current process with dag.
 
     Args:
         extra_args: Arguments to append (e.g. ``["--resume", id]``).
@@ -136,12 +136,12 @@ def build_relaunch_argv(
         original_argv: The original argv to scan for flags (defaults to
             ``sys.argv[1:]``).
     """
-    bin_path = resolve_deepsuck_bin()
+    bin_path = resolve_dag_bin()
 
     if bin_path:
         argv = [bin_path]
     else:
-        argv = [sys.executable, "-m", "deepsuck_cli.main"]
+        argv = [sys.executable, "-m", "dag_cli.main"]
 
     src = list(original_argv) if original_argv is not None else list(sys.argv[1:])
 
@@ -158,25 +158,25 @@ def relaunch(
     preserve_inherited: bool = True,
     original_argv: Optional[Sequence[str]] = None,
 ) -> None:
-    """Replace the current process with a fresh deepsuck invocation.
+    """Replace the current process with a fresh dag invocation.
 
     On POSIX we use ``os.execvp`` which replaces the running process with
     the new one in place — same PID, no double-fork.  That's what the
-    relaunch contract wants: "run deepsuck again as if the user had typed
+    relaunch contract wants: "run dag again as if the user had typed
     the new argv".
 
     Windows has no native exec semantics — ``os.execvp`` on Windows
     *emulates* exec by spawning the child and exiting the parent, but
     only works when the target is a real Win32 executable.  Our target
-    is usually ``deepsuck.exe`` (a Python console-script shim that wraps
-    ``python -m deepsuck_cli.main``) or a ``.cmd`` batch file, and both
+    is usually ``dag.exe`` (a Python console-script shim that wraps
+    ``python -m dag_cli.main``) or a ``.cmd`` batch file, and both
     raise ``OSError(8, "Exec format error")`` on Windows' execvp.
 
     The Windows-correct pattern is: spawn the child with ``subprocess.run``
     (which routes through ``cmd.exe`` via ``shell=False`` + PATHEXT resolution),
     wait for it to exit, then propagate its exit code via ``sys.exit``.
-    That's functionally equivalent — the user sees "deepsuck exited, then
-    new deepsuck started" — just with two PIDs in play instead of one.
+    That's functionally equivalent — the user sees "dag exited, then
+    new dag started" — just with two PIDs in play instead of one.
     """
     new_argv = build_relaunch_argv(
         extra_args, preserve_inherited=preserve_inherited, original_argv=original_argv
@@ -192,12 +192,12 @@ def relaunch(
         except OSError as exc:
             # Surface a helpful error rather than the raw OSError — the
             # caller used to see ``[Errno 8] Exec format error`` which is
-            # cryptic.  Common causes: ``deepsuck`` not on PATH yet (install
+            # cryptic.  Common causes: ``dag`` not on PATH yet (install
             # hasn't propagated User PATH into this shell) or a stale shim.
             print(
-                f"\nDeepsuck relaunch failed: {exc}\n"
+                f"\nDag relaunch failed: {exc}\n"
                 f"Command: {' '.join(new_argv)}\n"
-                f"Fix: open a new terminal so PATH picks up, then re-run deepsuck.",
+                f"Fix: open a new terminal so PATH picks up, then re-run dag.",
                 file=sys.stderr,
             )
             sys.exit(1)

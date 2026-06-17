@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from deepsuck_constants import get_config_path, get_skills_dir, is_termux
+from dag_constants import get_config_path, get_skills_dir, is_termux
 
 logger = logging.getLogger(__name__)
 
@@ -196,12 +196,12 @@ def _detect_environment(env: str) -> bool:
     result = True
     if env == "kanban":
         # Kanban is "active" either as a dispatcher-spawned worker (the
-        # dispatcher sets ``DEEPSUCK_KANBAN_TASK`` / ``DEEPSUCK_KANBAN_BOARD`` in the
+        # dispatcher sets ``DAG_KANBAN_TASK`` / ``DAG_KANBAN_BOARD`` in the
         # worker env) or as an orchestrator profile that has opted into the
         # kanban toolset. Mirror the same signals the kanban tools themselves
         # gate on (``tools/kanban_tools.py``) so the offer filter agrees with
         # tool availability.
-        if os.getenv("DEEPSUCK_KANBAN_TASK") or os.getenv("DEEPSUCK_KANBAN_BOARD"):
+        if os.getenv("DAG_KANBAN_TASK") or os.getenv("DAG_KANBAN_BOARD"):
             result = True
         else:
             try:
@@ -212,13 +212,13 @@ def _detect_environment(env: str) -> bool:
                 result = False
     elif env == "docker":
         try:
-            from deepsuck_constants import is_container
+            from dag_constants import is_container
 
             result = is_container()
         except Exception:
             result = False
     elif env == "s6":
-        # The Deepsuck Docker image runs s6-overlay as PID 1 (/init). s6 plants
+        # The Dag Docker image runs s6-overlay as PID 1 (/init). s6 plants
         # its runtime scaffolding under /run/s6 and ships its admin tree under
         # /package/admin/s6-overlay. Either marker means we're inside an
         # s6-supervised container.
@@ -283,7 +283,7 @@ def _raw_config_cache_clear() -> None:
 def _load_raw_config() -> Dict[str, Any]:
     """Read config.yaml with a shared mtime+size keyed cache.
 
-    This module intentionally avoids importing ``deepsuck_cli.config`` on the
+    This module intentionally avoids importing ``dag_cli.config`` on the
     skill prompt/build path. A tiny local cache gives the same repeated-read
     win without pulling the heavier CLI config stack into startup.
     """
@@ -320,8 +320,8 @@ def get_disabled_skill_names(platform: str | None = None) -> Set[str]:
 
     Args:
         platform: Explicit platform name (e.g. ``"telegram"``).  When
-            *None*, resolves from ``DEEPSUCK_PLATFORM`` or
-            ``DEEPSUCK_SESSION_PLATFORM`` env vars.  Returns the global
+            *None*, resolves from ``DAG_PLATFORM`` or
+            ``DAG_SESSION_PLATFORM`` env vars.  Returns the global
             disabled list, unioned with the platform-specific list when a
             platform is resolved (a globally-disabled skill stays disabled
             on every platform).
@@ -340,8 +340,8 @@ def get_disabled_skill_names(platform: str | None = None) -> Set[str]:
     from gateway.session_context import get_session_env
     resolved_platform = (
         platform
-        or os.getenv("DEEPSUCK_PLATFORM")
-        or get_session_env("DEEPSUCK_SESSION_PLATFORM")
+        or os.getenv("DAG_PLATFORM")
+        or get_session_env("DAG_SESSION_PLATFORM")
     )
     global_disabled = _normalize_string_set(skills_cfg.get("disabled"))
     if resolved_platform:
@@ -366,7 +366,7 @@ def _normalize_string_set(values) -> Set[str]:
 # (config_path_str, mtime_ns) -> resolved external dirs list.  Keyed by
 # mtime_ns so a config.yaml edit mid-run is picked up automatically;
 # otherwise every call would re-read + re-YAML-parse the 15KB config,
-# which becomes the dominant cost of ``deepsuck`` startup when ~120 skills
+# which becomes the dominant cost of ``dag`` startup when ~120 skills
 # each trigger a category lookup during banner construction (10+ seconds
 # of pure waste).
 _EXTERNAL_DIRS_CACHE: Dict[Tuple[str, int], List[Path]] = {}
@@ -383,11 +383,11 @@ def get_external_skills_dirs() -> List[Path]:
 
     Each entry is expanded (``~`` and ``${VAR}``) and resolved to an absolute
     path.  Only directories that actually exist are returned.  Duplicates and
-    paths that resolve to the local ``~/.deepsuck/skills/`` are silently skipped.
+    paths that resolve to the local ``~/.dag/skills/`` are silently skipped.
 
     Cached in-process, keyed on ``config.yaml`` mtime — the function is
     called once per skill during banner / tool-registry scans, and YAML
-    parsing a non-trivial config dominates ``deepsuck`` cold-start time
+    parsing a non-trivial config dominates ``dag`` cold-start time
     when the cache is absent.
     """
     config_path = get_config_path()
@@ -427,9 +427,9 @@ def get_external_skills_dirs() -> List[Path]:
     if not isinstance(raw_dirs, list):
         return []
 
-    from deepsuck_constants import get_deepsuck_home
+    from dag_constants import get_dag_home
 
-    deepsuck_home = get_deepsuck_home()
+    dag_home = get_dag_home()
     local_skills = get_skills_dir().resolve()
     seen: Set[Path] = set()
     result = []
@@ -441,9 +441,9 @@ def get_external_skills_dirs() -> List[Path]:
         # Expand ~ and environment variables
         expanded = os.path.expanduser(os.path.expandvars(entry))
         p = Path(expanded)
-        # Resolve relative paths against DEEPSUCK_HOME, not cwd
+        # Resolve relative paths against DAG_HOME, not cwd
         if not p.is_absolute():
-            p = (deepsuck_home / p).resolve()
+            p = (dag_home / p).resolve()
         else:
             p = p.resolve()
         if p == local_skills:
@@ -462,7 +462,7 @@ def get_external_skills_dirs() -> List[Path]:
 
 
 def get_all_skills_dirs() -> List[Path]:
-    """Return all skill directories: local ``~/.deepsuck/skills/`` first, then external.
+    """Return all skill directories: local ``~/.dag/skills/`` first, then external.
 
     The local dir is always first (and always included even if it doesn't exist
     yet — callers handle that).  External dirs follow in config order.
@@ -481,14 +481,14 @@ def extract_skill_conditions(frontmatter: Dict[str, Any]) -> Dict[str, List]:
     # Handle cases where metadata is not a dict (e.g., a string from malformed YAML)
     if not isinstance(metadata, dict):
         metadata = {}
-    deepsuck = metadata.get("deepsuck") or {}
-    if not isinstance(deepsuck, dict):
-        deepsuck = {}
+    dag = metadata.get("dag") or {}
+    if not isinstance(dag, dict):
+        dag = {}
     return {
-        "fallback_for_toolsets": deepsuck.get("fallback_for_toolsets", []),
-        "requires_toolsets": deepsuck.get("requires_toolsets", []),
-        "fallback_for_tools": deepsuck.get("fallback_for_tools", []),
-        "requires_tools": deepsuck.get("requires_tools", []),
+        "fallback_for_toolsets": dag.get("fallback_for_toolsets", []),
+        "requires_toolsets": dag.get("requires_toolsets", []),
+        "fallback_for_tools": dag.get("fallback_for_tools", []),
+        "requires_tools": dag.get("requires_tools", []),
     }
 
 
@@ -501,7 +501,7 @@ def extract_skill_config_vars(frontmatter: Dict[str, Any]) -> List[Dict[str, Any
     Skills declare config.yaml settings they need via::
 
         metadata:
-          deepsuck:
+          dag:
             config:
               - key: wiki.path
                 description: Path to the LLM Wiki knowledge base directory
@@ -514,10 +514,10 @@ def extract_skill_config_vars(frontmatter: Dict[str, Any]) -> List[Dict[str, Any
     metadata = frontmatter.get("metadata")
     if not isinstance(metadata, dict):
         return []
-    deepsuck = metadata.get("deepsuck")
-    if not isinstance(deepsuck, dict):
+    dag = metadata.get("dag")
+    if not isinstance(dag, dict):
         return []
-    raw = deepsuck.get("config")
+    raw = dag.get("config")
     if not raw:
         return []
     if isinstance(raw, dict):
@@ -661,7 +661,7 @@ def extract_skill_description(frontmatter: Dict[str, Any]) -> str:
 def iter_skill_index_files(skills_dir: Path, filename: str):
     """Walk skills_dir yielding sorted paths matching *filename*.
 
-    Excludes Deepsuck metadata, VCS, virtualenv/dependency, and cache
+    Excludes Dag metadata, VCS, virtualenv/dependency, and cache
     directories so dependencies cannot register nested skills.
     """
     matches = []

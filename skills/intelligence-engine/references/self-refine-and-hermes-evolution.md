@@ -18,17 +18,17 @@ Each call is a real API call with a different system prompt. Not one prompt simu
 
 **Tested this session**: Ran against a claim about the intelligence-amplifier project. The critique correctly identified vague claims ("benchmark harness with real measurements"), undefined metrics ("tier bridge of 3.35"), and missing citations. The refined output added specificity and citation requirements.
 
-**API key sourcing**: The deepseek API key is in `~/.deepsuck/.env` (not `config.yaml`). Source it before running:
+**API key sourcing**: The deepseek API key is in `~/.dag/.env` (not `config.yaml`). Source it before running:
 ```bash
-source ~/.deepsuck/.env
+source ~/.dag/.env
 echo "your output" | python3 scripts/self-refine.py
 ```
 
 Config in `config.yaml` has an outdated key. The `.env` key is 35 chars and works.
 
-**Usage via venv**: The deepsuck venv at `/Users/dico/deepsuck/.venv/` has the key in its environment. Activate first or use the venv python:
+**Usage via venv**: The dag venv at `/Users/dico/dag/.venv/` has the key in its environment. Activate first or use the venv python:
 ```bash
-source /Users/dico/deepsuck/.venv/bin/activate
+source /Users/dico/dag/.venv/bin/activate
 echo "output" | python3 scripts/self-refine.py
 ```
 
@@ -47,12 +47,12 @@ Read skill → Generate eval dataset → GEPA Optimizer → Candidate variants �
 
 **What we took from it**: The constraint gate concept (pytest, size limits, benchmark regression checks). The idea of using real session history as eval data. The evolutionary search pattern.
 
-**If bloat becomes acceptable**: Install and point at deepsuck:
+**If bloat becomes acceptable**: Install and point at dag:
 ```bash
-HERMES_AGENT_REPO=/Users/dico/deepsuck python -m evolution.skills.evolve_skill --skill intelligence-engine --iterations 10
+HERMES_AGENT_REPO=/Users/dico/dag python -m evolution.skills.evolve_skill --skill intelligence-engine --iterations 10
 ```
 
-Note: requires `pip install -e "/tmp/hermes-agent-self-evolution[dev]"` in the deepsuck venv. Installed and tested this session — works but pulls in ~30 packages.
+Note: requires `pip install -e "/tmp/hermes-agent-self-evolution[dev]"` in the dag venv. Installed and tested this session — works but pulls in ~30 packages.
 
 ## Cosplay vs Real — The Definitive List
 

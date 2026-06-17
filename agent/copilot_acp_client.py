@@ -1,9 +1,9 @@
-"""OpenAI-compatible shim that forwards Deepsuck requests to `copilot --acp`.
+"""OpenAI-compatible shim that forwards Dag requests to `copilot --acp`.
 
-This adapter lets Deepsuck treat the GitHub Copilot ACP server as a chat-style
+This adapter lets Dag treat the GitHub Copilot ACP server as a chat-style
 backend. Each request starts a short-lived ACP session, sends the formatted
 conversation as a single prompt, collects text chunks, and converts the result
-back into the minimal shape Deepsuck expects from an OpenAI client.
+back into the minimal shape Dag expects from an OpenAI client.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def _resolve_home_dir() -> str:
         pass
 
     # Last resort: /tmp (writable on any POSIX system). Avoids crashing the
-    # subprocess with no HOME; callers can set DEEPSUCK_HOME explicitly if they
+    # subprocess with no HOME; callers can set DAG_HOME explicitly if they
     # need a different writable dir.
     return "/tmp"
 
@@ -97,7 +97,7 @@ def _build_subprocess_env() -> dict[str, str]:
     env = os.environ.copy()
     home = _resolve_home_dir()
     env["HOME"] = home
-    from deepsuck_constants import apply_subprocess_home_env
+    from dag_constants import apply_subprocess_home_env
     apply_subprocess_home_env(env)
     return env
 
@@ -132,13 +132,13 @@ def _format_messages_as_prompt(
     tool_choice: Any = None,
 ) -> str:
     sections: list[str] = [
-        "You are being used as the active ACP agent backend for Deepsuck.",
+        "You are being used as the active ACP agent backend for Dag.",
         "Use ACP capabilities to complete tasks.",
         "IMPORTANT: If you take an action with a tool, you MUST output tool calls using <tool_call>{...}</tool_call> blocks with JSON exactly in OpenAI function-call shape.",
         "If no tool is needed, answer normally.",
     ]
     if model:
-        sections.append(f"Deepsuck requested model hint: {model}")
+        sections.append(f"DAG requested model hint: {model}")
 
     if isinstance(tools, list) and tools:
         tool_specs: list[dict[str, Any]] = []
@@ -523,17 +523,17 @@ class CopilotACPClient:
             if proc.poll() is not None and stderr_text:
                 if _is_gh_copilot_deprecation_message(stderr_text):
                     raise RuntimeError(
-                        "Deepsuck ACP mode requires the NEW GitHub Copilot CLI "
+                        "DAG ACP mode requires the NEW GitHub Copilot CLI "
                         "(github.com/github/copilot-cli), but the binary it just "
                         "spawned is the deprecated `gh copilot` extension.\n\n"
                         "Install the new CLI:\n"
                         "  npm install -g @github/copilot\n"
                         "  # then verify with: copilot --help\n\n"
                         "If `copilot` already resolves to the new CLI but you still see this,\n"
-                        "point Deepsuck at it explicitly:\n"
+                        "point Dag at it explicitly:\n"
                         "  export DEEPSUCK_COPILOT_ACP_COMMAND=/path/to/new/copilot\n\n"
                         "Alternative: use the `copilot` provider (no ACP, hits the Copilot API\n"
-                        "directly with a Copilot subscription token) via `deepsuck setup`.\n\n"
+                        "directly with a Copilot subscription token) via `dag setup`.\n\n"
                         f"Original error:\n{stderr_text}"
                     )
                 raise RuntimeError(f"Copilot ACP process exited early: {stderr_text}")
@@ -551,8 +551,8 @@ class CopilotACPClient:
                         }
                     },
                     "clientInfo": {
-                        "name": "deepsuck-agent",
-                        "title": "Deepsuck Agent",
+                        "name": "dag-agent",
+                        "title": "DAG Agent",
                         "version": "0.0.0",
                     },
                 },
@@ -671,7 +671,7 @@ class CopilotACPClient:
             response = _jsonrpc_error(
                 message_id,
                 -32601,
-                f"ACP client method '{method}' is not supported by Deepsuck yet.",
+                f"ACP client method '{method}' is not supported by Dag yet.",
             )
 
         process.stdin.write(json.dumps(response) + "\n")

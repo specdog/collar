@@ -1,11 +1,11 @@
 """Audit log for dashboard-auth events.
 
-Profile-aware location: ``$DEEPSUCK_HOME/logs/dashboard-auth.log``.
+Profile-aware location: ``$DAG_HOME/logs/dashboard-auth.log``.
 Format: one JSON object per line. Token-like fields are stripped before
 serialisation to avoid leaking refresh tokens or JWTs to disk.
 
 This module deliberately keeps a minimal dependency surface — no imports
-from ``deepsuck_constants`` or other deepsuck_cli modules — so it can be
+from ``dag_constants`` or other dag_cli modules — so it can be
 imported safely from middleware code that loads early in the startup
 sequence.
 """
@@ -50,13 +50,13 @@ class AuditEvent(enum.Enum):
 
 
 def _resolve_log_path() -> Path:
-    """``$DEEPSUCK_HOME/logs/dashboard-auth.log`` with the standard fallback.
+    """``$DAG_HOME/logs/dashboard-auth.log`` with the standard fallback.
 
-    Mirrors ``deepsuck_constants.get_deepsuck_home`` semantics: env var wins,
-    else ``~/.deepsuck``. A local copy avoids an import cycle with the
-    middleware which lives below ``deepsuck_cli``.
+    Mirrors ``dag_constants.get_dag_home`` semantics: env var wins,
+    else ``~/.dag``. A local copy avoids an import cycle with the
+    middleware which lives below ``dag_cli``.
     """
-    home = os.environ.get("DEEPSUCK_HOME") or str(Path.home() / ".deepsuck")
+    home = os.environ.get("DAG_HOME") or str(Path.home() / ".dag")
     return Path(home) / "logs" / "dashboard-auth.log"
 
 

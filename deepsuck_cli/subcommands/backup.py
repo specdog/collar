@@ -1,6 +1,6 @@
-"""``deepsuck backup`` subcommand parser.
+"""``dag backup`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -16,15 +16,15 @@ def build_backup_parser(subparsers, *, cmd_backup: Callable) -> None:
     # =========================================================================
     backup_parser = subparsers.add_parser(
         "backup",
-        help="Back up Deepsuck home directory to a zip file",
-        description="Create a zip archive of your entire Deepsuck configuration, "
-        "skills, sessions, and data (excludes the deepsuck-agent codebase). "
+        help="Back up Dag home directory to a zip file",
+        description="Create a zip archive of your entire Dag configuration, "
+        "skills, sessions, and data (excludes the dag-agent codebase). "
         "Use --quick for a fast snapshot of just critical state files.",
     )
     backup_parser.add_argument(
         "-o",
         "--output",
-        help="Output path for the zip file (default: ~/deepsuck-backup-<timestamp>.zip)",
+        help="Output path for the zip file (default: ~/dag-backup-<timestamp>.zip)",
     )
     backup_parser.add_argument(
         "-q",

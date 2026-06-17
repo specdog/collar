@@ -1,6 +1,6 @@
-"""CLI handlers for ``deepsuck migrate ...``.
+"""CLI handlers for ``dag migrate ...``.
 
-Currently exposes only ``deepsuck migrate xai`` — diagnoses and (with --apply)
+Currently exposes only ``dag migrate xai`` — diagnoses and (with --apply)
 rewrites references to xAI models retired on May 15, 2026.
 """
 from __future__ import annotations
@@ -9,23 +9,23 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from deepsuck_cli.colors import Colors, color
-from deepsuck_cli.config import load_config
+from dag_cli.colors import Colors, color
+from dag_cli.config import load_config
 
 
 def cmd_migrate(args: Any) -> int:
-    """Dispatcher for ``deepsuck migrate <subtype>``."""
+    """Dispatcher for ``dag migrate <subtype>``."""
     sub = getattr(args, "migrate_type", None)
     if sub == "xai":
         return cmd_migrate_xai(args)
 
-    print("usage: deepsuck migrate xai [--apply] [--no-backup]", file=sys.stderr)
+    print("usage: dag migrate xai [--apply] [--no-backup]", file=sys.stderr)
     return 2
 
 
 def cmd_migrate_xai(args: Any) -> int:
     """Run xAI May-15 model migration in dry-run or apply mode."""
-    from deepsuck_cli.xai_retirement import (
+    from dag_cli.xai_retirement import (
         MIGRATION_GUIDE_URL,
         RETIREMENT_DATE,
         apply_migration,
@@ -63,7 +63,7 @@ def cmd_migrate_xai(args: Any) -> int:
     if not apply:
         print(color("Dry-run mode — no changes written.", Colors.DIM))
         print(color(
-            "Re-run with `deepsuck migrate xai --apply` to rewrite "
+            "Re-run with `dag migrate xai --apply` to rewrite "
             f"{config_path} in-place (backup created automatically).",
             Colors.DIM,
         ))
@@ -102,7 +102,7 @@ def cmd_migrate_xai(args: Any) -> int:
     )
     print()
     print(color(
-        "Run `deepsuck doctor` to confirm no retired xAI models remain.",
+        "Run `dag doctor` to confirm no retired xAI models remain.",
         Colors.DIM,
     ))
     return 0
@@ -110,6 +110,6 @@ def cmd_migrate_xai(args: Any) -> int:
 
 def _resolve_config_path() -> Path:
     """Best-effort: locate the active config.yaml on disk."""
-    from deepsuck_cli.config import get_deepsuck_home
+    from dag_cli.config import get_dag_home
 
-    return get_deepsuck_home() / "config.yaml"
+    return get_dag_home() / "config.yaml"

@@ -3,7 +3,7 @@
 import sys, json, os, subprocess
 from pathlib import Path
 
-SCRIPTS = Path.home() / ".deepsuck" / "skills" / "intelligence-engine" / "scripts"
+SCRIPTS = Path.home() / ".dag" / "skills" / "intelligence-engine" / "scripts"
 DAG_ROUTER = str(SCRIPTS / "dag-router.py")
 FACT_STORE = str(SCRIPTS / "fact-store.py")
 

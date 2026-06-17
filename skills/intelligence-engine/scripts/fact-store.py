@@ -13,7 +13,7 @@ Usage:
 import sys, json, os, hashlib
 from datetime import datetime
 
-FACT_DIR = os.path.expanduser("~/.deepsuck/intel-reports/facts")
+FACT_DIR = os.path.expanduser("~/.dag/intel-reports/facts")
 os.makedirs(FACT_DIR, exist_ok=True)
 FACT_DB = os.path.join(FACT_DIR, "fact-db.json")
 

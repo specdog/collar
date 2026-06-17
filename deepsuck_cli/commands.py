@@ -1,4 +1,4 @@
-"""Slash command definitions and autocomplete for the Deepsuck CLI.
+"""Slash command definitions and autocomplete for the Dag CLI.
 
 Central registry for all slash commands. Every consumer -- CLI help, gateway
 dispatch, Telegram BotCommands, Slack subcommand mapping, autocomplete --
@@ -90,7 +90,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
                args_hint="[here [N] | focus topic]"),
     CommandDef("rollback", "List or restore filesystem checkpoints", "Session",
                args_hint="[number]"),
-    CommandDef("snapshot", "Create or restore state snapshots of Deepsuck config/state", "Session",
+    CommandDef("snapshot", "Create or restore state snapshots of Dag config/state", "Session",
                cli_only=True, aliases=("snap",), args_hint="[create|restore <id>|prune]"),
     CommandDef("stop", "Kill all running background processes", "Session"),
     CommandDef("approve", "Approve a pending dangerous command", "Session",
@@ -105,7 +105,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
                aliases=("q",), args_hint="<prompt>"),
     CommandDef("steer", "Inject a message after the next tool call without interrupting", "Session",
                args_hint="<prompt>"),
-    CommandDef("goal", "Set a standing goal Deepsuck works on across turns until achieved", "Session",
+    CommandDef("goal", "Set a standing goal Dag works on across turns until achieved", "Session",
                args_hint="[text | pause | resume | clear | status]"),
     CommandDef("subgoal", "Add or manage extra criteria on the active goal", "Session",
                args_hint="[text | remove N | clear]"),
@@ -156,7 +156,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
                subcommands=("kaomoji", "emoji", "unicode", "ascii")),
     CommandDef("voice", "Toggle voice mode", "Configuration",
                args_hint="[on|off|tts|status]", subcommands=("on", "off", "tts", "status")),
-    CommandDef("busy", "Control what Enter does while Deepsuck is working", "Configuration",
+    CommandDef("busy", "Control what Enter does while Dag is working", "Configuration",
                cli_only=True, args_hint="[queue|steer|interrupt|status]",
                subcommands=("queue", "steer", "interrupt", "status")),
 
@@ -199,7 +199,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
                cli_only=True),
     CommandDef("reload-mcp", "Reload MCP servers from config", "Tools & Skills",
                aliases=("reload_mcp",)),
-    CommandDef("reload-skills", "Re-scan ~/.deepsuck/skills/ for newly installed or removed skills",
+    CommandDef("reload-skills", "Re-scan ~/.dag/skills/ for newly installed or removed skills",
                "Tools & Skills", aliases=("reload_skills",)),
     CommandDef("browser", "Connect browser tools to your live Chromium-family browser via CDP", "Tools & Skills",
                cli_only=True, args_hint="[connect|disconnect|status]",
@@ -227,8 +227,8 @@ COMMAND_REGISTRY: list[CommandDef] = [
                cli_only=True),
     CommandDef("image", "Attach a local image file for your next prompt", "Info",
                cli_only=True, args_hint="<path>"),
-    CommandDef("update", "Update Deepsuck Agent to the latest version", "Info"),
-    CommandDef("version", "Show Deepsuck Agent version", "Info", aliases=("v",)),
+    CommandDef("update", "Update DAG Agent to the latest version", "Info"),
+    CommandDef("version", "Show DAG Agent version", "Info", aliases=("v",)),
     CommandDef("debug", "Upload debug report (system info + logs) and get shareable links", "Info"),
 
     # Exit
@@ -401,7 +401,7 @@ def _resolve_config_gates() -> set[str]:
     if not gated:
         return set()
     try:
-        from deepsuck_cli.config import read_raw_config
+        from dag_cli.config import read_raw_config
         cfg = read_raw_config()
     except Exception:
         return set()
@@ -463,9 +463,9 @@ def _iter_plugin_command_entries() -> list[tuple[str, str, str]]:
     """Yield (name, description, args_hint) tuples for all plugin slash commands.
 
     Plugin commands are registered via
-    :func:`deepsuck_cli.plugins.PluginContext.register_command`. They behave
+    :func:`dag_cli.plugins.PluginContext.register_command`. They behave
     like ``CommandDef`` entries for gateway surfacing: they appear in the
-    Telegram command menu, in Slack's ``/deepsuck`` subcommand mapping, and
+    Telegram command menu, in Slack's ``/dag`` subcommand mapping, and
     (via :func:`plugins.platforms.discord.adapter._register_slash_commands`) in
     Discord's native slash command picker.
 
@@ -474,7 +474,7 @@ def _iter_plugin_command_entries() -> list[tuple[str, str, str]]:
     behavior).
     """
     try:
-        from deepsuck_cli.plugins import get_plugin_commands
+        from dag_cli.plugins import get_plugin_commands
     except Exception:
         return []
     try:
@@ -556,7 +556,7 @@ _TELEGRAM_MENU_PRIORITY = (
 )
 """Built-in commands that should stay visible in Telegram's capped menu.
 
-Telegram only displays a small BotCommand menu in practice.  The full Deepsuck
+Telegram only displays a small BotCommand menu in practice.  The full Dag
 registry is still dispatchable when typed manually, but operational commands
 need to survive the visible menu cap ahead of lower-priority built-ins.
 """
@@ -700,7 +700,7 @@ def _collect_gateway_skill_entries(
     # --- Tier 1: Plugin slash commands (never trimmed) ---------------------
     plugin_pairs: list[tuple[str, str]] = []
     try:
-        from deepsuck_cli.plugins import get_plugin_commands
+        from dag_cli.plugins import get_plugin_commands
         plugin_cmds = get_plugin_commands()
         for cmd_name in sorted(plugin_cmds):
             name = sanitize_name(cmd_name) if sanitize_name else cmd_name
@@ -738,7 +738,7 @@ def _collect_gateway_skill_entries(
         # user-configured ``skills.external_dirs``. Ensure each prefix ends
         # with ``/`` so ``/my-skills`` does not also match ``/my-skills-extra``.
         # Without this widening, external skills are visible in
-        # ``deepsuck skills list`` and the agent's ``/skill-name`` dispatch but
+        # ``dag skills list`` and the agent's ``/skill-name`` dispatch but
         # silently excluded from gateway slash menus (#8110).
         _allowed_prefixes = [_skills_dir.rstrip("/") + "/"]
         _allowed_prefixes.extend(
@@ -795,7 +795,7 @@ def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str
 
     Skills are the only tier that gets trimmed when the cap is hit.
     User-installed hub skills are excluded — accessible via /skills.
-    Skills disabled for the ``"telegram"`` platform (via ``deepsuck skills
+    Skills disabled for the ``"telegram"`` platform (via ``dag skills
     config``) are excluded from the menu entirely.
 
     Returns:
@@ -863,7 +863,7 @@ def discord_skill_commands_by_category(
     Scan roots include the local ``SKILLS_DIR`` **and** any configured
     ``skills.external_dirs`` — matching the widened filter applied to the
     flat ``discord_skill_commands()`` collector in #18741. Without this
-    parity, external-dir skills are visible via ``deepsuck skills list`` and
+    parity, external-dir skills are visible via ``dag skills list`` and
     the agent's ``/skill-name`` dispatch but silently absent from Discord's
     ``/skill`` autocomplete.
 
@@ -1035,24 +1035,24 @@ _SLACK_RESERVED_COMMANDS = frozenset({
 # registry fills up. Without this, adding a new canonical command silently
 # clamps off low-priority aliases (they're added in the second pass), so a
 # long-standing native slash like /btw could disappear just because an
-# unrelated command landed. These claim their slots right after /deepsuck,
+# unrelated command landed. These claim their slots right after /dag,
 # ahead of both canonical names and the rest of the aliases. Anything not
-# listed here still degrades gracefully (reachable via /deepsuck <command>).
+# listed here still degrades gracefully (reachable via /dag <command>).
 # Keep this list TIGHT: every pinned alias takes a slot a canonical command
 # would otherwise get, and the Telegram-parity test fails when a canonical
 # gets clamped ("reset" was unpinned for exactly that — /new keeps its
-# native slot, the alias spelling stays reachable via /deepsuck reset).
+# native slot, the alias spelling stays reachable via /dag reset).
 _SLACK_PRIORITY_ALIASES = ("btw", "bg")
 
 # Canonical commands intentionally NOT given a native Slack slash slot. Slack
 # caps apps at 50 slash commands and the registry is at that ceiling; rather
 # than let the clamp silently drop whichever command sorts last (and break
 # Telegram parity), we explicitly route a few low-frequency commands through
-# ``/deepsuck <command>`` on Slack only. They remain native on every other
+# ``/dag <command>`` on Slack only. They remain native on every other
 # surface (CLI, TUI, Telegram, Discord). Keep this list TIGHT and intentional —
 # the telegram-parity test reads it so an entry here is a deliberate
-# "Slack-via-/deepsuck" decision, not a silent clamp.
-#   - credits: the billing/top-up surface; reached via /deepsuck credits on Slack.
+# "Slack-via-/dag" decision, not a silent clamp.
+#   - credits: the billing/top-up surface; reached via /dag credits on Slack.
 _SLACK_VIA_DEEPSUCK_ONLY = frozenset({"credits"})
 
 
@@ -1074,7 +1074,7 @@ def slack_native_slashes() -> list[tuple[str, str, str]]:
     Every gateway-available command in ``COMMAND_REGISTRY`` is surfaced as
     a standalone Slack slash command (e.g. ``/btw``, ``/stop``, ``/model``),
     matching Discord's and Telegram's model where every command is a
-    first-class slash and not a ``/deepsuck <verb>`` subcommand.
+    first-class slash and not a ``/dag <verb>`` subcommand.
 
     Both canonical names and aliases are included so users can type any
     documented form (e.g. ``/background``, ``/bg``, and ``/btw`` all work).
@@ -1082,20 +1082,20 @@ def slack_native_slashes() -> list[tuple[str, str, str]]:
 
     Commands whose sanitized name collides with a Slack built-in
     (e.g. ``/status``, ``/me``, ``/join``) are silently skipped.  Users
-    can still reach them via ``/deepsuck <command>``.
+    can still reach them via ``/dag <command>``.
 
     Results are clamped to Slack's 50-command limit with duplicate-name
-    avoidance. ``/deepsuck`` is always reserved as the first entry so the
-    legacy ``/deepsuck <subcommand>`` form keeps working for anything that
+    avoidance. ``/dag`` is always reserved as the first entry so the
+    legacy ``/dag <subcommand>`` form keeps working for anything that
     gets dropped by the clamp or for free-form questions.
     """
     overrides = _resolve_config_gates()
     entries: list[tuple[str, str, str]] = []
     seen: set[str] = set()
 
-    # Reserve /deepsuck as the catch-all top-level command.
-    entries.append(("deepsuck", "Talk to Deepsuck or run a subcommand", "[subcommand] [args]"))
-    seen.add("deepsuck")
+    # Reserve /dag as the catch-all top-level command.
+    entries.append(("dag", "Talk to Dag or run a subcommand", "[subcommand] [args]"))
+    seen.add("dag")
 
     def _add(name: str, desc: str, hint: str) -> None:
         slack_name = _sanitize_slack_name(name)
@@ -1104,7 +1104,7 @@ def slack_native_slashes() -> list[tuple[str, str, str]]:
         if slack_name in _SLACK_RESERVED_COMMANDS:
             return
         if slack_name in _SLACK_VIA_DEEPSUCK_ONLY:
-            # Intentionally Slack-via-/deepsuck only (see _SLACK_VIA_DEEPSUCK_ONLY).
+            # Intentionally Slack-via-/dag only (see _SLACK_VIA_DEEPSUCK_ONLY).
             return
         if len(entries) >= _SLACK_MAX_SLASH_COMMANDS:
             return
@@ -1113,7 +1113,7 @@ def slack_native_slashes() -> list[tuple[str, str, str]]:
         seen.add(slack_name)
 
     # Priority pass: pin high-value aliases (e.g. /btw, /bg, /reset) ahead of
-    # everything except /deepsuck, so a new canonical command can never silently
+    # everything except /dag, so a new canonical command can never silently
     # clamp them off the 50-slash cap. Each alias borrows its parent command's
     # description and hint.
     _alias_to_cmd = {
@@ -1149,7 +1149,7 @@ def slack_native_slashes() -> list[tuple[str, str, str]]:
     return entries
 
 
-def slack_app_manifest(request_url: str = "https://deepsuck-agent.local/slack/commands") -> dict[str, Any]:
+def slack_app_manifest(request_url: str = "https://dag-agent.local/slack/commands") -> dict[str, Any]:
     """Generate a Slack app manifest with all gateway commands as slashes.
 
     ``request_url`` is required by Slack's manifest schema for every slash
@@ -1177,12 +1177,12 @@ def slack_app_manifest(request_url: str = "https://deepsuck-agent.local/slack/co
 
 
 def slack_subcommand_map() -> dict[str, str]:
-    """Return subcommand -> /command mapping for Slack /deepsuck handler.
+    """Return subcommand -> /command mapping for Slack /dag handler.
 
-    Maps both canonical names and aliases so /deepsuck bg do stuff works
-    the same as /deepsuck background do stuff.
+    Maps both canonical names and aliases so /dag bg do stuff works
+    the same as /dag background do stuff.
 
-    Plugin-registered slash commands are included so ``/deepsuck <plugin-cmd>``
+    Plugin-registered slash commands are included so ``/dag <plugin-cmd>``
     routes through the plugin handler.
     """
     overrides = _resolve_config_gates()
@@ -1579,7 +1579,7 @@ class SlashCommandCompleter(Completer):
     def _skin_completions(sub_text: str, sub_lower: str):
         """Yield completions for /skin from available skins."""
         try:
-            from deepsuck_cli.skin_engine import list_skins
+            from dag_cli.skin_engine import list_skins
             for s in list_skins():
                 name = s["name"]
                 if name.startswith(sub_lower) and name != sub_lower:
@@ -1622,8 +1622,8 @@ class SlashCommandCompleter(Completer):
         already = set(parts[1:] if trailing_space else parts[1:-1])
 
         try:
-            from deepsuck_cli.config import load_config
-            from deepsuck_cli.tools_config import (
+            from dag_cli.config import load_config
+            from dag_cli.tools_config import (
                 CONFIGURABLE_TOOLSETS,
                 _get_platform_tools,
                 _get_plugin_toolset_keys,
@@ -1841,7 +1841,7 @@ class SlashCommandCompleter(Completer):
 
         # Plugin-registered slash commands
         try:
-            from deepsuck_cli.plugins import get_plugin_commands
+            from dag_cli.plugins import get_plugin_commands
             for cmd_name, cmd_info in get_plugin_commands().items():
                 if cmd_name.startswith(word):
                     desc = str(cmd_info.get("description", "Plugin command"))

@@ -1,5 +1,5 @@
 """
-Interactive setup wizard for Deepsuck Agent.
+Interactive setup wizard for DAG Agent.
 
 Modular wizard with independently-runnable sections:
   1. Model & Provider — choose your AI provider and model
@@ -8,7 +8,7 @@ Modular wizard with independently-runnable sections:
   4. Messaging Platforms — connect Telegram, Discord, etc.
   5. Tools — configure TTS, web search, image generation, etc.
 
-Config files are stored in ~/.deepsuck/ for easy access.
+Config files are stored in ~/.dag/ for easy access.
 """
 
 import importlib.util
@@ -21,16 +21,16 @@ import copy
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from deepsuck_cli.nous_subscription import get_nous_subscription_features
+from dag_cli.nous_subscription import get_nous_subscription_features
 from tools.tool_backend_helpers import managed_nous_tools_enabled
 from utils import base_url_hostname
-from deepsuck_constants import get_optional_skills_dir
+from dag_constants import get_optional_skills_dir
 
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
-_DOCS_BASE = "https://deepsuck-agent.nousresearch.com/docs"
+_DOCS_BASE = "https://dag-agent.nousresearch.com/docs"
 
 
 def _model_config_dict(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,7 +60,7 @@ def _supports_same_provider_pool_setup(provider: str) -> bool:
         return False
     if provider == "openrouter":
         return True
-    from deepsuck_cli.auth import PROVIDER_REGISTRY
+    from dag_cli.auth import PROVIDER_REGISTRY
 
     pconfig = PROVIDER_REGISTRY.get(provider)
     if not pconfig:
@@ -129,10 +129,10 @@ def _set_reasoning_effort(config: Dict[str, Any], effort: str) -> None:
 
 
 # Import config helpers
-from deepsuck_cli.config import (
+from dag_cli.config import (
     cfg_get,
     DEFAULT_CONFIG,
-    get_deepsuck_home,
+    get_dag_home,
     get_config_path,
     get_env_path,
     load_config,
@@ -140,11 +140,11 @@ from deepsuck_cli.config import (
     save_env_value,
     remove_env_value,
     get_env_value,
-    ensure_deepsuck_home,
+    ensure_dag_home,
 )
-# display_deepsuck_home imported lazily at call sites (stale-module safety during deepsuck update)
+# display_dag_home imported lazily at call sites (stale-module safety during dag update)
 
-from deepsuck_cli.colors import Colors, color
+from dag_cli.colors import Colors, color
 
 
 def print_header(title: str):
@@ -153,13 +153,13 @@ def print_header(title: str):
     print(color(f"◆ {title}", Colors.CYAN, Colors.BOLD))
 
 
-from deepsuck_cli.cli_output import (  # noqa: E402
+from dag_cli.cli_output import (  # noqa: E402
     print_error,
     print_info,
     print_success,
     print_warning,
 )
-from deepsuck_cli.secret_prompt import masked_secret_prompt  # noqa: E402
+from dag_cli.secret_prompt import masked_secret_prompt  # noqa: E402
 
 
 def is_interactive_stdin() -> bool:
@@ -176,19 +176,19 @@ def is_interactive_stdin() -> bool:
 def print_noninteractive_setup_guidance(reason: str | None = None) -> None:
     """Print guidance for headless/non-interactive setup flows."""
     print()
-    print(color("⚕ Deepsuck Setup — Non-interactive mode", Colors.CYAN, Colors.BOLD))
+    print(color("⚕ Dag Setup — Non-interactive mode", Colors.CYAN, Colors.BOLD))
     print()
     if reason:
         print_info(reason)
     print_info("The interactive wizard cannot be used here.")
     print()
-    print_info("Configure Deepsuck using environment variables or config commands:")
-    print_info("  deepsuck config set model.provider custom")
-    print_info("  deepsuck config set model.base_url http://localhost:8080/v1")
-    print_info("  deepsuck config set model.default your-model-name")
+    print_info("Configure Dag using environment variables or config commands:")
+    print_info("  dag config set model.provider custom")
+    print_info("  dag config set model.base_url http://localhost:8080/v1")
+    print_info("  dag config set model.default your-model-name")
     print()
     print_info("Or set OPENROUTER_API_KEY / OPENAI_API_KEY in your environment.")
-    print_info("Run 'deepsuck setup' in an interactive terminal to use the full wizard.")
+    print_info("Run 'dag setup' in an interactive terminal to use the full wizard.")
     print()
 
 
@@ -224,7 +224,7 @@ def _sanitize_pasted_input(value: str) -> str:
 
 def _curses_prompt_choice(question: str, choices: list, default: int = 0, description: str | None = None) -> int:
     """Single-select menu using curses. Delegates to curses_radiolist."""
-    from deepsuck_cli.curses_ui import curses_radiolist
+    from dag_cli.curses_ui import curses_radiolist
     return curses_radiolist(question, choices, selected=default, cancel_returns=-1, description=description)
 
 
@@ -314,7 +314,7 @@ def prompt_checklist(title: str, items: list, pre_selected: list = None) -> list
     if pre_selected is None:
         pre_selected = []
 
-    from deepsuck_cli.curses_ui import curses_checklist
+    from dag_cli.curses_ui import curses_checklist
 
     chosen = curses_checklist(
         title,
@@ -350,10 +350,10 @@ def _prompt_api_key(var: dict):
         save_env_value(var["name"], value)
         print_success("  ✓ Saved")
     else:
-        print_warning("  Skipped (configure later with 'deepsuck setup')")
+        print_warning("  Skipped (configure later with 'dag setup')")
 
 
-def _print_setup_summary(config: dict, deepsuck_home):
+def _print_setup_summary(config: dict, dag_home):
     """Print the setup completion summary."""
     # Tool availability summary
     print()
@@ -373,7 +373,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
     if _vision_backends:
         tool_status.append(("Vision (image analysis)", True, None))
     else:
-        tool_status.append(("Vision (image analysis)", False, "run 'deepsuck setup' to configure"))
+        tool_status.append(("Vision (image analysis)", False, "run 'dag setup' to configure"))
 
     # Mixture of Agents — requires OpenRouter specifically (calls multiple models)
     if get_env_value("OPENROUTER_API_KEY"):
@@ -434,7 +434,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
         _img_backend = None
         try:
             from agent.image_gen_registry import list_providers
-            from deepsuck_cli.plugins import _ensure_plugins_discovered
+            from dag_cli.plugins import _ensure_plugins_discovered
 
             _ensure_plugins_discovered()
             for _p in list_providers():
@@ -453,7 +453,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
         else:
             tool_status.append(("Image Generation", False, "FAL_KEY or OPENAI_API_KEY"))
 
-    # Video generation — opt-in via `deepsuck tools` → Video Generation.
+    # Video generation — opt-in via `dag tools` → Video Generation.
     # Only show the row when a plugin reports available so we don't badger
     # users who don't care about video gen with a "missing" status line.
     if subscription_features.video_gen.managed_by_nous:
@@ -461,7 +461,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
     else:
         try:
             from agent.video_gen_registry import list_providers as _list_video_providers
-            from deepsuck_cli.plugins import _ensure_plugins_discovered as _ensure_plugins
+            from dag_cli.plugins import _ensure_plugins_discovered as _ensure_plugins
             _ensure_plugins()
             _video_backend = None
             for _vp in _list_video_providers():
@@ -500,7 +500,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
         if neutts_ok:
             tool_status.append(("Text-to-Speech (NeuTTS local)", True, None))
         else:
-            tool_status.append(("Text-to-Speech (NeuTTS — not installed)", False, "run 'deepsuck setup tts'"))
+            tool_status.append(("Text-to-Speech (NeuTTS — not installed)", False, "run 'dag setup tts'"))
     elif tts_provider == "kittentts":
         try:
             kittentts_ok = importlib.util.find_spec("kittentts") is not None
@@ -509,7 +509,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
         if kittentts_ok:
             tool_status.append(("Text-to-Speech (KittenTTS local)", True, None))
         else:
-            tool_status.append(("Text-to-Speech (KittenTTS — not installed)", False, "run 'deepsuck setup tts'"))
+            tool_status.append(("Text-to-Speech (KittenTTS — not installed)", False, "run 'dag setup tts'"))
     else:
         tool_status.append(("Text-to-Speech (Edge TTS)", True, None))
 
@@ -519,7 +519,7 @@ def _print_setup_summary(config: dict, deepsuck_home):
         if subscription_features.modal.direct_override:
             tool_status.append(("Modal Execution (direct Modal)", True, None))
         else:
-            tool_status.append(("Modal Execution", False, "run 'deepsuck setup terminal'"))
+            tool_status.append(("Modal Execution", False, "run 'dag setup terminal'"))
     elif managed_nous_tools_enabled() and subscription_features.nous_auth_present:
         tool_status.append(("Modal Execution (optional via Nous subscription)", True, None))
 
@@ -527,9 +527,9 @@ def _print_setup_summary(config: dict, deepsuck_home):
     if get_env_value("HASS_TOKEN"):
         tool_status.append(("Smart Home (Home Assistant)", True, None))
 
-    # Spotify (OAuth via deepsuck auth spotify — check auth.json, not env vars)
+    # Spotify (OAuth via dag auth spotify — check auth.json, not env vars)
     try:
-        from deepsuck_cli.auth import get_provider_auth_state
+        from dag_cli.auth import get_provider_auth_state
         _spotify_state = get_provider_auth_state("spotify") or {}
         if _spotify_state.get("access_token") or _spotify_state.get("refresh_token"):
             tool_status.append(("Spotify (PKCE OAuth)", True, None))
@@ -571,9 +571,9 @@ def _print_setup_summary(config: dict, deepsuck_home):
     disabled_tools = [(name, var) for name, avail, var in tool_status if not avail]
     if disabled_tools:
         print_warning(
-            "Some tools are disabled. Run 'deepsuck setup tools' to configure them,"
+            "Some tools are disabled. Run 'dag setup tools' to configure them,"
         )
-        from deepsuck_constants import display_deepsuck_home as _dhh
+        from dag_constants import display_dag_home as _dhh
         print_warning(f"or edit {_dhh()}/.env directly to add the missing API keys.")
         print()
 
@@ -597,13 +597,13 @@ def _print_setup_summary(config: dict, deepsuck_home):
     print()
 
     # Show file locations prominently
-    from deepsuck_constants import display_deepsuck_home as _dhh
+    from dag_constants import display_dag_home as _dhh
     print(color(f"📁 All your files are in {_dhh()}/:", Colors.CYAN, Colors.BOLD))
     print()
     print(f"   {color('Settings:', Colors.YELLOW)}  {get_config_path()}")
     print(f"   {color('API Keys:', Colors.YELLOW)}  {get_env_path()}")
     print(
-        f"   {color('Data:', Colors.YELLOW)}      {deepsuck_home}/cron/, sessions/, logs/"
+        f"   {color('Data:', Colors.YELLOW)}      {dag_home}/cron/, sessions/, logs/"
     )
     print()
 
@@ -611,17 +611,17 @@ def _print_setup_summary(config: dict, deepsuck_home):
     print()
     print(color("📝 To edit your configuration:", Colors.CYAN, Colors.BOLD))
     print()
-    print(f"   {color('deepsuck setup', Colors.GREEN)}          Re-run the full wizard")
-    print(f"   {color('deepsuck setup model', Colors.GREEN)}    Change model/provider")
-    print(f"   {color('deepsuck setup terminal', Colors.GREEN)} Change terminal backend")
-    print(f"   {color('deepsuck setup gateway', Colors.GREEN)}  Configure messaging")
-    print(f"   {color('deepsuck setup tools', Colors.GREEN)}    Configure tool providers")
+    print(f"   {color('dag setup', Colors.GREEN)}          Re-run the full wizard")
+    print(f"   {color('dag setup model', Colors.GREEN)}    Change model/provider")
+    print(f"   {color('dag setup terminal', Colors.GREEN)} Change terminal backend")
+    print(f"   {color('dag setup gateway', Colors.GREEN)}  Configure messaging")
+    print(f"   {color('dag setup tools', Colors.GREEN)}    Configure tool providers")
     print()
-    print(f"   {color('deepsuck config', Colors.GREEN)}         View current settings")
+    print(f"   {color('dag config', Colors.GREEN)}         View current settings")
     print(
-        f"   {color('deepsuck config edit', Colors.GREEN)}    Open config in your editor"
+        f"   {color('dag config edit', Colors.GREEN)}    Open config in your editor"
     )
-    print(f"   {color('deepsuck config set <key> <value>', Colors.GREEN)}")
+    print(f"   {color('dag config set <key> <value>', Colors.GREEN)}")
     print("                          Set a specific value")
     print()
     print("   Or edit the files directly:")
@@ -633,9 +633,9 @@ def _print_setup_summary(config: dict, deepsuck_home):
     print()
     print(color("🚀 Ready to go!", Colors.CYAN, Colors.BOLD))
     print()
-    print(f"   {color('deepsuck', Colors.GREEN)}              Start chatting")
-    print(f"   {color('deepsuck gateway', Colors.GREEN)}      Start messaging gateway")
-    print(f"   {color('deepsuck doctor', Colors.GREEN)}       Check for issues")
+    print(f"   {color('dag', Colors.GREEN)}              Start chatting")
+    print(f"   {color('dag gateway', Colors.GREEN)}      Start messaging gateway")
+    print(f"   {color('dag doctor', Colors.GREEN)}       Check for issues")
     print()
 
 
@@ -682,7 +682,7 @@ def _prompt_container_resources(config: dict):
 
 
 # Tool categories and provider config are now in tools_config.py (shared
-# between `deepsuck tools` and `deepsuck setup tools`).
+# between `dag tools` and `dag setup tools`).
 
 
 # =============================================================================
@@ -694,24 +694,24 @@ def _prompt_container_resources(config: dict):
 def setup_model_provider(config: dict, *, quick: bool = False):
     """Configure the inference provider and default model.
 
-    Delegates to ``cmd_model()`` (the same flow used by ``deepsuck model``)
+    Delegates to ``cmd_model()`` (the same flow used by ``dag model``)
     for provider selection, credential prompting, and model picking.
     This ensures a single code path for all provider setup — any new
-    provider added to ``deepsuck model`` is automatically available here.
+    provider added to ``dag model`` is automatically available here.
 
     When *quick* is True, skips credential rotation, vision, and TTS
     configuration — used by the streamlined first-time quick setup.
     """
-    from deepsuck_cli.config import load_config, save_config
+    from dag_cli.config import load_config, save_config
 
     print_header("Inference Provider")
     print_info("Choose how to connect to your main chat model.")
     print_info(f"   Guide: {_DOCS_BASE}/integrations/providers")
     print()
 
-    # Delegate to the shared deepsuck model flow — handles provider picker,
+    # Delegate to the shared dag model flow — handles provider picker,
     # credential prompting, model selection, and config persistence.
-    from deepsuck_cli.main import select_provider_and_model
+    from dag_cli.main import select_provider_and_model
     try:
         select_provider_and_model()
     except (SystemExit, KeyboardInterrupt):
@@ -720,7 +720,7 @@ def setup_model_provider(config: dict, *, quick: bool = False):
     except Exception as exc:
         logger.debug("select_provider_and_model error during setup: %s", exc)
         print_warning(f"Provider setup encountered an error: {exc}")
-        print_info("You can try again later with: deepsuck model")
+        print_info("You can try again later with: dag model")
 
     # Re-sync the wizard's config dict from what cmd_model saved to disk.
     # This is critical: cmd_model writes to disk via its own load/save cycle,
@@ -741,8 +741,8 @@ def setup_model_provider(config: dict, *, quick: bool = False):
     # Credential rotation, vision-backend selection, and TTS provider are no
     # longer prompted here. They have safe defaults (rotation off, vision
     # auto-detected from the main provider, TTS = Edge) and are configurable
-    # on demand via `deepsuck auth add`, `deepsuck setup` vision, and
-    # `deepsuck setup tts`. This keeps both quick and full setup thin.
+    # on demand via `dag auth add`, `dag setup` vision, and
+    # `dag setup tts`. This keeps both quick and full setup thin.
 
     # Tool Gateway prompt is already shown by _model_flow_nous() above.
     save_config(config)
@@ -837,10 +837,10 @@ def _xai_oauth_logged_in_for_setup() -> bool:
     """True iff xAI Grok OAuth credentials are already stored locally.
 
     Lets TTS / STT setup skip the API-key prompt for users who logged in
-    through ``deepsuck model`` -> xAI Grok OAuth (SuperGrok / Premium+).
+    through ``dag model`` -> xAI Grok OAuth (SuperGrok / Premium+).
     """
     try:
-        from deepsuck_cli.auth import get_xai_oauth_auth_status
+        from dag_cli.auth import get_xai_oauth_auth_status
 
         return bool(get_xai_oauth_auth_status().get("logged_in"))
     except Exception:
@@ -854,7 +854,7 @@ def _run_xai_oauth_login_from_setup() -> bool:
     to whatever the user picked next, e.g. Edge TTS).
     """
     try:
-        from deepsuck_cli.auth import (
+        from dag_cli.auth import (
             DEFAULT_XAI_OAUTH_BASE_URL,
             _is_remote_session,
             _save_xai_oauth_tokens,
@@ -942,7 +942,7 @@ def _setup_tts_provider(config: dict):
         print_info("OpenAI TTS will use the managed Nous gateway and bill to your subscription.")
         if get_env_value("VOICE_TOOLS_OPENAI_KEY") or get_env_value("OPENAI_API_KEY"):
             print_warning(
-                "Direct OpenAI credentials are still configured and may take precedence until removed from ~/.deepsuck/.env."
+                "Direct OpenAI credentials are still configured and may take precedence until removed from ~/.dag/.env."
             )
 
     if selected == "neutts":
@@ -994,7 +994,7 @@ def _setup_tts_provider(config: dict):
 
     elif selected == "xai":
         # Resolution order: existing OAuth tokens (free for SuperGrok subscribers
-        # via the Deepsuck auth store) > existing XAI_API_KEY > prompt the user.
+        # via the Dag auth store) > existing XAI_API_KEY > prompt the user.
         # When neither is configured, offer both options instead of forcing the
         # API-key path — xAI TTS works fine with OAuth bearer tokens too.
         oauth_logged_in = _xai_oauth_logged_in_for_setup()
@@ -1035,10 +1035,10 @@ def _setup_tts_provider(config: dict):
                     save_env_value("XAI_API_KEY", api_key)
                     print_success("xAI TTS API key saved")
                 else:
-                    from deepsuck_constants import display_deepsuck_home as _dhh
+                    from dag_constants import display_dag_home as _dhh
                     print_warning(
                         "No xAI API key provided for TTS. Configure XAI_API_KEY "
-                        f"via deepsuck setup model or {_dhh()}/.env to use xAI TTS. "
+                        f"via dag setup model or {_dhh()}/.env to use xAI TTS. "
                         "Falling back to Edge TTS."
                     )
                     selected = "edge"
@@ -1122,7 +1122,7 @@ def _setup_tts_provider(config: dict):
 
 
 def setup_tts(config: dict):
-    """Standalone TTS setup (for 'deepsuck setup tts')."""
+    """Standalone TTS setup (for 'dag setup tts')."""
     _setup_tts_provider(config)
 
 
@@ -1135,7 +1135,7 @@ def setup_terminal_backend(config: dict):
     """Configure the terminal execution backend."""
     import platform as _platform
     print_header("Terminal Backend")
-    print_info("Choose where Deepsuck runs shell commands and code.")
+    print_info("Choose where Dag runs shell commands and code.")
     print_info("This affects tool execution, file access, and isolation.")
     print_info(f"   Guide: {_DOCS_BASE}/developer-guide/environments")
     print()
@@ -1182,7 +1182,7 @@ def setup_terminal_backend(config: dict):
         print_success("Terminal backend: Local")
         print_info("Commands run directly on this machine.")
         # Gateway working directory defaults to home; sudo stays off. Both are
-        # configurable later via `deepsuck setup terminal` / config.yaml.
+        # configurable later via `dag setup terminal` / config.yaml.
         config["terminal"].setdefault("cwd", str(Path.home()))
 
     elif selected_backend == "docker":
@@ -1196,7 +1196,7 @@ def setup_terminal_backend(config: dict):
         else:
             print_info(f"Docker found: {docker_bin}")
 
-        # Image and resource limits use defaults; tune via `deepsuck setup terminal`.
+        # Image and resource limits use defaults; tune via `dag setup terminal`.
         config["terminal"].setdefault(
             "docker_image", "nikolaik/python-nodejs:python3.11-nodejs20"
         )
@@ -1214,7 +1214,7 @@ def setup_terminal_backend(config: dict):
         else:
             print_info(f"Found: {sing_bin}")
 
-        # Image and resource limits use defaults; tune via `deepsuck setup terminal`.
+        # Image and resource limits use defaults; tune via `dag setup terminal`.
         config["terminal"].setdefault(
             "singularity_image",
             "docker://nikolaik/python-nodejs:python3.11-nodejs20",
@@ -1366,7 +1366,7 @@ def setup_terminal_backend(config: dict):
                 save_env_value("DAYTONA_API_KEY", api_key)
                 print_success("    Configured")
 
-        # Image and resource limits use defaults; tune via `deepsuck setup terminal`.
+        # Image and resource limits use defaults; tune via `dag setup terminal`.
         config["terminal"].setdefault(
             "daytona_image", "nikolaik/python-nodejs:python3.11-nodejs20"
         )
@@ -1459,7 +1459,7 @@ def _apply_default_agent_settings(config: dict):
     print_info("  Tool progress: all")
     print_info("  Compression threshold: 0.50")
     print_info("  Session reset: never (use /reset or compression)")
-    print_info("  Run `deepsuck setup agent` later to customize.")
+    print_info("  Run `dag setup agent` later to customize.")
 
 
 def setup_agent_settings(config: dict):
@@ -1649,23 +1649,23 @@ def _is_valid_telegram_bot_token(token: str) -> bool:
 def _setup_telegram_auto_result():
     """Attempt automatic Telegram bot creation via managed QR onboarding."""
     try:
-        from deepsuck_cli.telegram_managed_bot import auto_setup_telegram_bot_result
+        from dag_cli.telegram_managed_bot import auto_setup_telegram_bot_result
     except ImportError:
         return None
 
     profile_name: str | None = None
     try:
-        profile_name = _profile_name_from_deepsuck_home(Path(get_deepsuck_home()))
+        profile_name = _profile_name_from_dag_home(Path(get_dag_home()))
     except Exception:
         pass
 
     return auto_setup_telegram_bot_result(profile_name=profile_name)
 
 
-def _profile_name_from_deepsuck_home(deepsuck_home) -> str | None:
-    """Return the active profile name when DEEPSUCK_HOME is a profile dir."""
-    if deepsuck_home.parent.name == "profiles":
-        return deepsuck_home.name
+def _profile_name_from_dag_home(dag_home) -> str | None:
+    """Return the active profile name when DAG_HOME is a profile dir."""
+    if dag_home.parent.name == "profiles":
+        return dag_home.name
     return None
 
 
@@ -1780,7 +1780,7 @@ def _setup_telegram():
         print_info("⚠️  No allowlist set - anyone who finds your bot can use it!")
 
     print()
-    print_info("📬 Home Channel: where Deepsuck delivers cron job results,")
+    print_info("📬 Home Channel: where Dag delivers cron job results,")
     print_info("   cross-platform messages, and notifications.")
     print_info("   For Telegram DMs, this is your user ID (same as above).")
 
@@ -1811,7 +1811,7 @@ def _setup_slack():
             # new commands (e.g. /btw, /stop, ...) get registered in Slack.
             if prompt_yes_no(
                 "Regenerate the Slack app manifest with the latest command "
-                "list? (recommended after `deepsuck update`)",
+                "list? (recommended after `dag update`)",
                 True,
             ):
                 _write_slack_manifest_and_instruct()
@@ -1825,7 +1825,7 @@ def _setup_slack():
     print_info("   3. Install to Workspace: Settings → Install App")
     print_info("   4. After installing, invite the bot to channels: /invite @YourBot")
     print()
-    print_info("   Full guide: https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/slack/")
+    print_info("   Full guide: https://dag-agent.nousresearch.com/docs/user-guide/messaging/slack/")
     print()
 
     # Generate and write manifest up-front so the user can paste it into
@@ -1858,7 +1858,7 @@ def _setup_slack():
         print_info("   Set SLACK_ALLOW_ALL_USERS=true or GATEWAY_ALLOW_ALL_USERS=true only if you intentionally want open workspace access.")
 
     print()
-    print_info("📬 Home Channel: where Deepsuck delivers cron job results,")
+    print_info("📬 Home Channel: where Dag delivers cron job results,")
     print_info("   cross-platform messages, and notifications.")
     print_info("   To get a channel ID: open the channel in Slack, then right-click")
     print_info("   the channel name → Copy link — the ID starts with C (e.g. C01ABC2DE3F).")
@@ -1869,7 +1869,7 @@ def _setup_slack():
 
 
 def _write_slack_manifest_and_instruct():
-    """Generate the Slack manifest, write it under DEEPSUCK_HOME, and print
+    """Generate the Slack manifest, write it under DAG_HOME, and print
     paste-into-Slack instructions.
 
     Exposed as its own helper so both the initial setup flow and the
@@ -1879,14 +1879,14 @@ def _write_slack_manifest_and_instruct():
     the whole Slack setup.
     """
     try:
-        from deepsuck_cli.slack_cli import _build_full_manifest
-        from deepsuck_constants import get_deepsuck_home
+        from dag_cli.slack_cli import _build_full_manifest
+        from dag_constants import get_dag_home
 
         manifest = _build_full_manifest(
-            bot_name="Deepsuck",
-            bot_description="Your Deepsuck agent on Slack",
+            bot_name="DAG",
+            bot_description="Your Dag agent on Slack",
         )
-        target = Path(get_deepsuck_home()) / "slack-manifest.json"
+        target = Path(get_dag_home()) / "slack-manifest.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         import json as _json
         target.write_text(
@@ -1900,14 +1900,14 @@ def _write_slack_manifest_and_instruct():
             "reinstall if scopes or slash commands changed."
         )
         print_info(
-            "   Re-run `deepsuck slack manifest --write` anytime to refresh after "
-            "Deepsuck adds new commands."
+            "   Re-run `dag slack manifest --write` anytime to refresh after "
+            "DAG adds new commands."
         )
     except Exception as exc:  # pragma: no cover - best-effort UX helper
         print_warning(f"Couldn't write Slack manifest: {exc}")
         print_info(
             "   You can generate it manually later with: "
-            "deepsuck slack manifest --write"
+            "dag slack manifest --write"
         )
 
 
@@ -2019,7 +2019,7 @@ def _setup_matrix():
             print_info("⚠️  No allowlist set - anyone who can message the bot can use it!")
 
         print()
-        print_info("📬 Home Room: where Deepsuck delivers cron job results and notifications.")
+        print_info("📬 Home Room: where Dag delivers cron job results and notifications.")
         print_info("   Room IDs look like !abc123:server (shown in Element room settings)")
         print_info("   You can also set this later by typing /set-home in a Matrix room.")
         home_room = prompt("Home room ID (leave empty to set later with /set-home)")
@@ -2036,7 +2036,7 @@ def _setup_bluebubbles():
         if not prompt_yes_no("Reconfigure BlueBubbles?", False):
             return
 
-    print_info("Connects Deepsuck to iMessage via BlueBubbles — a free, open-source")
+    print_info("Connects Dag to iMessage via BlueBubbles — a free, open-source")
     print_info("macOS server that bridges iMessage to any device.")
     print_info("   Requires a Mac running BlueBubbles Server v1.0.0+")
     print_info("   Download: https://bluebubbles.app/")
@@ -2094,7 +2094,7 @@ def _setup_bluebubbles():
 
 def _setup_qqbot():
     """Configure QQ Bot (Official API v2) via gateway setup."""
-    from deepsuck_cli.gateway import _setup_qqbot as _gateway_setup_qqbot
+    from dag_cli.gateway import _setup_qqbot as _gateway_setup_qqbot
     _gateway_setup_qqbot()
 
 
@@ -2112,7 +2112,7 @@ def _setup_webhooks():
     print_warning("   internet. For security, run the gateway in a sandboxed environment")
     print_warning("   (Docker, VM, etc.) to limit blast radius from prompt injection.")
     print()
-    print_info("   Full guide: https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/webhooks/")
+    print_info("   Full guide: https://dag-agent.nousresearch.com/docs/user-guide/messaging/webhooks/")
     print()
 
     port = prompt("Webhook port (default 8644)")
@@ -2133,24 +2133,24 @@ def _setup_webhooks():
     save_env_value("WEBHOOK_ENABLED", "true")
     print()
     print_success("Webhooks enabled! Next steps:")
-    from deepsuck_constants import display_deepsuck_home as _dhh
+    from dag_constants import display_dag_home as _dhh
     print_info(f"   1. Define webhook routes in {_dhh()}/config.yaml")
     print_info("   2. Point your service (GitHub, GitLab, etc.) at:")
     print_info("      http://your-server:8644/webhooks/<route-name>")
     print()
     print_info("   Route configuration guide:")
-    print_info("   https://deepsuck-agent.nousresearch.com/docs/user-guide/messaging/webhooks/#configuring-routes")
+    print_info("   https://dag-agent.nousresearch.com/docs/user-guide/messaging/webhooks/#configuring-routes")
     print()
-    print_info("   Open config in your editor:  deepsuck config edit")
-    print_info("   Open config in your editor:  deepsuck config edit")
+    print_info("   Open config in your editor:  dag config edit")
+    print_info("   Open config in your editor:  dag config edit")
 
 
 def setup_gateway(config: dict):
     """Configure messaging platform integrations."""
-    from deepsuck_cli.gateway import _all_platforms, _platform_status, _configure_platform
+    from dag_cli.gateway import _all_platforms, _platform_status, _configure_platform
 
     print_header("Messaging Platforms")
-    print_info("Connect to messaging platforms to chat with Deepsuck from anywhere.")
+    print_info("Connect to messaging platforms to chat with Dag from anywhere.")
     print_info("Toggle with Space, confirm with Enter.")
     print()
 
@@ -2168,7 +2168,7 @@ def setup_gateway(config: dict):
     selected = prompt_checklist("Select platforms to configure:", items, pre_selected)
 
     if not selected:
-        print_info("No platforms selected. Run 'deepsuck setup gateway' later to configure.")
+        print_info("No platforms selected. Run 'dag setup gateway' later to configure.")
         return
 
     for idx in selected:
@@ -2221,7 +2221,7 @@ def setup_gateway(config: dict):
             print_info("   Set one later with /set-home in your chat, or:")
             for plat in missing_home:
                 print_info(
-                    f"     deepsuck config set {plat.upper()}_HOME_CHANNEL <channel_id>"
+                    f"     dag config set {plat.upper()}_HOME_CHANNEL <channel_id>"
                 )
 
         # Offer to install the gateway as a system service
@@ -2231,12 +2231,12 @@ def setup_gateway(config: dict):
         _is_macos = _platform.system() == "Darwin"
         _is_windows = _platform.system() == "Windows"
 
-        from deepsuck_cli.gateway import (
+        from dag_cli.gateway import (
             _is_service_installed,
             _is_service_running,
             supports_systemd_services,
             has_conflicting_systemd_units,
-            has_legacy_deepsuck_units,
+            has_legacy_dag_units,
             install_linux_gateway_from_setup,
             print_systemd_scope_conflict_warning,
             print_legacy_unit_warning,
@@ -2261,7 +2261,7 @@ def setup_gateway(config: dict):
             print_systemd_scope_conflict_warning()
             print()
 
-        if supports_systemd and has_legacy_deepsuck_units():
+        if supports_systemd and has_legacy_dag_units():
             print_legacy_unit_warning()
             print()
 
@@ -2275,7 +2275,7 @@ def setup_gateway(config: dict):
                     elif _is_macos:
                         launchd_restart()
                     elif _is_windows:
-                        from deepsuck_cli import gateway_windows
+                        from dag_cli import gateway_windows
                         gateway_windows.restart()
                 except UserSystemdUnavailableError as e:
                     print_error("  Restart failed — user systemd not reachable:")
@@ -2300,7 +2300,7 @@ def setup_gateway(config: dict):
                     elif _is_macos:
                         launchd_start()
                     elif _is_windows:
-                        from deepsuck_cli import gateway_windows
+                        from dag_cli import gateway_windows
                         gateway_windows.start()
                 except UserSystemdUnavailableError as e:
                     print_error("  Start failed — user systemd not reachable:")
@@ -2336,7 +2336,7 @@ def setup_gateway(config: dict):
                         # Task AND starts it immediately (via schtasks /Run
                         # or a direct spawn fallback), so no separate start
                         # prompt is needed here.
-                        from deepsuck_cli import gateway_windows
+                        from dag_cli import gateway_windows
                         gateway_windows.install(force=False)
                         did_install = True
                         started_inline = True
@@ -2358,24 +2358,24 @@ def setup_gateway(config: dict):
                             print_error(f"  Start failed: {e}")
                 except Exception as e:
                     print_error(f"  Install failed: {e}")
-                    print_info("  You can try manually: deepsuck gateway install")
+                    print_info("  You can try manually: dag gateway install")
             else:
-                print_info("  You can install later: deepsuck gateway install")
+                print_info("  You can install later: dag gateway install")
                 if supports_systemd:
-                    print_info("  Or as a boot-time service: sudo deepsuck gateway install --system")
-                print_info("  Or run in foreground:  deepsuck gateway")
+                    print_info("  Or as a boot-time service: sudo dag gateway install --system")
+                print_info("  Or run in foreground:  dag gateway")
         else:
-            from deepsuck_constants import is_container
+            from dag_constants import is_container
             if is_container():
                 print_info("Start the gateway to bring your bots online:")
-                print_info("   deepsuck gateway run          # Run as container main process")
+                print_info("   dag gateway run          # Run as container main process")
                 print_info("")
                 print_info("For automatic restarts, use a Docker restart policy:")
                 print_info("   docker run --restart unless-stopped ...")
                 print_info("   docker restart <container>  # Manual restart")
             else:
                 print_info("Start the gateway to bring your bots online:")
-                print_info("   deepsuck gateway              # Run in foreground")
+                print_info("   dag gateway              # Run in foreground")
 
         print_info("━" * 50)
 
@@ -2388,14 +2388,14 @@ def setup_gateway(config: dict):
 def setup_tools(config: dict, first_install: bool = False):
     """Configure tools — delegates to the unified tools_command() in tools_config.py.
 
-    Both `deepsuck setup tools` and `deepsuck tools` use the same flow:
+    Both `dag setup tools` and `dag tools` use the same flow:
     platform selection → toolset toggles → provider/API key configuration.
 
     Args:
         first_install: When True, uses the simplified first-install flow
             (no platform menu, prompts for all unconfigured API keys).
     """
-    from deepsuck_cli.tools_config import tools_command
+    from dag_cli.tools_config import tools_command
 
     tools_command(first_install=first_install, config=config)
 
@@ -2409,7 +2409,7 @@ def _model_section_has_credentials(config: dict) -> bool:
     """Return True when any known inference provider has usable credentials.
 
     Sources of truth:
-      * ``PROVIDER_REGISTRY`` in ``deepsuck_cli.auth`` — lists every supported
+      * ``PROVIDER_REGISTRY`` in ``dag_cli.auth`` — lists every supported
         provider along with its ``api_key_env_vars``.
       * ``active_provider`` in the auth store — covers OAuth device-code /
         external-OAuth providers (Nous, Codex, Qwen, Gemini CLI, ...).
@@ -2417,14 +2417,14 @@ def _model_section_has_credentials(config: dict) -> bool:
         ``OPENAI_API_KEY`` / ``OPENROUTER_API_KEY`` values through OpenRouter.
     """
     try:
-        from deepsuck_cli.auth import get_active_provider
+        from dag_cli.auth import get_active_provider
         if get_active_provider():
             return True
     except Exception:
         pass
 
     try:
-        from deepsuck_cli.auth import PROVIDER_REGISTRY
+        from dag_cli.auth import PROVIDER_REGISTRY
     except Exception:
         PROVIDER_REGISTRY = {}  # type: ignore[assignment]
 
@@ -2477,7 +2477,7 @@ def _get_section_config_summary(config: dict, section_key: str) -> Optional[str]
     """Return a short summary if a setup section is already configured, else None.
 
     Used after OpenClaw migration to detect which sections can be skipped.
-    ``get_env_value`` is the module-level import from deepsuck_cli.config
+    ``get_env_value`` is the module-level import from dag_cli.config
     so that test patches on ``setup_mod.get_env_value`` take effect.
     """
     if section_key == "model":
@@ -2499,7 +2499,7 @@ def _get_section_config_summary(config: dict, section_key: str) -> Optional[str]
         return f"max turns: {max_turns}"
 
     elif section_key == "gateway":
-        from deepsuck_cli.gateway import _all_platforms, _platform_status
+        from dag_cli.gateway import _all_platforms, _platform_status
         # Count any non-empty status other than the "not configured" sentinel —
         # platforms like WhatsApp ("enabled, not paired"), Matrix ("configured
         # + E2EE"), and Signal ("partially configured") all indicate the user
@@ -2553,12 +2553,12 @@ _OPENCLAW_SCRIPT = (
     / "migration"
     / "openclaw-migration"
     / "scripts"
-    / "openclaw_to_deepsuck.py"
+    / "openclaw_to_dag.py"
 )
 
 
 def _load_openclaw_migration_module():
-    """Load the openclaw_to_deepsuck migration script as a module.
+    """Load the openclaw_to_dag migration script as a module.
 
     Returns the loaded module, or None if the script can't be loaded.
     """
@@ -2566,7 +2566,7 @@ def _load_openclaw_migration_module():
         return None
 
     spec = importlib.util.spec_from_file_location(
-        "openclaw_to_deepsuck", _OPENCLAW_SCRIPT
+        "openclaw_to_dag", _OPENCLAW_SCRIPT
     )
     if spec is None or spec.loader is None:
         return None
@@ -2586,15 +2586,15 @@ def _load_openclaw_migration_module():
 
 # Item kinds that represent high-impact changes warranting explicit warnings.
 # Gateway tokens/channels can hijack messaging platforms from the old agent.
-# Config values may have different semantics between OpenClaw and Deepsuck.
+# Config values may have different semantics between OpenClaw and Dag.
 # Instruction/context files (.md) can contain incompatible setup procedures.
 _HIGH_IMPACT_KIND_KEYWORDS = {
-    "gateway": "⚠ Gateway/messaging — this will configure Deepsuck to use your OpenClaw messaging channels",
-    "telegram": "⚠ Telegram — this will point Deepsuck at your OpenClaw Telegram bot",
-    "slack": "⚠ Slack — this will point Deepsuck at your OpenClaw Slack workspace",
-    "discord": "⚠ Discord — this will point Deepsuck at your OpenClaw Discord bot",
-    "whatsapp": "⚠ WhatsApp — this will point Deepsuck at your OpenClaw WhatsApp connection",
-    "config": "⚠ Config values — OpenClaw settings may not map 1:1 to Deepsuck equivalents",
+    "gateway": "⚠ Gateway/messaging — this will configure Dag to use your OpenClaw messaging channels",
+    "telegram": "⚠ Telegram — this will point Dag at your OpenClaw Telegram bot",
+    "slack": "⚠ Slack — this will point Dag at your OpenClaw Slack workspace",
+    "discord": "⚠ Discord — this will point Dag at your OpenClaw Discord bot",
+    "whatsapp": "⚠ WhatsApp — this will point Dag at your OpenClaw WhatsApp connection",
+    "config": "⚠ Config values — OpenClaw settings may not map 1:1 to Dag equivalents",
     "soul": "⚠ Instruction file — may contain OpenClaw-specific setup/restart procedures",
     "memory": "⚠ Memory/context file — may reference OpenClaw-specific infrastructure",
     "context": "⚠ Context file — may contain OpenClaw-specific instructions",
@@ -2638,7 +2638,7 @@ def _print_migration_preview(report: dict):
         print()
 
     if conflict_items:
-        print(color("  Would overwrite (conflicts with existing Deepsuck config):", Colors.YELLOW))
+        print(color("  Would overwrite (conflicts with existing Dag config):", Colors.YELLOW))
         for item in conflict_items:
             kind = item.get("kind", "unknown")
             reason = item.get("reason", "already exists")
@@ -2659,13 +2659,13 @@ def _print_migration_preview(report: dict):
         for warning in sorted(warnings_shown):
             print(color(f"    {warning}", Colors.YELLOW))
         print()
-        print(color("  Note: OpenClaw config values may have different semantics in Deepsuck.", Colors.YELLOW))
-        print(color("  For example, OpenClaw's tool_call_execution: \"auto\" ≠ Deepsuck's yolo mode.", Colors.YELLOW))
+        print(color("  Note: OpenClaw config values may have different semantics in Dag.", Colors.YELLOW))
+        print(color("  For example, OpenClaw's tool_call_execution: \"auto\" ≠ Dag's yolo mode.", Colors.YELLOW))
         print(color("  Instruction files (.md) from OpenClaw may contain incompatible procedures.", Colors.YELLOW))
         print()
 
 
-def _offer_openclaw_migration(deepsuck_home: Path) -> bool:
+def _offer_openclaw_migration(dag_home: Path) -> bool:
     """Detect ~/.openclaw and offer to migrate during first-time setup.
 
     Runs a dry-run first to show the user exactly what would be imported,
@@ -2683,12 +2683,12 @@ def _offer_openclaw_migration(deepsuck_home: Path) -> bool:
     print()
     print_header("OpenClaw Installation Detected")
     print_info(f"Found OpenClaw data at {openclaw_dir}")
-    print_info("Deepsuck can preview what would be imported before making any changes.")
+    print_info("DAG can preview what would be imported before making any changes.")
     print()
 
     if not prompt_yes_no("Would you like to see what can be imported?", default=True):
         print_info(
-            "Skipping migration. You can run it later with: deepsuck claw migrate --dry-run"
+            "Skipping migration. You can run it later with: dag claw migrate --dry-run"
         )
         return False
 
@@ -2713,7 +2713,7 @@ def _offer_openclaw_migration(deepsuck_home: Path) -> bool:
         selected = mod.resolve_selected_options(None, None, preset="full")
         dry_migrator = mod.Migrator(
             source_root=openclaw_dir.resolve(),
-            target_root=deepsuck_home.resolve(),
+            target_root=dag_home.resolve(),
             execute=False,  # dry-run — no files modified
             workspace_target=None,
             overwrite=True,  # show everything including conflicts
@@ -2746,22 +2746,22 @@ def _offer_openclaw_migration(deepsuck_home: Path) -> bool:
     # ── Phase 2: Confirm and execute ──
     if not prompt_yes_no("Proceed with migration?", default=False):
         print_info(
-            "Migration cancelled. You can run it later with: deepsuck claw migrate"
+            "Migration cancelled. You can run it later with: dag claw migrate"
         )
         print_info(
             "Use --dry-run to preview again, or --preset minimal for a lighter import."
         )
         return False
 
-    # Execute the migration — overwrite=False so existing Deepsuck configs are
+    # Execute the migration — overwrite=False so existing Dag configs are
     # preserved. The user saw the preview; conflicts are skipped by default.
     try:
         migrator = mod.Migrator(
             source_root=openclaw_dir.resolve(),
-            target_root=deepsuck_home.resolve(),
+            target_root=dag_home.resolve(),
             execute=True,
             workspace_target=None,
-            overwrite=False,  # preserve existing Deepsuck config
+            overwrite=False,  # preserve existing Dag config
             migrate_secrets=True,
             output_dir=None,
             selected_options=selected,
@@ -2784,7 +2784,7 @@ def _offer_openclaw_migration(deepsuck_home: Path) -> bool:
     if migrated:
         print_success(f"Imported {migrated} item(s) from OpenClaw.")
     if conflicts:
-        print_info(f"Skipped {conflicts} item(s) that already exist in Deepsuck (use deepsuck claw migrate --overwrite to force).")
+        print_info(f"Skipped {conflicts} item(s) that already exist in Dag (use dag claw migrate --overwrite to force).")
     if skipped:
         print_info(f"Skipped {skipped} item(s) (not found or unchanged).")
     if errors:
@@ -2815,21 +2815,21 @@ SETUP_SECTIONS = [
 def _run_portal_one_shot(config: dict) -> None:
     """One-shot Nous Portal setup — OAuth + model pick + provider + Tool Gateway.
 
-    Wired into ``deepsuck setup --portal`` and ``deepsuck portal``. This is the
+    Wired into ``dag setup --portal`` and ``dag portal``. This is the
     Nous-Portal slice of the first-time quick setup, collapsed into a single
     shareable command so a brand-new user goes from zero to a fully working
-    Deepsuck session — model selected, provider set, and web/image/tts/browser
+    Dag session — model selected, provider set, and web/image/tts/browser
     tools routed via their Portal sub — without being told to run
-    ``deepsuck setup`` and hunt for the quick-setup option.
+    ``dag setup`` and hunt for the quick-setup option.
 
     The login + model selection + provider switch + Tool Gateway opt-in are all
     delegated to ``_model_flow_nous`` — the exact same flow quick setup uses
-    (``_run_first_time_quick_setup``) and the same one ``deepsuck model`` runs
+    (``_run_first_time_quick_setup``) and the same one ``dag model`` runs
     when you pick Nous. Routing through it (instead of hand-rolling the auth +
-    provider write here) means ``deepsuck portal`` always offers a model picker,
+    provider write here) means ``dag portal`` always offers a model picker,
     and there is a single source of truth for the Nous onboarding steps.
     """
-    from deepsuck_cli.config import load_config
+    from dag_cli.config import load_config
 
     print()
     print(
@@ -2838,7 +2838,7 @@ def _run_portal_one_shot(config: dict) -> None:
             Colors.MAGENTA,
         )
     )
-    print(color("│     ⚕ Deepsuck Setup — Nous Portal (one-shot)             │", Colors.MAGENTA))
+    print(color("│     ⚕ Dag Setup — Nous Portal (one-shot)             │", Colors.MAGENTA))
     print(
         color(
             "└─────────────────────────────────────────────────────────┘",
@@ -2857,9 +2857,9 @@ def _run_portal_one_shot(config: dict) -> None:
     # which selects a model internally) and the already-logged-in path (curated
     # Nous model picker), then offers the Tool Gateway opt-in and sets
     # provider=nous via the login/model save. This is the same routine quick
-    # setup calls, so `deepsuck portal` == quick setup's Nous step.
+    # setup calls, so `dag portal` == quick setup's Nous step.
     try:
-        from deepsuck_cli.main import _model_flow_nous
+        from dag_cli.main import _model_flow_nous
 
         _model_flow_nous(config)
     except (KeyboardInterrupt, EOFError, SystemExit):
@@ -2870,13 +2870,13 @@ def _run_portal_one_shot(config: dict) -> None:
         # Treat all of these as a graceful cancel/abort for the portal flow.
         print()
         print_info("  Setup cancelled.")
-        print_info("  You can retry later with `deepsuck portal`.")
+        print_info("  You can retry later with `dag portal`.")
         return
     except Exception as exc:
-        logger.debug("_model_flow_nous error during `deepsuck portal`: %s", exc)
+        logger.debug("_model_flow_nous error during `dag portal`: %s", exc)
         print()
         print_error(f"  Nous Portal setup encountered an error: {exc}")
-        print_info("  You can retry later with `deepsuck portal`.")
+        print_info("  You can retry later with `dag portal`.")
         return
 
     # Re-sync the in-memory config from disk — _model_flow_nous (and the
@@ -2892,27 +2892,27 @@ def _run_portal_one_shot(config: dict) -> None:
 
     print()
     print_success("Portal setup complete.")
-    print_info("  Run `deepsuck portal info` to inspect routing.")
-    print_info("  Run `deepsuck` to start chatting.")
+    print_info("  Run `dag portal info` to inspect routing.")
+    print_info("  Run `dag` to start chatting.")
 
 
 def run_setup_wizard(args):
     """Run the interactive setup wizard.
 
     Supports full, quick, and section-specific setup:
-      deepsuck setup           — full or quick (auto-detected)
-      deepsuck setup model     — just model/provider
-      deepsuck setup tts       — just text-to-speech
-      deepsuck setup terminal  — just terminal backend
-      deepsuck setup gateway   — just messaging platforms
-      deepsuck setup tools     — just tool configuration
-      deepsuck setup agent     — just agent settings
+      dag setup           — full or quick (auto-detected)
+      dag setup model     — just model/provider
+      dag setup tts       — just text-to-speech
+      dag setup terminal  — just terminal backend
+      dag setup gateway   — just messaging platforms
+      dag setup tools     — just tool configuration
+      dag setup agent     — just agent settings
     """
-    from deepsuck_cli.config import is_managed, managed_error
+    from dag_cli.config import is_managed, managed_error
     if is_managed():
         managed_error("run setup wizard")
         return
-    ensure_deepsuck_home()
+    ensure_dag_home()
 
     reset_requested = bool(getattr(args, "reset", False))
     if reset_requested:
@@ -2923,7 +2923,7 @@ def run_setup_wizard(args):
     quick_requested = bool(getattr(args, "quick", False))
 
     config = load_config()
-    deepsuck_home = get_deepsuck_home()
+    dag_home = get_dag_home()
 
     # Back up existing config before setup modifies it (#3522)
     config_path = get_config_path()
@@ -2968,7 +2968,7 @@ def run_setup_wizard(args):
                         Colors.MAGENTA,
                     )
                 )
-                print(color(f"│     ⚕ Deepsuck Setup — {label:<34s} │", Colors.MAGENTA))
+                print(color(f"│     ⚕ Dag Setup — {label:<34s} │", Colors.MAGENTA))
                 print(
                     color(
                         "└─────────────────────────────────────────────────────────┘",
@@ -2986,7 +2986,7 @@ def run_setup_wizard(args):
         return
 
     # Check if this is an existing installation with a provider configured
-    from deepsuck_cli.auth import get_active_provider
+    from dag_cli.auth import get_active_provider
 
     active_provider = get_active_provider()
     is_existing = (
@@ -3004,7 +3004,7 @@ def run_setup_wizard(args):
     )
     print(
         color(
-            "│             ⚕ Deepsuck Agent Setup Wizard                │", Colors.MAGENTA
+            "│             ⚕ DAG Agent Setup Wizard                │", Colors.MAGENTA
         )
     )
     print(
@@ -3015,7 +3015,7 @@ def run_setup_wizard(args):
     )
     print(
         color(
-            "│  Let's configure your Deepsuck Agent installation.       │", Colors.MAGENTA
+            "│  Let's configure your DAG Agent installation.       │", Colors.MAGENTA
         )
     )
     print(
@@ -3039,16 +3039,16 @@ def run_setup_wizard(args):
         # missing items" flow (useful after a partial OpenClaw migration
         # or when a required API key got cleared).
         if quick_requested:
-            _run_quick_setup(config, deepsuck_home)
+            _run_quick_setup(config, dag_home)
             return
 
         print()
         print_header("Reconfigure")
-        print_success("You already have Deepsuck configured.")
+        print_success("You already have Dag configured.")
         print_info("Running the full wizard — each prompt shows your current value.")
         print_info("Press Enter to keep it, or type a new value to change it.")
         print_info("")
-        print_info("Tip: jump straight to a section with 'deepsuck setup model|terminal|")
+        print_info("Tip: jump straight to a section with 'dag setup model|terminal|")
         print_info("     gateway|tools|agent', or fill only missing items with --quick.")
         # Fall through to the "Full Setup — run all sections" block below.
         # --reconfigure is now the default on existing installs; the flag
@@ -3064,12 +3064,12 @@ def run_setup_wizard(args):
             print()
 
         # Offer OpenClaw migration before configuration begins
-        migration_ran = _offer_openclaw_migration(deepsuck_home)
+        migration_ran = _offer_openclaw_migration(dag_home)
         if migration_ran:
             config = load_config()
 
         setup_mode = prompt_choice(
-            "How would you like to set up Deepsuck?",
+            "How would you like to set up Dag?",
             [
                 "Quick Setup (Nous Portal) — free OAuth login, no API keys, model + tools (recommended)",
                 "Full setup — configure every provider, tool & option yourself (bring your own keys)",
@@ -3078,17 +3078,17 @@ def run_setup_wizard(args):
         )
 
         if setup_mode == 0:
-            _run_first_time_quick_setup(config, deepsuck_home, is_existing)
+            _run_first_time_quick_setup(config, dag_home, is_existing)
             return
 
     # ── Full Setup — run all sections ──
     print_header("Configuration Location")
     print_info(f"Config file:  {get_config_path()}")
     print_info(f"Secrets file: {get_env_path()}")
-    print_info(f"Data folder:  {deepsuck_home}")
+    print_info(f"Data folder:  {dag_home}")
     print_info(f"Install dir:  {PROJECT_ROOT}")
     print()
-    print_info("You can edit these files directly or use 'deepsuck config edit'")
+    print_info("You can edit these files directly or use 'dag config edit'")
 
     if migration_ran:
         print()
@@ -3106,7 +3106,7 @@ def run_setup_wizard(args):
 
     # Section 3: Agent Settings — no longer prompted. First installs get the
     # recommended defaults silently; existing installs keep whatever they have.
-    # Tune later with `deepsuck setup agent`.
+    # Tune later with `dag setup agent`.
     if not is_existing:
         _apply_default_agent_settings(config)
 
@@ -3124,19 +3124,19 @@ def run_setup_wizard(args):
         print_info(f"Previous config backed up to: {_backup_path}")
         print_info("If setup changed a value you customized, restore it with:")
         print_info(f"  cp {_backup_path} {config_path}")
-    _print_setup_summary(config, deepsuck_home)
+    _print_setup_summary(config, dag_home)
 
 
-def _run_first_time_quick_setup(config: dict, deepsuck_home, is_existing: bool):
+def _run_first_time_quick_setup(config: dict, dag_home, is_existing: bool):
     """Streamlined first-time setup via Nous Portal: OAuth, model, terminal & messaging.
 
     Routes straight to the Nous Portal provider — runs the device-code OAuth
     login, picks a Nous model, then configures the terminal backend and (optionally)
     a messaging platform. Applies sensible defaults for everything else (agent
-    settings, tools); the user can customize later via ``deepsuck setup <section>``
-    or switch providers with ``deepsuck model``.
+    settings, tools); the user can customize later via ``dag setup <section>``
+    or switch providers with ``dag model``.
     """
-    from deepsuck_cli.config import load_config
+    from dag_cli.config import load_config
 
     # Step 1: Nous Portal — OAuth login + model selection.
     # _model_flow_nous() handles both the logged-out path (device-code OAuth,
@@ -3149,7 +3149,7 @@ def _run_first_time_quick_setup(config: dict, deepsuck_home, is_existing: bool):
     print_info("Sign up: https://portal.nousresearch.com/manage-subscription")
     print()
     try:
-        from deepsuck_cli.main import _model_flow_nous
+        from dag_cli.main import _model_flow_nous
         _model_flow_nous(config)
     except (KeyboardInterrupt, EOFError):
         print()
@@ -3157,7 +3157,7 @@ def _run_first_time_quick_setup(config: dict, deepsuck_home, is_existing: bool):
     except Exception as exc:
         logger.debug("_model_flow_nous error during quick setup: %s", exc)
         print_warning(f"Nous Portal setup encountered an error: {exc}")
-        print_info("You can try again later with: deepsuck model")
+        print_info("You can try again later with: dag model")
 
     # Re-sync the wizard's config dict from disk — _model_flow_nous (and the
     # underlying login/model save) write via their own load/save cycle, and the
@@ -3180,7 +3180,7 @@ def _run_first_time_quick_setup(config: dict, deepsuck_home, is_existing: bool):
         "Connect a messaging platform? (Telegram, Discord, etc.)",
         [
             "Set up messaging now (recommended)",
-            "Skip — set up later with 'deepsuck setup gateway'",
+            "Skip — set up later with 'dag setup gateway'",
         ],
         0,
     )
@@ -3192,17 +3192,17 @@ def _run_first_time_quick_setup(config: dict, deepsuck_home, is_existing: bool):
     print()
     print_success("Setup complete! You're ready to go.")
     print()
-    print_info("  Configure all settings:    deepsuck setup")
+    print_info("  Configure all settings:    dag setup")
     if gateway_choice != 0:
-        print_info("  Connect Telegram/Discord:  deepsuck setup gateway")
+        print_info("  Connect Telegram/Discord:  dag setup gateway")
     print()
 
-    _print_setup_summary(config, deepsuck_home)
+    _print_setup_summary(config, dag_home)
 
 
-def _run_quick_setup(config: dict, deepsuck_home):
+def _run_quick_setup(config: dict, dag_home):
     """Quick setup — only configure items that are missing."""
-    from deepsuck_cli.config import (
+    from dag_cli.config import (
         get_missing_env_vars,
         get_missing_config_fields,
         check_config_version,
@@ -3231,7 +3231,7 @@ def _run_quick_setup(config: dict, deepsuck_home):
     if not has_anything_missing:
         print_success("Everything is configured! Nothing to do.")
         print()
-        print_info("Run 'deepsuck setup' and choose 'Full Setup' to reconfigure,")
+        print_info("Run 'dag setup' and choose 'Full Setup' to reconfigure,")
         print_info("or pick a specific section from the menu.")
         return
 
@@ -3293,8 +3293,8 @@ def _run_quick_setup(config: dict, deepsuck_home):
     if missing_messaging:
         print()
         print_header("Messaging Platforms")
-        print_info("Connect Deepsuck to messaging apps to chat from anywhere.")
-        print_info("You can configure these later with 'deepsuck setup gateway'.")
+        print_info("Connect Dag to messaging apps to chat from anywhere.")
+        print_info("You can configure these later with 'dag setup gateway'.")
 
         # Group by platform (preserving order)
         platform_order = []
@@ -3363,4 +3363,4 @@ def _run_quick_setup(config: dict, deepsuck_home):
         save_config(config)
 
     # Jump to summary
-    _print_setup_summary(config, deepsuck_home)
+    _print_setup_summary(config, dag_home)

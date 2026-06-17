@@ -6,8 +6,8 @@ This is a wall. Not a suggestion."""
 import sys, json, subprocess, os
 from pathlib import Path
 
-PIPELINE = str(Path.home() / ".deepsuck" / "skills" / "intelligence-engine" / "pipeline.py")
-ENV_FILE = Path.home() / ".deepsuck" / ".env"
+PIPELINE = str(Path.home() / ".dag" / "skills" / "intelligence-engine" / "pipeline.py")
+ENV_FILE = Path.home() / ".dag" / ".env"
 
 def load_env():
     env = {}
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     
     # DEBUG: log actual payload structure
     import os as _os
-    debug_file = _os.path.expanduser("~/.deepsuck/metrics/hook_debug.json")
+    debug_file = _os.path.expanduser("~/.dag/metrics/hook_debug.json")
     try:
         with open(debug_file, "w") as f:
             json.dump({"keys": list(payload.keys()), "has_extra": "extra" in payload, "extra_keys": list(payload.get("extra", {}).keys()) if isinstance(payload.get("extra"), dict) else str(type(payload.get("extra")))}, f)

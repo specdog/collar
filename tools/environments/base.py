@@ -1,4 +1,4 @@
-"""Base class for all Deepsuck execution environment backends.
+"""Base class for all Dag execution environment backends.
 
 Unified spawn-per-call model: every command spawns a fresh ``bash -c`` process.
 A session snapshot (env vars, functions, aliases) is captured once at init and
@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import IO, Callable, Protocol
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 from tools.interrupt import is_interrupted
 
 logger = logging.getLogger(__name__)
@@ -82,13 +82,13 @@ def get_sandbox_dir() -> Path:
     """Return the host-side root for all sandbox storage (Docker workspaces,
     Singularity overlays/SIF cache, etc.).
 
-    Configurable via TERMINAL_SANDBOX_DIR. Defaults to {DEEPSUCK_HOME}/sandboxes/.
+    Configurable via TERMINAL_SANDBOX_DIR. Defaults to {DAG_HOME}/sandboxes/.
     """
     custom = os.getenv("TERMINAL_SANDBOX_DIR")
     if custom:
         p = Path(custom)
     else:
-        p = get_deepsuck_home() / "sandboxes"
+        p = get_dag_home() / "sandboxes"
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -286,7 +286,7 @@ def _cwd_marker(session_id: str) -> str:
 
 
 class BaseEnvironment(ABC):
-    """Common interface and unified execution flow for all Deepsuck backends.
+    """Common interface and unified execution flow for all Dag backends.
 
     Subclasses implement ``_run_bash()`` and ``cleanup()``.  The base class
     provides ``execute()`` with session snapshot sourcing, CWD tracking,
@@ -315,8 +315,8 @@ class BaseEnvironment(ABC):
 
         self._session_id = uuid.uuid4().hex[:12]
         temp_dir = self.get_temp_dir().rstrip("/") or "/"
-        self._snapshot_path = f"{temp_dir}/deepsuck-snap-{self._session_id}.sh"
-        self._cwd_file = f"{temp_dir}/deepsuck-cwd-{self._session_id}.txt"
+        self._snapshot_path = f"{temp_dir}/dag-snap-{self._session_id}.sh"
+        self._cwd_file = f"{temp_dir}/dag-cwd-{self._session_id}.txt"
         self._cwd_marker = _cwd_marker(self._session_id)
         self._snapshot_ready = False
 
@@ -364,7 +364,7 @@ class BaseEnvironment(ABC):
         # ``C:/Users/...``-shaped paths without glob-splitting the colon or
         # tripping on drive letters.  On POSIX this is a no-op (no colons /
         # special chars in a /tmp path).  Previously unquoted interpolation
-        # caused ``C:/Users/.../deepsuck-snap-*.sh: No such file or directory``
+        # caused ``C:/Users/.../dag-snap-*.sh: No such file or directory``
         # errors on Windows, leaking via stderr (merged into stdout on Linux
         # backends) into every terminal-tool response.
         _quoted_snap = shlex.quote(self._snapshot_path)
@@ -447,7 +447,7 @@ class BaseEnvironment(ABC):
 
         # Run the actual command
         parts.append(f"eval '{escaped}'")
-        parts.append("__deepsuck_ec=$?")
+        parts.append("__dag_ec=$?")
 
         # Re-dump env vars to snapshot (last-writer-wins for concurrent calls)
         if self._snapshot_ready:
@@ -462,7 +462,7 @@ class BaseEnvironment(ABC):
         parts.append(
             f"printf '\\n{self._cwd_marker}%s{self._cwd_marker}\\n' \"$(pwd -P)\""
         )
-        parts.append("exit $__deepsuck_ec")
+        parts.append("exit $__dag_ec")
 
         return "\n".join(parts)
 

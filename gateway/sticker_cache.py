@@ -14,10 +14,10 @@ import tempfile
 import time
 from typing import Optional
 
-from deepsuck_cli.config import get_deepsuck_home
+from dag_cli.config import get_dag_home
 
 
-CACHE_PATH = get_deepsuck_home() / "sticker_cache.json"
+CACHE_PATH = get_dag_home() / "sticker_cache.json"
 
 # Vision prompt for describing stickers -- kept concise to save tokens
 STICKER_VISION_PROMPT = (

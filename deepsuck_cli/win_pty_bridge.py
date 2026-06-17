@@ -1,8 +1,8 @@
-"""Windows ConPTY bridge for the `deepsuck dashboard` chat tab.
+"""Windows ConPTY bridge for the `dag dashboard` chat tab.
 
-Drop-in counterpart to ``deepsuck_cli.pty_bridge.PtyBridge`` for native
+Drop-in counterpart to ``dag_cli.pty_bridge.PtyBridge`` for native
 Windows. Mirrors the exact public surface the ``/api/pty`` WebSocket
-handler in ``deepsuck_cli.web_server`` consumes: ``spawn``, ``read``,
+handler in ``dag_cli.web_server`` consumes: ``spawn``, ``read``,
 ``write``, ``resize``, ``close``, ``is_available``, plus the
 ``PtyUnavailableError`` type.
 

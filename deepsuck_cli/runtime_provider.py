@@ -10,9 +10,9 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-from deepsuck_cli import auth as auth_mod
+from dag_cli import auth as auth_mod
 from agent.credential_pool import CredentialPool, PooledCredential, get_custom_provider_pool_key, load_pool
-from deepsuck_cli.auth import (
+from dag_cli.auth import (
     AuthError,
     DEFAULT_CODEX_BASE_URL,
     DEFAULT_QWEN_BASE_URL,
@@ -30,8 +30,8 @@ from deepsuck_cli.auth import (
     resolve_external_process_provider_credentials,
     has_usable_secret,
 )
-from deepsuck_cli.config import get_compatible_custom_providers, load_config
-from deepsuck_constants import OPENROUTER_BASE_URL
+from dag_cli.config import get_compatible_custom_providers, load_config
+from dag_constants import OPENROUTER_BASE_URL
 from utils import base_url_host_matches, base_url_hostname, env_int
 
 
@@ -63,7 +63,7 @@ def _config_base_url_trustworthy_for_bare_custom(cfg_base_url: str, cfg_provider
     # is, otherwise a legit LAN/WireGuard ollama endpoint silently falls
     # through to OpenRouter.
     try:
-        from deepsuck_cli.auth import resolve_provider as _resolve_provider
+        from dag_cli.auth import resolve_provider as _resolve_provider
 
         if _resolve_provider(cfg_provider_norm) == "custom":
             return True
@@ -232,7 +232,7 @@ def _copilot_runtime_api_mode(model_cfg: Dict[str, Any], api_key: str) -> str:
         return "chat_completions"
 
     try:
-        from deepsuck_cli.models import copilot_model_api_mode
+        from dag_cli.models import copilot_model_api_mode
 
         return copilot_model_api_mode(model_name, api_key=api_key)
     except Exception:
@@ -246,7 +246,7 @@ _VALID_API_MODES = {
     "bedrock_converse",
     # Optional opt-in: hand the entire turn to a `codex app-server` subprocess
     # so terminal/file-ops/patching/sandboxing run inside Codex's own runtime
-    # instead of Deepsuck' tool dispatch. Gated behind config key
+    # instead of Dag' tool dispatch. Gated behind config key
     # `model.openai_runtime == "codex_app_server"` AND provider in
     # {"openai", "openai-codex"}. Default is unchanged.
     "codex_app_server",
@@ -360,7 +360,7 @@ def _resolve_runtime_from_pool_entry(
         # explicitly picked anthropic_messages (Anthropic-style endpoint).
         if effective_model and api_mode != "anthropic_messages":
             try:
-                from deepsuck_cli.models import azure_foundry_model_api_mode
+                from dag_cli.models import azure_foundry_model_api_mode
 
                 inferred = azure_foundry_model_api_mode(effective_model)
             except Exception:
@@ -389,7 +389,7 @@ def _resolve_runtime_from_pool_entry(
             # anthropic_messages and chat_completions models, so the previous
             # session's mode must not leak across /model switches.
             # Refs #16878.
-            from deepsuck_cli.models import opencode_model_api_mode
+            from dag_cli.models import opencode_model_api_mode
             api_mode = opencode_model_api_mode(provider, effective_model)
         elif configured_mode and _provider_supports_explicit_api_mode(provider, configured_provider):
             api_mode = configured_mode
@@ -525,7 +525,7 @@ def _get_named_custom_provider(requested_provider: str) -> Optional[Dict[str, An
             # the request.  We only defer to the built-in when the raw name is
             # the canonical provider itself (``nous``, ``openrouter``, …) so
             # accidentally shadowing a canonical provider still resolves to
-            # the built-in. See tests/deepsuck_cli/test_runtime_provider_resolution.py
+            # the built-in. See tests/dag_cli/test_runtime_provider_resolution.py
             # ``test_named_custom_provider_does_not_shadow_builtin_provider``.
             if (canonical or "").strip().lower() == requested_norm:
                 return None
@@ -601,7 +601,7 @@ def _get_named_custom_provider(requested_provider: str) -> Optional[Dict[str, An
         logger.warning(
             "custom_providers in config.yaml is a dict, not a list. "
             "Each entry must be prefixed with '-' in YAML. "
-            "Run 'deepsuck doctor' for details."
+            "Run 'dag doctor' for details."
         )
         return None
 
@@ -741,7 +741,7 @@ def _resolve_named_custom_runtime(
     requested_norm = (requested_provider or "").strip().lower()
     if requested_norm and requested_norm != "custom":
         try:
-            from deepsuck_cli.auth import resolve_provider as _resolve_provider
+            from dag_cli.auth import resolve_provider as _resolve_provider
 
             if _resolve_provider(requested_norm) == "custom":
                 requested_norm = "custom"
@@ -871,7 +871,7 @@ def _resolve_openrouter_runtime(
     # gate up the stack — alias-aware without duplicating the alias map.
     if requested_norm and requested_norm != "custom":
         try:
-            from deepsuck_cli.auth import resolve_provider as _resolve_provider
+            from dag_cli.auth import resolve_provider as _resolve_provider
 
             if _resolve_provider(requested_norm) == "custom":
                 requested_norm = "custom"
@@ -1037,7 +1037,7 @@ def _resolve_azure_foundry_runtime(
     effective_model = str(target_model or model_cfg.get("default") or "").strip()
     if effective_model and cfg_api_mode != "anthropic_messages":
         try:
-            from deepsuck_cli.models import azure_foundry_model_api_mode
+            from dag_cli.models import azure_foundry_model_api_mode
 
             inferred = azure_foundry_model_api_mode(effective_model)
         except Exception:
@@ -1049,7 +1049,7 @@ def _resolve_azure_foundry_runtime(
     base_url = explicit_base_url_clean or cfg_base_url or env_base_url
     if not base_url:
         raise AuthError(
-            "Azure Foundry requires a base URL. Set it via 'deepsuck model' or "
+            "Azure Foundry requires a base URL. Set it via 'dag model' or "
             "the AZURE_FOUNDRY_BASE_URL environment variable."
         )
 
@@ -1129,7 +1129,7 @@ def _resolve_azure_foundry_runtime(
     api_key = explicit_api_key
     if not api_key:
         try:
-            from deepsuck_cli.config import get_env_value
+            from dag_cli.config import get_env_value
             api_key = get_env_value("AZURE_FOUNDRY_API_KEY") or ""
         except Exception:
             api_key = ""
@@ -1138,10 +1138,10 @@ def _resolve_azure_foundry_runtime(
     if not api_key:
         raise AuthError(
             "Azure Foundry requires an API key. Set AZURE_FOUNDRY_API_KEY in "
-            "~/.deepsuck/.env or run 'deepsuck model' to configure. To use "
+            "~/.dag/.env or run 'dag model' to configure. To use "
             "keyless Microsoft Entra ID auth instead, set "
             "model.auth_mode: entra_id in config.yaml (or pick "
-            "'Microsoft Entra ID' in 'deepsuck model')."
+            "'Microsoft Entra ID' in 'dag model')."
         )
 
     source = "explicit" if (explicit_api_key or explicit_base_url) else "config"
@@ -1422,7 +1422,7 @@ def resolve_runtime_provider(
         # For Nous, the pool entry's runtime_api_key is the agent_key
         # compatibility field. It must be an invoke JWT. The pool doesn't
         # refresh it during selection (that would trigger network calls in
-        # non-runtime contexts like `deepsuck auth list`).  If the key is
+        # non-runtime contexts like `dag auth list`).  If the key is
         # expired, clear pool_api_key so we fall through to
         # resolve_nous_runtime_credentials() which handles refresh.
         if provider == "nous" and entry is not None and pool_api_key:
@@ -1475,7 +1475,7 @@ def resolve_runtime_provider(
                 "api_mode": "codex_responses",
                 "base_url": creds.get("base_url", "").rstrip("/"),
                 "api_key": creds.get("api_key", ""),
-                "source": creds.get("source", "deepsuck-auth-store"),
+                "source": creds.get("source", "dag-auth-store"),
                 "last_refresh": creds.get("last_refresh"),
                 "requested_provider": requested_provider,
             }
@@ -1495,7 +1495,7 @@ def resolve_runtime_provider(
                 "api_mode": "codex_responses",
                 "base_url": (creds.get("base_url") or "").rstrip("/") or DEFAULT_XAI_OAUTH_BASE_URL,
                 "api_key": creds.get("api_key", ""),
-                "source": creds.get("source", "deepsuck-auth-store"),
+                "source": creds.get("source", "dag-auth-store"),
                 "last_refresh": creds.get("last_refresh"),
                 "requested_provider": requested_provider,
             }
@@ -1526,7 +1526,7 @@ def resolve_runtime_provider(
     if provider == "minimax-oauth":
         pconfig = PROVIDER_REGISTRY.get(provider)
         if pconfig and pconfig.auth_type == "oauth_minimax":
-            from deepsuck_cli.auth import resolve_minimax_oauth_runtime_credentials
+            from dag_cli.auth import resolve_minimax_oauth_runtime_credentials
             creds = resolve_minimax_oauth_runtime_credentials()
             return {
                 "provider": provider,
@@ -1593,9 +1593,9 @@ def resolve_runtime_provider(
         if _is_azure_endpoint:
             # Honor user-specified env var hints on the model config before
             # falling back to the built-in AZURE_ANTHROPIC_KEY / ANTHROPIC_API_KEY
-            # chain.  Accept both `key_env` (Deepsuck canonical — matches the
+            # chain.  Accept both `key_env` (DAG canonical — matches the
             # custom_providers field name) and `api_key_env` (documented in the
-            # Azure Foundry guide and read by most Deepsuck-compatible importers).
+            # Azure Foundry guide and read by most Dag-compatible importers).
             # Matches the config.yaml examples in website/docs/guides/azure-foundry.md.
             token = ""
             for hint_key in ("key_env", "api_key_env"):
@@ -1738,7 +1738,7 @@ def resolve_runtime_provider(
                 # otherwise carry the previous mode forward, stripping /v1
                 # from base_url for chat_completions models and 404'ing.
                 # Refs #16878.
-                from deepsuck_cli.models import opencode_model_api_mode
+                from dag_cli.models import opencode_model_api_mode
                 _effective = target_model or model_cfg.get("default", "")
                 api_mode = opencode_model_api_mode(provider, _effective)
             elif configured_mode and _provider_supports_explicit_api_mode(provider, configured_provider):

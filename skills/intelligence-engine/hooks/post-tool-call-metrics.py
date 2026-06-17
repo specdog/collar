@@ -3,7 +3,7 @@
 import sys, json
 from pathlib import Path
 
-M = Path.home() / ".deepsuck" / "metrics"; M.mkdir(parents=True, exist_ok=True)
+M = Path.home() / ".dag" / "metrics"; M.mkdir(parents=True, exist_ok=True)
 CATS = {"read_file":"knowledge","search_files":"knowledge","browser_navigate":"research","terminal":"exec","write_file":"code","patch":"code"}
 
 if __name__ == "__main__":

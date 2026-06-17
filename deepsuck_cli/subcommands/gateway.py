@@ -1,6 +1,6 @@
-"""``deepsuck gateway`` and ``deepsuck proxy`` subcommand parsers.
+"""``dag gateway`` and ``dag proxy`` subcommand parsers.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Both parsers are built together because they shared one inline block (the
 ``gateway`` section also defined ``proxy``). Handlers injected to avoid
 importing ``main``.
@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 from typing import Callable
 
-from deepsuck_cli.subcommands._shared import add_accept_hooks_flag
+from dag_cli.subcommands._shared import add_accept_hooks_flag
 
 
 def _add_compat_platform_flag(parser: argparse.ArgumentParser) -> None:
@@ -214,11 +214,11 @@ def build_gateway_parser(subparsers, *, cmd_gateway: Callable, cmd_proxy: Callab
     # gateway migrate-legacy
     gateway_migrate_legacy = gateway_subparsers.add_parser(
         "migrate-legacy",
-        help="Remove legacy deepsuck.service units from pre-rename installs",
+        help="Remove legacy dag.service units from pre-rename installs",
         description=(
-            "Stop, disable, and remove legacy Deepsuck gateway unit files "
-            "(e.g. deepsuck.service) left over from older installs. Profile "
-            "units (deepsuck-gateway-<profile>.service) and unrelated "
+            "Stop, disable, and remove legacy Dag gateway unit files "
+            "(e.g. dag.service) left over from older installs. Profile "
+            "units (dag-gateway-<profile>.service) and unrelated "
             "third-party services are never touched."
         ),
     )
@@ -260,7 +260,7 @@ def build_gateway_parser(subparsers, *, cmd_gateway: Callable, cmd_proxy: Callab
     proxy_start.add_argument(
         "--provider",
         default="nous",
-        help="Upstream provider: nous or xai (default: nous). See `deepsuck proxy providers`.",
+        help="Upstream provider: nous or xai (default: nous). See `dag proxy providers`.",
     )
     proxy_start.add_argument(
         "--host",

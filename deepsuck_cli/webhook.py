@@ -1,12 +1,12 @@
-"""deepsuck webhook — manage dynamic webhook subscriptions from the CLI.
+"""dag webhook — manage dynamic webhook subscriptions from the CLI.
 
 Usage:
-    deepsuck webhook subscribe <name> [options]
-    deepsuck webhook list
-    deepsuck webhook remove <name>
-    deepsuck webhook test <name> [--payload '{"key": "value"}']
+    dag webhook subscribe <name> [options]
+    dag webhook list
+    dag webhook remove <name>
+    dag webhook test <name> [--payload '{"key": "value"}']
 
-Subscriptions persist to ~/.deepsuck/webhook_subscriptions.json and are
+Subscriptions persist to ~/.dag/webhook_subscriptions.json and are
 hot-reloaded by the webhook adapter without a gateway restart.
 """
 
@@ -19,22 +19,22 @@ import time
 from pathlib import Path
 from typing import Dict
 
-from deepsuck_constants import display_deepsuck_home
+from dag_constants import display_dag_home
 from utils import atomic_replace
-from deepsuck_cli.config import cfg_get
+from dag_cli.config import cfg_get
 
 
 _SUBSCRIPTIONS_FILENAME = "webhook_subscriptions.json"
 _SUBSCRIPTIONS_FILE_MODE = 0o600
 
 
-def _deepsuck_home() -> Path:
-    from deepsuck_constants import get_deepsuck_home
-    return get_deepsuck_home()
+def _dag_home() -> Path:
+    from dag_constants import get_dag_home
+    return get_dag_home()
 
 
 def _subscriptions_path() -> Path:
-    return _deepsuck_home() / _SUBSCRIPTIONS_FILENAME
+    return _dag_home() / _SUBSCRIPTIONS_FILENAME
 
 
 def _load_subscriptions() -> Dict[str, dict]:
@@ -83,7 +83,7 @@ def _save_subscriptions(subs: Dict[str, dict]) -> None:
 def _get_webhook_config() -> dict:
     """Load webhook platform config. Returns {} if not configured."""
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         cfg = load_config()
         return cfg_get(cfg, "platforms", "webhook", default={})
     except Exception:
@@ -103,12 +103,12 @@ def _get_webhook_base_url() -> str:
 
 
 def _setup_hint() -> str:
-    _dhh = display_deepsuck_home()
+    _dhh = display_dag_home()
     return f"""
   Webhook platform is not enabled. To set it up:
 
   1. Run the gateway setup wizard:
-     deepsuck gateway setup
+     dag gateway setup
 
   2. Or manually add to {_dhh}/config.yaml:
      platforms:
@@ -124,7 +124,7 @@ def _setup_hint() -> str:
      WEBHOOK_PORT=8644
      WEBHOOK_SECRET=your-global-secret
 
-  Then start the gateway: deepsuck gateway run
+  Then start the gateway: dag gateway run
 """
 
 
@@ -137,12 +137,12 @@ def _require_webhook_enabled() -> bool:
 
 
 def webhook_command(args):
-    """Entry point for 'deepsuck webhook' subcommand."""
+    """Entry point for 'dag webhook' subcommand."""
     sub = getattr(args, "webhook_action", None)
 
     if not sub:
-        print("Usage: deepsuck webhook {subscribe|list|remove|test}")
-        print("Run 'deepsuck webhook --help' for details.")
+        print("Usage: dag webhook {subscribe|list|remove|test}")
+        print("Run 'dag webhook --help' for details.")
         return
 
     if not _require_webhook_enabled():
@@ -214,14 +214,14 @@ def _cmd_subscribe(args):
         print(f"  {label}: {prompt_preview}")
     print(f"\n  Configure your service to POST to the URL above.")
     print(f"  Use the secret for HMAC-SHA256 signature validation.")
-    print(f"  The gateway must be running to receive events (deepsuck gateway run).\n")
+    print(f"  The gateway must be running to receive events (dag gateway run).\n")
 
 
 def _cmd_list(args):
     subs = _load_subscriptions()
     if not subs:
         print("  No dynamic webhook subscriptions.")
-        print("  Create one with: deepsuck webhook subscribe <name>")
+        print("  Create one with: dag webhook subscribe <name>")
         return
 
     base_url = _get_webhook_base_url()
@@ -269,7 +269,7 @@ def _cmd_test(args):
     base_url = _get_webhook_base_url()
     url = f"{base_url}/webhooks/{name}"
 
-    payload = args.payload or '{"test": true, "event_type": "test", "message": "Hello from deepsuck webhook test"}'
+    payload = args.payload or '{"test": true, "event_type": "test", "message": "Hello from dag webhook test"}'
 
     import hmac
     import hashlib
@@ -295,4 +295,4 @@ def _cmd_test(args):
             print(f"  Response ({resp.status}): {body}")
     except Exception as e:
         print(f"  Error: {e}")
-        print("  Is the gateway running? (deepsuck gateway run)")
+        print("  Is the gateway running? (dag gateway run)")

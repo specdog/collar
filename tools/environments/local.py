@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from tools.environments.base import BaseEnvironment, _pipe_stdin
-from deepsuck_cli._subprocess_compat import windows_hide_flags
+from dag_cli._subprocess_compat import windows_hide_flags
 
 _IS_WINDOWS = platform.system() == "Windows"
 
@@ -72,12 +72,12 @@ def _resolve_safe_cwd(cwd: str) -> str:
     return tempfile.gettempdir()
 
 
-# Deepsuck-internal env vars that should NOT leak into terminal subprocesses.
+# Dag-internal env vars that should NOT leak into terminal subprocesses.
 _DEEPSUCK_PROVIDER_ENV_FORCE_PREFIX = "_DEEPSUCK_FORCE_"
 
-# Deepsuck-managed AWS *inference* credentials for ``auth_type="aws_sdk"``
+# Dag-managed AWS *inference* credentials for ``auth_type="aws_sdk"``
 # providers (Bedrock).  Scoped DELIBERATELY NARROW: this lists only the
-# Bedrock-specific bearer token, which is a Deepsuck inference secret exactly
+# Bedrock-specific bearer token, which is a Dag inference secret exactly
 # analogous to ``OPENAI_API_KEY`` — nobody drives the ``aws``/``terraform``/
 # ``boto3`` toolchain off it, so stripping it from terminal/execute_code
 # subprocesses costs no user capability.
@@ -102,7 +102,7 @@ def _build_provider_env_blocklist() -> frozenset:
     blocked: set[str] = set()
 
     try:
-        from deepsuck_cli.auth import PROVIDER_REGISTRY
+        from dag_cli.auth import PROVIDER_REGISTRY
         for pconfig in PROVIDER_REGISTRY.values():
             blocked.update(pconfig.api_key_env_vars)
             if pconfig.auth_type == "aws_sdk":
@@ -113,7 +113,7 @@ def _build_provider_env_blocklist() -> frozenset:
         pass
 
     try:
-        from deepsuck_cli.config import OPTIONAL_ENV_VARS
+        from dag_cli.config import OPTIONAL_ENV_VARS
         for name, metadata in OPTIONAL_ENV_VARS.items():
             category = metadata.get("category")
             if category in {"tool", "messaging"}:
@@ -191,20 +191,20 @@ def _build_provider_env_blocklist() -> frozenset:
 _DEEPSUCK_PROVIDER_ENV_BLOCKLIST = _build_provider_env_blocklist()
 
 
-def _inject_context_deepsuck_home(env: dict) -> None:
-    """Bridge the context-local Deepsuck home override into subprocess env."""
+def _inject_context_dag_home(env: dict) -> None:
+    """Bridge the context-local Dag home override into subprocess env."""
     try:
-        from deepsuck_constants import get_deepsuck_home_override
+        from dag_constants import get_dag_home_override
 
-        value = get_deepsuck_home_override()
+        value = get_dag_home_override()
         if value:
-            env["DEEPSUCK_HOME"] = value
+            env["DAG_HOME"] = value
     except Exception:
         pass
 
 
 def _sanitize_subprocess_env(base_env: dict | None, extra_env: dict | None = None) -> dict:
-    """Filter Deepsuck-managed secrets from a subprocess environment."""
+    """Filter Dag-managed secrets from a subprocess environment."""
     try:
         from tools.env_passthrough import is_env_passthrough as _is_passthrough
     except Exception:
@@ -225,9 +225,9 @@ def _sanitize_subprocess_env(base_env: dict | None, extra_env: dict | None = Non
         elif key not in _DEEPSUCK_PROVIDER_ENV_BLOCKLIST or _is_passthrough(key):
             sanitized[key] = value
 
-    _inject_context_deepsuck_home(sanitized)
+    _inject_context_dag_home(sanitized)
 
-    from deepsuck_constants import apply_subprocess_home_env
+    from dag_constants import apply_subprocess_home_env
     apply_subprocess_home_env(sanitized)
 
     return sanitized
@@ -255,14 +255,14 @@ def _find_bash() -> str:
     #
     # Layouts (both checked so upgrades between MinGit and PortableGit
     # installs work transparently):
-    #   PortableGit: %LOCALAPPDATA%\deepsuck\git\bin\bash.exe   (primary)
-    #   MinGit:      %LOCALAPPDATA%\deepsuck\git\usr\bin\bash.exe (legacy/32-bit fallback)
+    #   PortableGit: %LOCALAPPDATA%\dag\git\bin\bash.exe   (primary)
+    #   MinGit:      %LOCALAPPDATA%\dag\git\usr\bin\bash.exe (legacy/32-bit fallback)
     _local_appdata = os.environ.get("LOCALAPPDATA", "")
-    _deepsuck_portable_git = os.path.join(_local_appdata, "deepsuck", "git") if _local_appdata else ""
-    if _deepsuck_portable_git:
+    _dag_portable_git = os.path.join(_local_appdata, "dag", "git") if _local_appdata else ""
+    if _dag_portable_git:
         for candidate in (
-            os.path.join(_deepsuck_portable_git, "bin", "bash.exe"),        # PortableGit (primary)
-            os.path.join(_deepsuck_portable_git, "usr", "bin", "bash.exe"), # MinGit fallback
+            os.path.join(_dag_portable_git, "bin", "bash.exe"),        # PortableGit (primary)
+            os.path.join(_dag_portable_git, "usr", "bin", "bash.exe"), # MinGit fallback
         ):
             if os.path.isfile(candidate):
                 return candidate
@@ -280,7 +280,7 @@ def _find_bash() -> str:
             return candidate
 
     raise RuntimeError(
-        "Git Bash not found. Deepsuck Agent requires Git for Windows on Windows.\n"
+        "Git Bash not found. DAG Agent requires Git for Windows on Windows.\n"
         "Install it from: https://git-scm.com/download/win\n"
         "Or set DEEPSUCK_GIT_BASH_PATH to your bash.exe location."
     )
@@ -382,9 +382,9 @@ def _make_run_env(env: dict) -> dict:
     if path_key is not None:
         run_env[path_key] = _append_missing_sane_path_entries(run_env.get(path_key, ""))
 
-    _inject_context_deepsuck_home(run_env)
+    _inject_context_dag_home(run_env)
 
-    from deepsuck_constants import apply_subprocess_home_env
+    from dag_constants import apply_subprocess_home_env
     apply_subprocess_home_env(run_env)
 
     # Inject ContextVar-based session vars into subprocess env.
@@ -408,7 +408,7 @@ def _read_terminal_shell_init_config() -> tuple[list[str], bool]:
     execution never breaks because the config file is unreadable.
     """
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
 
         cfg = load_config() or {}
         terminal_cfg = cfg.get("terminal") or {}
@@ -427,7 +427,7 @@ def _resolve_shell_init_files() -> list[str]:
     Expands ``~`` and ``${VAR}`` references and drops anything that doesn't
     exist on disk, so a missing ``~/.bashrc`` never breaks the snapshot.
     The ``auto_source_bashrc`` path runs only when the user hasn't supplied
-    an explicit list — once they have, Deepsuck trusts them.
+    an explicit list — once they have, Dag trusts them.
     """
     explicit, auto_bashrc = _read_terminal_shell_init_config()
 
@@ -514,20 +514,20 @@ class LocalEnvironment(BaseEnvironment):
         can't open the path, and the Windows default temp (``%TEMP%``) often
         contains spaces (``C:\\Users\\Some Name\\AppData\\Local\\Temp``) that
         break unquoted bash interpolations.  Use a dedicated cache dir under
-        ``DEEPSUCK_HOME`` instead — single-word path, guaranteed to exist, same
+        ``DAG_HOME`` instead — single-word path, guaranteed to exist, same
         string resolves in both Git Bash and native Python.
         """
         if _IS_WINDOWS:
-            # Derive a Windows-safe temp dir under DEEPSUCK_HOME.  Using
+            # Derive a Windows-safe temp dir under DAG_HOME.  Using
             # forward slashes makes the same string work unchanged in bash
             # command interpolations AND in Python ``open()`` — Windows
             # accepts forward slashes in filesystem paths, and we control
             # the path so we can guarantee no spaces.
             try:
-                from deepsuck_constants import get_deepsuck_home
-                cache_dir = get_deepsuck_home() / "cache" / "terminal"
+                from dag_constants import get_dag_home
+                cache_dir = get_dag_home() / "cache" / "terminal"
             except Exception:
-                cache_dir = Path(tempfile.gettempdir()) / "deepsuck_terminal"
+                cache_dir = Path(tempfile.gettempdir()) / "dag_terminal"
             cache_dir.mkdir(parents=True, exist_ok=True)
             # Force forward slashes so the same string serves both contexts.
             return str(cache_dir).replace("\\", "/")
@@ -607,7 +607,7 @@ class LocalEnvironment(BaseEnvironment):
         )
         if not _IS_WINDOWS:
             try:
-                proc._deepsuck_pgid = os.getpgid(proc.pid)
+                proc._dag_pgid = os.getpgid(proc.pid)
             except ProcessLookupError:
                 pass
 
@@ -655,7 +655,7 @@ class LocalEnvironment(BaseEnvironment):
                 try:
                     pgid = os.getpgid(proc.pid)
                 except ProcessLookupError:
-                    pgid = getattr(proc, "_deepsuck_pgid", None)
+                    pgid = getattr(proc, "_dag_pgid", None)
                     if pgid is None:
                         raise
 

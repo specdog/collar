@@ -1,6 +1,6 @@
-"""``deepsuck debug`` subcommand parser.
+"""``dag debug`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -18,18 +18,18 @@ def build_debug_parser(subparsers, *, cmd_debug: Callable) -> None:
     debug_parser = subparsers.add_parser(
         "debug",
         help="Debug tools — upload logs and system info for support",
-        description="Debug utilities for Deepsuck Agent. Use 'deepsuck debug share' to "
+        description="Debug utilities for DAG Agent. Use 'dag debug share' to "
         "upload a debug report (system info + recent logs) to a paste "
         "service and get a shareable URL.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    deepsuck debug share              Upload debug report and print URL
-    deepsuck debug share --lines 500  Include more log lines
-    deepsuck debug share --expire 30  Keep paste for 30 days
-    deepsuck debug share --local      Print report locally (no upload)
-    deepsuck debug share --no-redact  Disable upload-time secret redaction
-    deepsuck debug delete <url>       Delete a previously uploaded paste
+    dag debug share              Upload debug report and print URL
+    dag debug share --lines 500  Include more log lines
+    dag debug share --expire 30  Keep paste for 30 days
+    dag debug share --local      Print report locally (no upload)
+    dag debug share --no-redact  Disable upload-time secret redaction
+    dag debug delete <url>       Delete a previously uploaded paste
 """,
     )
     debug_sub = debug_parser.add_subparsers(dest="debug_command")
@@ -66,7 +66,7 @@ Examples:
     )
     delete_parser = debug_sub.add_parser(
         "delete",
-        help="Delete a paste uploaded by 'deepsuck debug share'",
+        help="Delete a paste uploaded by 'dag debug share'",
     )
     delete_parser.add_argument(
         "urls",

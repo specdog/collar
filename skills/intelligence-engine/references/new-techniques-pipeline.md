@@ -27,5 +27,5 @@ Each script follows the same pattern:
 3. Output JSON: `{technique, source, tier_bridge, prompt, instruction}`
 4. The LLM consumes the prompt and fills in the reasoning phases
 
-Scripts are in `~/.deepsuck/skills/intelligence-engine/scripts/`.
+Scripts are in `~/.dag/skills/intelligence-engine/scripts/`.
 All are standalone — `echo "input" | python3 script.py` for any of them.

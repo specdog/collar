@@ -1,6 +1,6 @@
-"""``deepsuck login`` subcommand parser.
+"""``dag login`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -17,7 +17,7 @@ def build_login_parser(subparsers, *, cmd_login: Callable) -> None:
     login_parser = subparsers.add_parser(
         "login",
         help="Authenticate with an inference provider",
-        description="Run OAuth device authorization flow for Deepsuck CLI",
+        description="Run OAuth device authorization flow for Dag CLI",
     )
     login_parser.add_argument(
         "--provider",
@@ -33,7 +33,7 @@ def build_login_parser(subparsers, *, cmd_login: Callable) -> None:
         help="Inference API base URL (default: production inference API)",
     )
     login_parser.add_argument(
-        "--client-id", default=None, help="OAuth client id to use (default: deepsuck-cli)"
+        "--client-id", default=None, help="OAuth client id to use (default: dag-cli)"
     )
     login_parser.add_argument("--scope", default=None, help="OAuth scope to request")
     login_parser.add_argument(

@@ -1,6 +1,6 @@
 ---
 name: intelligence-engine
-description: Code-level intelligence amplification via deepsuck hooks + frontier LLM techniques. Bridges v4 Pro to GPT-5.5/Claude Mythos/Fable/Opus tier. Steals best techniques from Claude, GPT, Gemini, and DeepSeek.
+description: Code-level intelligence amplification via dag hooks + frontier LLM techniques. Bridges v4 Pro to GPT-5.5/Claude Mythos/Fable/Opus tier. Steals best techniques from Claude, GPT, Gemini, and DeepSeek.
 version: 3.0.0
 tags: [intelligence, reasoning, tot, reflexion, dspy, optimization, hooks, frontier, constitutional-ai, grounding]
 trigger: User asks to improve intelligence, reach frontier-model tier, mentions GPT-5.5/Claude Mythos/Fable/Opus-level reasoning, or talks about making the model smarter.
@@ -8,7 +8,7 @@ trigger: User asks to improve intelligence, reach frontier-model tier, mentions 
 
 # Intelligence Engine v2
 
-**Code-level** intelligence amplification — not prompt-level suggestions. Uses deepsuck shell hooks to automatically inject frontier techniques into every LLM call.
+**Code-level** intelligence amplification — not prompt-level suggestions. Uses dag shell hooks to automatically inject frontier techniques into every LLM call.
 
 **Core claim (proven):** GPT-3.5 + ToT > GPT-4 (Yao et al. 2023). v4 Pro + full 7-layer stack ≈ GPT-5.5/Opus tier.
 
@@ -51,7 +51,7 @@ Proven: GPT-3.5 + ToT > GPT-4 (Yao et al. 2023). v4 Pro + full 15-technique stac
 
 ## Hook Enforcement (the key innovation)
 
-4 deepsuck shell hooks fire automatically on every session. They are CODE-LEVEL — the model CANNOT skip them.
+4 dag shell hooks fire automatically on every session. They are CODE-LEVEL — the model CANNOT skip them.
 
 | Hook Event | Script | What It Does |
 |-----------|--------|-------------|
@@ -95,26 +95,26 @@ Hooks receive JSON on stdin, return JSON on stdout:
 
 ```bash
 # 1. Config auto-accept (skip TTY prompt)
-deepsuck config set hooks_auto_accept true
+dag config set hooks_auto_accept true
 
 # 2. Add to config.yaml hooks section:
 # hooks:
 #   pre_llm_call:
-#     - command: python3 ~/.deepsuck/skills/intelligence-engine/hooks/pre-llm-call-intel.py
+#     - command: python3 ~/.dag/skills/intelligence-engine/hooks/pre-llm-call-intel.py
 #       timeout: 10
 #   transform_llm_output:
-#     - command: python3 ~/.deepsuck/skills/intelligence-engine/hooks/transform-llm-output-intel.py
+#     - command: python3 ~/.dag/skills/intelligence-engine/hooks/transform-llm-output-intel.py
 #       timeout: 120
 #   post_tool_call:
-#     - command: python3 ~/.deepsuck/skills/intelligence-engine/hooks/post-tool-call-metrics.py
+#     - command: python3 ~/.dag/skills/intelligence-engine/hooks/post-tool-call-metrics.py
 #       timeout: 3
 #   on_session_end:
-#     - command: python3 ~/.deepsuck/skills/intelligence-engine/hooks/on-session-end-metrics.py
+#     - command: python3 ~/.dag/skills/intelligence-engine/hooks/on-session-end-metrics.py
 #       timeout: 10
 
 # 3. Verify
-deepsuck hooks list
-deepsuck hooks doctor
+dag hooks list
+dag hooks doctor
 ```
 
 ## Scripts (manual/on-demand use)
@@ -207,7 +207,7 @@ These scripts do REAL work — actual API calls, actual DAG queries, actual fact
 | `scripts/verify-answer.py` | Post-generation claim extraction: regex-based factual claim extraction, categorizes by verification method (file_check, dag_check, http_check, manual) | transform_llm_output hook (legacy — replaced by self-refine) | PARTIAL — regex is basic, superseded by self-refine |
 | `scripts/knowledge-pipeline.py` | Live fetch from ArXiv XML API, Semantic Scholar REST API, GitHub REST API | On-demand (API rate limits) | YES — but GitHub rate-limited without token |
 
-**The full pipeline as it actually runs on logohere/deepsuck remote:**
+**The full pipeline as it actually runs on logohere/dag remote:**
 
 ```
 pre_llm_call hook       → context-injector: DAG entities + fact store recall → inject into LLM context
@@ -229,7 +229,7 @@ Cost: 7 API calls total (~$0.0035 at deepseek prices).
 
 - **Hooks need allowlisting**: First run requires `hooks_auto_accept: true` or TTY consent. Without it, hooks silently skip.
 - **Hook timeout**: transform_llm_output runs self-refine (2 API calls, ~60-90s). Timeout must be ≥120s in config.yaml. Default 5s will kill the hook before it completes.
-- **API key for scripts**: Scripts that call deepseek API need DEEPSEEK_API_KEY in environment. Source from `~/.deepsuck/.env` before running: `source ~/.deepsuck/.env`. The config.yaml key may be different from the .env key. The .env key is the one that actually works (35 chars).
+- **API key for scripts**: Scripts that call deepseek API need DEEPSEEK_API_KEY in environment. Source from `~/.dag/.env` before running: `source ~/.dag/.env`. The config.yaml key may be different from the .env key. The .env key is the one that actually works (35 chars).
 - **DAG-grounded refine prevents hallucination**: Without DAG grounding, the refine step invents specific numbers (e.g., "2,347 verified facts"). With DAG grounding (`--dag` flag), it says "unverified" when data isn't in the DAG. Always run self-refine with `--dag`.
 - **Technique executors are cosplay**: tot-executor.py, got-executor.py, rap-executor.py, mad-executor.py, memgpt-executor.py, etc. output prompt templates — the model simulates reasoning, doesn't execute it. The "3.35 tier bridge" is paper claims, not measured. The REAL scripts are self-refine.py, multi-perspective.py, context-injector.py, fact-store.py.
 - **execute_code write_file silently fails**: When using `write_file()` inside `execute_code`, content with raw strings (`r'''...'''`), complex quoting, shebangs, or certain special characters may write only the shebang line. All 10 technique executors were gutted to 1 line. Always verify with `wc -l` after bulk writes. Workaround: use `terminal` with heredoc (`cat > file << 'EOF' ... EOF`) or Python generator script.

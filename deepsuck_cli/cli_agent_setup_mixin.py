@@ -1,11 +1,11 @@
-"""Agent-construction and session-resume display methods for ``DeepsuckCLI``.
+"""Agent-construction and session-resume display methods for ``DagCLI``.
 
 Extracted from ``cli.py`` as part of the god-file decomposition campaign
-(``~/.deepsuck/plans/god-file-decomposition.md``, Phase 4 step 2). This mixin holds
+(``~/.dag/plans/god-file-decomposition.md``, Phase 4 step 2). This mixin holds
 the agent lifecycle/setup cluster: runtime-credential resolution, per-turn agent
 config, first-use agent construction, and resumed-session preload + history recap.
 
-Behavior-neutral: every method is lifted verbatim from ``DeepsuckCLI``. ``self.*``
+Behavior-neutral: every method is lifted verbatim from ``DagCLI``. ``self.*``
 calls resolve unchanged via the MRO. Neutral dependencies are imported at module
 top level; ``cli.py``-internal helpers/constants are imported lazily inside each
 method (``from cli import ...`` resolves at call time, when ``cli`` is fully
@@ -20,7 +20,7 @@ from rich.markup import escape as _escape
 
 
 class CLIAgentSetupMixin:
-    """Agent construction + session-resume display methods for ``DeepsuckCLI``."""
+    """Agent construction + session-resume display methods for ``DagCLI``."""
 
     def _ensure_runtime_credentials(self) -> bool:
         """
@@ -30,7 +30,7 @@ class CLIAgentSetupMixin:
         Returns True if credentials are ready, False on auth failure.
         """
         from cli import ChatConsole, _cprint, logger
-        from deepsuck_cli.runtime_provider import (
+        from dag_cli.runtime_provider import (
             resolve_runtime_provider,
             format_runtime_provider_error,
         )
@@ -48,7 +48,7 @@ class CLIAgentSetupMixin:
 
         # Primary provider auth failed — try fallback providers before giving up.
         if runtime is None and _primary_exc is not None:
-            from deepsuck_cli.auth import AuthError
+            from dag_cli.auth import AuthError
             if isinstance(_primary_exc, AuthError):
                 _fb_chain = self._fallback_model if isinstance(self._fallback_model, list) else []
                 for _fb in _fb_chain:
@@ -104,11 +104,11 @@ class CLIAgentSetupMixin:
                 )
             else:
                 print("\n⚠️  Provider resolver returned an empty API key. "
-                      "Set OPENROUTER_API_KEY or run: deepsuck setup")
+                      "Set OPENROUTER_API_KEY or run: dag setup")
                 return False
         if not isinstance(base_url, str) or not base_url:
             print("\n⚠️  Provider resolver returned an empty base URL. "
-                  "Check your provider config or run: deepsuck setup")
+                  "Check your provider config or run: dag setup")
             return False
 
         credentials_changed = api_key != self.api_key or base_url != self.base_url
@@ -129,7 +129,7 @@ class CLIAgentSetupMixin:
 
         # When a custom_provider entry carries an explicit `model` field,
         # use it as the effective model name.  Without this, running
-        # `deepsuck chat --model <provider-name>` sends the provider name
+        # `dag chat --model <provider-name>` sends the provider name
         # (e.g. "my-provider") as the model string to the API instead of
         # the configured model (e.g. "qwen3.6-plus"), causing 400 errors.
         runtime_model = runtime.get("model")
@@ -143,12 +143,12 @@ class CLIAgentSetupMixin:
             if should_use_runtime_model:
                 self.model = runtime_model
 
-        # If model is still empty (e.g. user ran `deepsuck auth add openai-codex`
-        # without `deepsuck model`), fall back to the provider's first catalog
+        # If model is still empty (e.g. user ran `dag auth add openai-codex`
+        # without `dag model`), fall back to the provider's first catalog
         # model so the API call doesn't fail with "model must be non-empty".
         if not self.model and resolved_provider:
             try:
-                from deepsuck_cli.models import get_default_model_for_provider
+                from dag_cli.models import get_default_model_for_provider
                 _default = get_default_model_for_provider(resolved_provider)
                 if _default:
                     self.model = _default
@@ -179,7 +179,7 @@ class CLIAgentSetupMixin:
         Processing / Anthropic fast mode, attach `request_overrides` so the
         API call is marked accordingly.
         """
-        from deepsuck_cli.models import resolve_fast_mode_overrides
+        from dag_cli.models import resolve_fast_mode_overrides
 
         runtime = {
             "api_key": self.api_key,
@@ -234,14 +234,14 @@ class CLIAgentSetupMixin:
         if not self._ensure_runtime_credentials():
             return False
 
-        from deepsuck_cli.mcp_startup import wait_for_mcp_discovery
+        from dag_cli.mcp_startup import wait_for_mcp_discovery
 
         wait_for_mcp_discovery()
 
         # Initialize SQLite session store for CLI sessions (if not already done in __init__)
         if self._session_db is None:
             try:
-                from deepsuck_state import SessionDB
+                from dag_state import SessionDB
                 self._session_db = SessionDB()
             except Exception as e:
                 logger.warning("SQLite session store not available — session will NOT be indexed: %s", e)
@@ -252,22 +252,22 @@ class CLIAgentSetupMixin:
         # is non-empty and we skip the DB round-trip.
         if self._resumed and self._session_db and not self.conversation_history:
             session_meta = self._session_db.get_session(self.session_id)
-            # In quiet mode (`deepsuck chat -Q` / --quiet, surfaced via
+            # In quiet mode (`dag chat -Q` / --quiet, surfaced via
             # tool_progress_mode == "off"), resume status lines go to stderr
             # so stdout stays machine-readable for automation wrappers that
-            # do `$(deepsuck chat -Q --resume <id> -q "...")`. Without this,
+            # do `$(dag chat -Q --resume <id> -q "...")`. Without this,
             # the resume banner pollutes captured stdout. See #11793.
             _quiet_mode = getattr(self, "tool_progress_mode", "full") == "off"
             if not session_meta:
                 if _quiet_mode:
                     print(f"Session not found: {self.session_id}", file=sys.stderr)
                     print(
-                        "Use a session ID from a previous CLI run (deepsuck sessions list).",
+                        "Use a session ID from a previous CLI run (dag sessions list).",
                         file=sys.stderr,
                     )
                 else:
                     _cprint(f"\033[1;31mSession not found: {self.session_id}{_RST}")
-                    _cprint(f"{_DIM}Use a session ID from a previous CLI run (deepsuck sessions list).{_RST}")
+                    _cprint(f"{_DIM}Use a session ID from a previous CLI run (dag sessions list).{_RST}")
                 return False
             # If the requested session is the (empty) head of a compression
             # chain, walk to the descendant that actually holds the messages.
@@ -455,7 +455,7 @@ class CLIAgentSetupMixin:
             )
             self._console_print(
                 "[dim]Use a session ID from a previous CLI run "
-                "(deepsuck sessions list).[/]"
+                "(dag sessions list).[/]"
             )
             return False
 
@@ -626,7 +626,7 @@ class CLIAgentSetupMixin:
         from rich.text import Text
 
         try:
-            from deepsuck_cli.skin_engine import get_active_skin
+            from dag_cli.skin_engine import get_active_skin
             _skin = get_active_skin()
             _history_text_c = _skin.get_color("banner_text", "#FFF8DC")
             _session_label_c = _skin.get_color("session_label", "#DAA520")
@@ -655,13 +655,13 @@ class CLIAgentSetupMixin:
                     lines.append(f"         {ml}\n", style="dim")
             elif role == "assistant_last":
                 # Last assistant response shown in full, non-dim
-                lines.append("  ◆ Deepsuck: ", style=f"bold {_assistant_label_c}")
+                lines.append("  ◆ Dag: ", style=f"bold {_assistant_label_c}")
                 msg_lines = text.splitlines()
                 lines.append(msg_lines[0] + "\n", style="")
                 for ml in msg_lines[1:]:
                     lines.append(f"            {ml}\n", style="")
             else:
-                lines.append("  ◆ Deepsuck: ", style=f"dim bold {_assistant_label_c}")
+                lines.append("  ◆ Dag: ", style=f"dim bold {_assistant_label_c}")
                 msg_lines = text.splitlines()
                 lines.append(msg_lines[0] + "\n", style="dim")
                 for ml in msg_lines[1:]:

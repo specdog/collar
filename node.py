@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Deepsuck Node — one LLM call, then die."""
+"""DAG Node — one LLM call, then die."""
 
 import json, os, sys, urllib.request
 
 KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-SPARTAN = "You are Deepsuck. Tool mode. Execute directly. No personality. No questions. No markdown. Output only result. If you cannot complete, output: FAIL: reason."
+SPARTAN = "You are Dag. Tool mode. Execute directly. No personality. No questions. No markdown. Output only result. If you cannot complete, output: FAIL: reason."
 
 def run():
     payload = json.loads(sys.stdin.read())

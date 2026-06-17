@@ -1,6 +1,6 @@
-"""``deepsuck cron`` subcommand parser.
+"""``dag cron`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` — same arguments, same
+Extracted verbatim from ``dag_cli/main.py:main()`` — same arguments, same
 ``func=cmd_cron`` dispatch. The handler is injected so this module does not
 import ``main`` (cycle avoidance).
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from deepsuck_cli.subcommands._shared import add_accept_hooks_flag
+from dag_cli.subcommands._shared import add_accept_hooks_flag
 
 
 def build_cron_parser(subparsers, *, cmd_cron: Callable) -> None:
@@ -48,7 +48,7 @@ def build_cron_parser(subparsers, *, cmd_cron: Callable) -> None:
     cron_create.add_argument(
         "--script",
         help=(
-            "Path to a script under ~/.deepsuck/scripts/. Default mode: "
+            "Path to a script under ~/.dag/scripts/. Default mode: "
             "script stdout is injected into the agent's prompt each run. "
             "With --no-agent: the script IS the job and its stdout is "
             "delivered verbatim. .sh/.bash files run via bash, everything "
@@ -107,7 +107,7 @@ def build_cron_parser(subparsers, *, cmd_cron: Callable) -> None:
     cron_edit.add_argument(
         "--script",
         help=(
-            "Path to a script under ~/.deepsuck/scripts/. Pass empty string to clear. "
+            "Path to a script under ~/.dag/scripts/. Pass empty string to clear. "
             "With --no-agent the script IS the job; otherwise its stdout is "
             "injected into the agent's prompt each run."
         ),

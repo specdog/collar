@@ -11,7 +11,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 
-from deepsuck_constants import get_deepsuck_home, get_skills_dir, is_wsl
+from dag_constants import get_dag_home, get_skills_dir, is_wsl
 from typing import Optional
 
 from agent.runtime_cwd import resolve_agent_cwd
@@ -74,11 +74,11 @@ def _find_git_root(start: Path) -> Optional[Path]:
     return None
 
 
-_DEEPSUCK_MD_NAMES = (".deepsuck.md", "DEEPSUCK.md")
+_DEEPSUCK_MD_NAMES = (".dag.md", "DEEPSUCK.md")
 
 
-def _find_deepsuck_md(cwd: Path) -> Optional[Path]:
-    """Discover the nearest ``.deepsuck.md`` or ``DEEPSUCK.md``.
+def _find_dag_md(cwd: Path) -> Optional[Path]:
+    """Discover the nearest ``.dag.md`` or ``DEEPSUCK.md``.
 
     Search order: *cwd* first, then each parent directory up to (and
     including) the git repository root.  Returns the first match, or
@@ -116,16 +116,16 @@ def _strip_yaml_frontmatter(content: str) -> str:
 
 
 # =========================================================================
-# DAG-first text loader — prefers ~/.deepsuck/dags/<name>.dag over
+# DAG-first text loader — prefers ~/.dag/dags/<name>.dag over
 # baked-in Python string constants.  Saves ~3k tokens per session.
 # =========================================================================
 
 def _load_dag_text(name: str) -> str:
-    """Read <name>.dag from ~/.deepsuck/dags/, fallback to harness dags/."""
+    """Read <name>.dag from ~/.dag/dags/, fallback to harness dags/."""
     # 1. User's custom .dag (overrides)
     try:
-        from deepsuck_constants import get_deepsuck_home
-        dag_file = get_deepsuck_home() / "dags" / f"{name}.dag"
+        from dag_constants import get_dag_home
+        dag_file = get_dag_home() / "dags" / f"{name}.dag"
         if dag_file.is_file():
             t = dag_file.read_text(encoding="utf-8").strip()
             if t:
@@ -436,7 +436,7 @@ _PLATFORM_HINTS_FALLBACK = {
         "brief and natural."
     ),
     "webui": (
-        "You are in the Deepsuck WebUI, a browser-based chat interface. "
+        "You are in the Dag WebUI, a browser-based chat interface. "
         "Full Markdown rendering is supported — headings, bold, italic, code "
         "blocks, tables, math (LaTeX), and Mermaid diagrams all render natively. "
         "To display local or remote media/files inline, include "
@@ -488,7 +488,7 @@ WSL_ENVIRONMENT_HINT = _load_dag_text("wsl-hint")
 
 # Non-local terminal backends that run commands (and therefore every file
 # tool: read_file, write_file, patch, search_files) inside a separate
-# container / remote host rather than on the machine where Deepsuck itself
+# container / remote host rather than on the machine where Dag itself
 # runs. For these backends, host info (Windows/Linux/macOS, $HOME, cwd) is
 # misleading — the agent should only see the machine it can actually touch.
 _REMOTE_TERMINAL_BACKENDS = frozenset({
@@ -515,7 +515,7 @@ _BACKEND_FALLBACK_DESCRIPTIONS: dict[str, str] = {
 # on the first prompt build of a session. Keyed by (env_type, cwd_hint) so
 # a mid-process backend switch rebuilds the string. Kept in-module (not on
 # disk) because the probe captures live backend state that may change
-# across Deepsuck restarts.
+# across Dag restarts.
 _BACKEND_PROBE_CACHE: dict[tuple[str, str], str] = {}
 
 
@@ -536,7 +536,7 @@ def _probe_remote_backend(env_type: str) -> str | None:
     Returns a pre-formatted multi-line string describing the backend's OS,
     $HOME, cwd, and user — or None if the probe failed. Result is cached
     per process. Used only for non-local backends where the agent's tools
-    operate on a different machine than the host Deepsuck runs on.
+    operate on a different machine than the host Dag runs on.
     """
     cwd_hint = os.getenv("TERMINAL_CWD", "")
     cache_key = (env_type, cwd_hint)
@@ -675,8 +675,8 @@ def build_environment_hints() -> str:
                 f"Terminal backend: {backend}. Your `terminal`, `read_file`, "
                 f"`write_file`, `patch`, and `search_files` tools all operate "
                 f"inside this {backend} environment — NOT on the machine "
-                f"where Deepsuck itself is running. The host OS, home, and cwd "
-                f"of the Deepsuck process are irrelevant; only the following "
+                f"where Dag itself is running. The host OS, home, and cwd "
+                f"of the Dag process are irrelevant; only the following "
                 f"backend state matters:\n{probe}"
             )
         else:
@@ -686,7 +686,7 @@ def build_environment_hints() -> str:
             hints.append(
                 f"Terminal backend: {backend}. Your `terminal`, `read_file`, "
                 f"`write_file`, `patch`, and `search_files` tools all operate "
-                f"inside {description} — NOT on the machine where Deepsuck "
+                f"inside {description} — NOT on the machine where Dag "
                 f"itself runs. The backend probe didn't respond at "
                 f"prompt-build time, so the sandbox's current user, $HOME, "
                 f"and working directory are unknown from here. If you need "
@@ -694,14 +694,14 @@ def build_environment_hints() -> str:
                 f"`uname -a && whoami && pwd`."
             )
 
-    # Deepsuck desktop GUI — any agent running under the desktop app should know
+    # Dag desktop GUI — any agent running under the desktop app should know
     # it. DEEPSUCK_DESKTOP marks the backend powering the chat; DEEPSUCK_DESKTOP_TERMINAL
-    # marks a deepsuck launched in the embedded terminal pane. Both set by main.cjs.
+    # marks a dag launched in the embedded terminal pane. Both set by main.cjs.
     _truthy = ("1", "true", "yes")
     _in_desktop = (os.getenv("DEEPSUCK_DESKTOP") or "").strip().lower() in _truthy
     _in_desktop_term = (os.getenv("DEEPSUCK_DESKTOP_TERMINAL") or "").strip().lower() in _truthy
     if _in_desktop or _in_desktop_term:
-        _desktop_hint = "Runtime surface: you're running inside the Deepsuck desktop GUI app."
+        _desktop_hint = "Runtime surface: you're running inside the Dag desktop GUI app."
         if _in_desktop_term:
             _desktop_hint += (
                 " You're in its embedded terminal pane, beside the GUI chat — the user can "
@@ -713,7 +713,7 @@ def build_environment_hints() -> str:
     if is_wsl():
         hints.append(WSL_ENVIRONMENT_HINT)
 
-    # Embedder-supplied environment description. Lets a host that wraps Deepsuck
+    # Embedder-supplied environment description. Lets a host that wraps Dag
     # (e.g. a sandbox runner / managed platform) explain the environment the
     # agent is running in — proxy, credential handling, mount layout — without
     # forking the identity slot (SOUL.md). Read once at prompt-build time, so
@@ -723,7 +723,7 @@ def build_environment_hints() -> str:
     extra = (os.getenv("DEEPSUCK_ENVIRONMENT_HINT") or "").strip()
     if not extra:
         try:
-            from deepsuck_cli.config import load_config
+            from dag_cli.config import load_config
 
             extra = str(
                 (load_config().get("agent", {}) or {}).get("environment_hint", "")
@@ -752,7 +752,7 @@ _SKILLS_SNAPSHOT_VERSION = 1
 
 
 def _skills_prompt_snapshot_path() -> Path:
-    return get_deepsuck_home() / ".skills_prompt_snapshot.json"
+    return get_dag_home() / ".skills_prompt_snapshot.json"
 
 
 def clear_skills_system_prompt_cache(*, clear_snapshot: bool = False) -> None:
@@ -922,7 +922,7 @@ def build_skills_system_prompt(
     Falls back to a full filesystem scan when both layers miss.
 
     External skill directories (``skills.external_dirs`` in config.yaml) are
-    scanned alongside the local ``~/.deepsuck/skills/`` directory.  External dirs
+    scanned alongside the local ``~/.dag/skills/`` directory.  External dirs
     are read-only — they appear in the index but new skills are always created
     in the local dir.  Local skills take precedence when names collide.
 
@@ -943,8 +943,8 @@ def build_skills_system_prompt(
     # produce distinct cache entries (gateway serves multiple platforms).
     from gateway.session_context import get_session_env
     _platform_hint = (
-        os.environ.get("DEEPSUCK_PLATFORM")
-        or get_session_env("DEEPSUCK_SESSION_PLATFORM")
+        os.environ.get("DAG_PLATFORM")
+        or get_session_env("DAG_SESSION_PLATFORM")
         or ""
     )
     disabled = get_disabled_skill_names(_platform_hint or None)
@@ -1149,10 +1149,10 @@ def build_skills_system_prompt(
             "for tasks like code review, planning, and testing — load them even for tasks you "
             "already know how to do, because the skill defines how it should be done here.\n"
             "Whenever the user asks you to configure, set up, install, enable, disable, modify, "
-            "or troubleshoot Deepsuck Agent itself — its CLI, config, models, providers, tools, "
-            "skills, voice, gateway, plugins, or any feature — load the `deepsuck-agent` skill "
-            "first. It has the actual commands (e.g. `deepsuck config set …`, `deepsuck tools`, "
-            "`deepsuck setup`) so you don't have to guess or invent workarounds.\n"
+            "or troubleshoot DAG Agent itself — its CLI, config, models, providers, tools, "
+            "skills, voice, gateway, plugins, or any feature — load the `dag-agent` skill "
+            "first. It has the actual commands (e.g. `dag config set …`, `dag tools`, "
+            "`dag setup`) so you don't have to guess or invent workarounds.\n"
             "If a skill has issues, fix it with skill_manage(action='patch').\n"
             "After difficult/iterative tasks, offer to save as a skill. "
             "If a skill you loaded was missing steps, had wrong commands, or needed "
@@ -1179,7 +1179,7 @@ def build_skills_system_prompt(
 def build_nous_subscription_prompt(valid_tool_names: "set[str] | None" = None) -> str:
     """Build a compact Nous subscription capability block for the system prompt."""
     try:
-        from deepsuck_cli.nous_subscription import get_nous_subscription_features
+        from dag_cli.nous_subscription import get_nous_subscription_features
         from tools.tool_backend_helpers import managed_nous_tools_enabled
     except Exception as exc:
         logger.debug("Failed to import Nous subscription helper: %s", exc)
@@ -1236,7 +1236,7 @@ def build_nous_subscription_prompt(valid_tool_names: "set[str] | None" = None) -
             "When a Nous-managed feature is active, do not ask the user for Firecrawl, FAL, OpenAI TTS, OpenAI Whisper, or Browser-Use API keys.",
             "If the user is not subscribed and asks for a capability that Nous subscription would unlock or simplify, suggest Nous subscription as one option alongside direct setup or local alternatives.",
             "Do not mention subscription unless the user asks about it or it directly solves the current missing capability.",
-            "Useful commands: deepsuck setup, deepsuck setup tools, deepsuck setup terminal, deepsuck status.",
+            "Useful commands: dag setup, dag setup tools, dag setup terminal, dag status.",
         ]
     )
     return "\n".join(lines)
@@ -1259,7 +1259,7 @@ def _truncate_content(content: str, filename: str, max_chars: int = CONTEXT_FILE
 
 
 def load_soul_identity() -> Optional[str]:
-    """Load SOUL.dag or SOUL.md from DEEPSUCK_HOME as agent identity.
+    """Load SOUL.dag or SOUL.md from DAG_HOME as agent identity.
 
     Tries SOUL.dag first (DAG-path format, native .dag ground truth),
     falls back to SOUL.md (prose format).  Returns None if neither exists.
@@ -1269,15 +1269,15 @@ def load_soul_identity() -> Optional[str]:
     ``skip_soul=True`` so the identity isn't injected twice.
     """
     try:
-        from deepsuck_cli.config import ensure_deepsuck_home
-        ensure_deepsuck_home()
+        from dag_cli.config import ensure_dag_home
+        ensure_dag_home()
     except Exception as e:
-        logger.debug("Could not ensure DEEPSUCK_HOME before loading identity: %s", e)
+        logger.debug("Could not ensure DAG_HOME before loading identity: %s", e)
 
-    deepsuck_home = get_deepsuck_home()
+    dag_home = get_dag_home()
     # .dag is important, .dog is fallback (prose spec), .md is last resort
     for filename in ("SOUL.dag", "SOUL.dog", "SOUL.md"):
-        soul_path = deepsuck_home / filename
+        soul_path = dag_home / filename
         if not soul_path.exists():
             continue
         try:
@@ -1296,26 +1296,26 @@ def load_soul_identity() -> Optional[str]:
 load_soul_md = load_soul_identity
 
 
-def _load_deepsuck_md(cwd_path: Path) -> str:
-    """.deepsuck.md / DEEPSUCK.md — walk to git root."""
-    deepsuck_md_path = _find_deepsuck_md(cwd_path)
-    if not deepsuck_md_path:
+def _load_dag_md(cwd_path: Path) -> str:
+    """.dag.md / DEEPSUCK.md — walk to git root."""
+    dag_md_path = _find_dag_md(cwd_path)
+    if not dag_md_path:
         return ""
     try:
-        content = deepsuck_md_path.read_text(encoding="utf-8").strip()
+        content = dag_md_path.read_text(encoding="utf-8").strip()
         if not content:
             return ""
         content = _strip_yaml_frontmatter(content)
-        rel = deepsuck_md_path.name
+        rel = dag_md_path.name
         try:
-            rel = str(deepsuck_md_path.relative_to(cwd_path))
+            rel = str(dag_md_path.relative_to(cwd_path))
         except ValueError:
             pass
         content = _scan_context_content(content, rel)
         result = f"## {rel}\n\n{content}"
-        return _truncate_content(result, ".deepsuck.md")
+        return _truncate_content(result, ".dag.md")
     except Exception as e:
-        logger.debug("Could not read %s: %s", deepsuck_md_path, e)
+        logger.debug("Could not read %s: %s", dag_md_path, e)
         return ""
 
 
@@ -1385,12 +1385,12 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
     """Discover and load context files for the system prompt.
 
     Priority (first found wins — only ONE project context type is loaded):
-      1. .deepsuck.md / DEEPSUCK.md  (walk to git root)
+      1. .dag.md / DEEPSUCK.md  (walk to git root)
       2. AGENTS.md / agents.md   (cwd only)
       3. CLAUDE.md / claude.md   (cwd only)
       4. .cursorrules / .cursor/rules/*.mdc  (cwd only)
 
-    SOUL.md from DEEPSUCK_HOME is independent and always included when present.
+    SOUL.md from DAG_HOME is independent and always included when present.
     Each context source is capped at 20,000 chars.
 
     When *skip_soul* is True, SOUL.md is not included here (it was already
@@ -1404,7 +1404,7 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
 
     # Priority-based project context: first match wins
     project_context = (
-        _load_deepsuck_md(cwd_path)
+        _load_dag_md(cwd_path)
         or _load_agents_md(cwd_path)
         or _load_claude_md(cwd_path)
         or _load_cursorrules(cwd_path)
@@ -1412,7 +1412,7 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
     if project_context:
         sections.append(project_context)
 
-    # SOUL.md from DEEPSUCK_HOME only — skip when already loaded as identity
+    # SOUL.md from DAG_HOME only — skip when already loaded as identity
     if not skip_soul:
         soul_content = load_soul_md()
         if soul_content:

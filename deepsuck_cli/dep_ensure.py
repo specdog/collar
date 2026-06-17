@@ -29,7 +29,7 @@ _DEP_CHECKS = {
     "browser": lambda: (
         shutil.which("agent-browser") is not None
         or _has_system_browser()
-        or _has_deepsuck_agent_browser()
+        or _has_dag_agent_browser()
     ),
     "ripgrep": lambda: shutil.which("rg") is not None,
     "ffmpeg": lambda: shutil.which("ffmpeg") is not None,
@@ -54,13 +54,13 @@ def _has_system_browser() -> bool:
     return False
 
 
-def _has_deepsuck_agent_browser() -> bool:
-    from deepsuck_constants import get_deepsuck_home
-    home = get_deepsuck_home()
+def _has_dag_agent_browser() -> bool:
+    from dag_constants import get_dag_home
+    home = get_dag_home()
     if _IS_WINDOWS:
         # npm -g --prefix puts .cmd shims directly in the prefix dir on Windows
         return (home / "node" / "agent-browser.cmd").is_file()
-    # install.sh installs globally into $DEEPSUCK_HOME/node/bin/ via npm -g --prefix
+    # install.sh installs globally into $DAG_HOME/node/bin/ via npm -g --prefix
     # Also check legacy node_modules/.bin/ path for git-clone installs.
     return (
         (home / "node" / "bin" / "agent-browser").is_file()
@@ -130,7 +130,7 @@ def ensure_dependency(
             return False
 
     if shell == "powershell":
-        from deepsuck_constants import get_deepsuck_home
+        from dag_constants import get_dag_home
         ps_bin = shutil.which("powershell") or shutil.which("pwsh")
         if not ps_bin:
             if interactive:
@@ -141,7 +141,7 @@ def ensure_dependency(
             "-ExecutionPolicy", "Bypass",
             "-File", str(script),
             "-Ensure", dep,
-            "-DeepsuckHome", str(get_deepsuck_home()),
+            "-DagHome", str(get_dag_home()),
         ]
     else:
         cmd = ["bash", str(script), "--ensure", dep]

@@ -1,6 +1,6 @@
 """Remote model catalog fetcher.
 
-The Deepsuck docs site hosts a JSON manifest of curated models for providers
+The Dag docs site hosts a JSON manifest of curated models for providers
 we want to update without shipping a release (currently OpenRouter and
 Nous Portal). This module fetches, validates, and caches that manifest,
 falling back to the in-repo hardcoded lists when the network is unavailable.
@@ -9,7 +9,7 @@ Pipeline
 --------
 1. ``get_catalog()`` — returns a parsed manifest dict.
    - Checks in-process cache (invalidated by TTL).
-   - Reads disk cache at ``~/.deepsuck/cache/model_catalog.json``.
+   - Reads disk cache at ``~/.dag/cache/model_catalog.json``.
    - Fetches the master URL if disk cache is stale or missing.
    - On any fetch failure, keeps using the stale cache (or empty dict).
 
@@ -52,7 +52,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from deepsuck_cli import __version__ as _DEEPSUCK_VERSION
+from dag_cli import __version__ as _DEEPSUCK_VERSION
 from utils import atomic_replace
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_CATALOG_URL = (
-    "https://deepsuck-agent.nousresearch.com/docs/api/model-catalog.json"
+    "https://dag-agent.nousresearch.com/docs/api/model-catalog.json"
 )
 # Fallback fetch chain. The Docusaurus site is served through Vercel, which
 # occasionally returns HTTP 403 + x-vercel-mitigated: challenge for non-
@@ -71,13 +71,13 @@ DEFAULT_CATALOG_URL = (
 # is the same manifest published from the same repo and is not bot-gated,
 # so we fall through to it whenever the primary URL fails.
 DEFAULT_CATALOG_FALLBACK_URLS: tuple[str, ...] = (
-    "https://raw.githubusercontent.com/NousResearch/deepsuck-agent/main/website/static/api/model-catalog.json",
+    "https://raw.githubusercontent.com/NousResearch/dag-agent/main/website/static/api/model-catalog.json",
 )
 DEFAULT_TTL_HOURS = 1
 DEFAULT_FETCH_TIMEOUT = 8.0
 SUPPORTED_SCHEMA_VERSION = 1
 
-_DEEPSUCK_USER_AGENT = f"deepsuck-cli/{_DEEPSUCK_VERSION}"
+_DEEPSUCK_USER_AGENT = f"dag-cli/{_DEEPSUCK_VERSION}"
 
 # In-process cache to avoid repeated disk + parse work across multiple
 # calls within the same session. Invalidated by TTL against the disk file's
@@ -94,7 +94,7 @@ _catalog_cache_source_mtime: float = 0.0
 def _load_catalog_config() -> dict[str, Any]:
     """Load the ``model_catalog`` config block with defaults filled in."""
     try:
-        from deepsuck_cli.config import load_config
+        from dag_cli.config import load_config
         cfg = load_config() or {}
     except Exception:
         cfg = {}
@@ -113,8 +113,8 @@ def _load_catalog_config() -> dict[str, Any]:
 
 def _cache_path() -> Path:
     """Return the disk cache path. Import lazily so tests can monkeypatch home."""
-    from deepsuck_constants import get_deepsuck_home
-    return get_deepsuck_home() / "cache" / "model_catalog.json"
+    from dag_constants import get_dag_home
+    return get_dag_home() / "cache" / "model_catalog.json"
 
 
 # ---------------------------------------------------------------------------
@@ -359,14 +359,14 @@ def get_curated_nous_models() -> list[str] | None:
 def seed_cache_from_checkout(project_root: "Path | str") -> bool:
     """Overwrite the disk cache with the catalog shipped in a local checkout.
 
-    ``deepsuck update`` pulls the latest repo, so the freshly-pulled
+    ``dag update`` pulls the latest repo, so the freshly-pulled
     ``website/static/api/model-catalog.json`` IS the newest catalog — no
     network round-trip needed. Copying it straight over the disk cache keeps
     the model picker current even when the remote manifest fetch is bot-gated
     or the Portal hiccups.
 
     Reads the shipped manifest, validates it against the schema, and writes it
-    to ``~/.deepsuck/cache/model_catalog.json`` via the same atomic writer the
+    to ``~/.dag/cache/model_catalog.json`` via the same atomic writer the
     network path uses. Returns ``True`` on success, ``False`` if the file is
     missing, malformed, or fails validation (caller should treat a ``False``
     as non-fatal — the network fetch path still applies on the next picker
@@ -388,7 +388,7 @@ def seed_cache_from_checkout(project_root: "Path | str") -> bool:
 
 
 def reset_cache() -> None:
-    """Clear the in-process cache. Used by tests and ``deepsuck model --refresh``."""
+    """Clear the in-process cache. Used by tests and ``dag model --refresh``."""
     global _catalog_cache, _catalog_cache_source_mtime
     _catalog_cache = None
     _catalog_cache_source_mtime = 0.0

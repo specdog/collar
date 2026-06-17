@@ -4,9 +4,9 @@ Gateway runtime status helpers.
 Provides PID-file based detection of whether the gateway daemon is running,
 used by send_message's check_fn to gate availability in the CLI.
 
-The PID file lives at ``{DEEPSUCK_HOME}/gateway.pid``.  DEEPSUCK_HOME defaults to
+The PID file lives at ``{DAG_HOME}/gateway.pid``.  DAG_HOME defaults to
 ``~/.hermes`` but can be overridden via the environment variable.  This means
-separate DEEPSUCK_HOME directories naturally get separate PID files — a property
+separate DAG_HOME directories naturally get separate PID files — a property
 that will be useful when we add named profiles (multiple agents running
 concurrently under distinct configurations).
 """
@@ -19,7 +19,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 from typing import Any, Optional
 from utils import atomic_json_write
 
@@ -42,8 +42,8 @@ _WINDOWS_LOCK_OFFSET = 1024 * 1024
 
 
 def _get_pid_path() -> Path:
-    """Return the path to the gateway PID file, respecting DEEPSUCK_HOME."""
-    home = get_deepsuck_home()
+    """Return the path to the gateway PID file, respecting DAG_HOME."""
+    home = get_dag_home()
     return home / "gateway.pid"
 
 
@@ -51,7 +51,7 @@ def _get_gateway_lock_path(pid_path: Optional[Path] = None) -> Path:
     """Return the path to the runtime gateway lock file."""
     if pid_path is not None:
         return pid_path.with_name(_GATEWAY_LOCK_FILENAME)
-    home = get_deepsuck_home()
+    home = get_dag_home()
     return home / _GATEWAY_LOCK_FILENAME
 
 
@@ -171,9 +171,9 @@ def _looks_like_gateway_process(pid: int) -> bool:
         return False
 
     patterns = (
-        "deepsuck_cli.main gateway",
-        "deepsuck_cli/main.py gateway",
-        "deepsuck gateway",
+        "dag_cli.main gateway",
+        "dag_cli/main.py gateway",
+        "dag gateway",
         "hermes-gateway",
         "gateway/run.py",
     )
@@ -192,9 +192,9 @@ def _record_looks_like_gateway(record: dict[str, Any]) -> bool:
     # Normalize Windows backslashes so patterns match cross-platform.
     cmdline = " ".join(str(part) for part in argv).replace("\\", "/")
     patterns = (
-        "deepsuck_cli.main gateway",
-        "deepsuck_cli/main.py gateway",
-        "deepsuck gateway",
+        "dag_cli.main gateway",
+        "dag_cli/main.py gateway",
+        "dag gateway",
         "gateway/run.py",
     )
     return any(pattern in cmdline for pattern in patterns)
@@ -583,7 +583,7 @@ def acquire_scoped_lock(scope: str, identity: str, metadata: Optional[dict[str, 
     """Acquire a machine-local lock keyed by scope + identity.
 
     Used to prevent multiple local gateways from using the same external identity
-    at once (e.g. the same Telegram bot token across different DEEPSUCK_HOME dirs).
+    at once (e.g. the same Telegram bot token across different DAG_HOME dirs).
     """
     lock_path = _get_scope_lock_path(scope, identity)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -785,13 +785,13 @@ _PLANNED_STOP_MARKER_TTL_S = 60
 
 def _get_takeover_marker_path() -> Path:
     """Return the path to the --replace takeover marker file."""
-    home = get_deepsuck_home()
+    home = get_dag_home()
     return home / _TAKEOVER_MARKER_FILENAME
 
 
 def _get_planned_stop_marker_path() -> Path:
     """Return the path to the intentional gateway stop marker file."""
-    home = get_deepsuck_home()
+    home = get_dag_home()
     return home / _PLANNED_STOP_MARKER_FILENAME
 
 
@@ -840,7 +840,7 @@ def _consume_pid_marker_for_self(
     # platforms without ``/proc`` (macOS, native Windows — the very
     # platform the planned-stop watcher exists for). Requiring a non-None
     # match there would make every consume return False, so a legitimate
-    # ``deepsuck gateway stop`` on Windows would be misclassified as an
+    # ``dag gateway stop`` on Windows would be misclassified as an
     # unexpected ``UNKNOWN`` exit (exit 1) and revived by the service
     # manager. So: when both start_times are known they must match; when
     # either is unknown, fall back to PID equality alone (bounded by the

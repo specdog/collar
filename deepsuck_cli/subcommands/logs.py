@@ -1,6 +1,6 @@
-"""``deepsuck logs`` subcommand parser.
+"""``dag logs`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -17,23 +17,23 @@ def build_logs_parser(subparsers, *, cmd_logs: Callable) -> None:
     # =========================================================================
     logs_parser = subparsers.add_parser(
         "logs",
-        help="View and filter Deepsuck log files",
+        help="View and filter Dag log files",
         description="View, tail, and filter agent.log / errors.log / gateway.log / gui.log / desktop.log",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    deepsuck logs                    Show last 50 lines of agent.log
-    deepsuck logs -f                 Follow agent.log in real time
-    deepsuck logs errors             Show last 50 lines of errors.log
-    deepsuck logs gateway -n 100     Show last 100 lines of gateway.log
-    deepsuck logs gui -f             Follow gui.log in real time
-    deepsuck logs desktop -f         Follow desktop.log (Electron app boot/backend)
-    deepsuck logs --level WARNING    Only show WARNING and above
-    deepsuck logs --session abc123   Filter by session ID
-    deepsuck logs --component tools  Only show tool-related lines
-    deepsuck logs --since 1h         Lines from the last hour
-    deepsuck logs --since 30m -f     Follow, starting from 30 min ago
-    deepsuck logs list               List available log files with sizes
+    dag logs                    Show last 50 lines of agent.log
+    dag logs -f                 Follow agent.log in real time
+    dag logs errors             Show last 50 lines of errors.log
+    dag logs gateway -n 100     Show last 100 lines of gateway.log
+    dag logs gui -f             Follow gui.log in real time
+    dag logs desktop -f         Follow desktop.log (Electron app boot/backend)
+    dag logs --level WARNING    Only show WARNING and above
+    dag logs --session abc123   Filter by session ID
+    dag logs --component tools  Only show tool-related lines
+    dag logs --since 1h         Lines from the last hour
+    dag logs --since 30m -f     Follow, starting from 30 min ago
+    dag logs list               List available log files with sizes
 """,
     )
     logs_parser.add_argument(

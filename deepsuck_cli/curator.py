@@ -1,4 +1,4 @@
-"""CLI subcommand: `deepsuck curator <subcommand>`.
+"""CLI subcommand: `dag curator <subcommand>`.
 
 Thin shell around agent/curator.py and tools/skill_usage.py. Renders a status
 table, triggers a run, pauses/resumes, and pins/unpins skills.
@@ -202,17 +202,17 @@ def _cmd_run(args) -> int:
                 f"reactivated={auto.get('reactivated', 0)}"
             )
     if not synchronous:
-        print("llm pass running in background — check `deepsuck curator status` later")
+        print("llm pass running in background — check `dag curator status` later")
     if dry:
         if synchronous:
             print(
                 "dry-run: no changes applied. Read the report with "
-                "`deepsuck curator status` and run `deepsuck curator run` (no flag) to apply."
+                "`dag curator status` and run `dag curator run` (no flag) to apply."
             )
         else:
             print(
                 "dry-run: no changes applied. When the report lands, read it with "
-                "`deepsuck curator status` and run `deepsuck curator run` (no flag) to apply."
+                "`dag curator status` and run `dag curator run` (no flag) to apply."
             )
     return 0
 
@@ -274,7 +274,7 @@ def _cmd_archive(args) -> int:
     if skill_usage.get_record(args.skill).get("pinned"):
         print(
             f"curator: '{args.skill}' is pinned — unpin first with "
-            f"`deepsuck curator unpin {args.skill}`"
+            f"`dag curator unpin {args.skill}`"
         )
         return 1
     ok, msg = skill_usage.archive_skill(args.skill)
@@ -384,7 +384,7 @@ def _cmd_backup(args) -> int:
     if snap is None:
         print("curator: snapshot failed — check logs (backup disabled or IO error)")
         return 1
-    print(f"curator: snapshot created at ~/.deepsuck/skills/.curator_backups/{snap.name}")
+    print(f"curator: snapshot created at ~/.dag/skills/.curator_backups/{snap.name}")
     return 0
 
 
@@ -409,7 +409,7 @@ def _cmd_rollback(args) -> int:
         if not rows:
             print(
                 "curator: no snapshots exist yet. Take one with "
-                "`deepsuck curator backup` or wait for the next curator run."
+                "`dag curator backup` or wait for the next curator run."
             )
         else:
             print(
@@ -437,7 +437,7 @@ def _cmd_rollback(args) -> int:
                 reason = cron.get("reason", "not captured")
                 print(f"  cron jobs:   not in snapshot ({reason})")
     print(
-        "\nThis will replace the current ~/.deepsuck/skills/ tree (a safety "
+        "\nThis will replace the current ~/.dag/skills/ tree (a safety "
         "snapshot of the current state is taken first so this is undoable). "
         "Cron jobs that still exist will have their skills/skill fields "
         "restored from the snapshot; all other cron fields are left alone."
@@ -474,7 +474,7 @@ def _cmd_list_archived(args) -> int:
 
 
 # ---------------------------------------------------------------------------
-# argparse wiring (called from deepsuck_cli.main)
+# argparse wiring (called from dag_cli.main)
 # ---------------------------------------------------------------------------
 
 def register_cli(parent: argparse.ArgumentParser) -> None:
@@ -553,7 +553,7 @@ def register_cli(parent: argparse.ArgumentParser) -> None:
 
     p_backup = subs.add_parser(
         "backup",
-        help="Take a manual tar.gz snapshot of ~/.deepsuck/skills/ "
+        help="Take a manual tar.gz snapshot of ~/.dag/skills/ "
              "(curator also does this automatically before every real run)",
     )
     p_backup.add_argument(
@@ -564,7 +564,7 @@ def register_cli(parent: argparse.ArgumentParser) -> None:
 
     p_rollback = subs.add_parser(
         "rollback",
-        help="Restore ~/.deepsuck/skills/ from a curator snapshot "
+        help="Restore ~/.dag/skills/ from a curator snapshot "
              "(defaults to the newest)",
     )
     p_rollback.add_argument(
@@ -583,8 +583,8 @@ def register_cli(parent: argparse.ArgumentParser) -> None:
 
 
 def cli_main(argv=None) -> int:
-    """Standalone entry (also usable by deepsuck_cli.main fallthrough)."""
-    parser = argparse.ArgumentParser(prog="deepsuck curator")
+    """Standalone entry (also usable by dag_cli.main fallthrough)."""
+    parser = argparse.ArgumentParser(prog="dag curator")
     register_cli(parser)
     args = parser.parse_args(argv)
     fn = getattr(args, "func", None)

@@ -1,6 +1,6 @@
-"""``deepsuck claw`` subcommand parser.
+"""``dag claw`` subcommand parser.
 
-Extracted from ``deepsuck_cli/main.py:main()`` (god-file Phase 2 follow-up).
+Extracted from ``dag_cli/main.py:main()`` (god-file Phase 2 follow-up).
 Handler injected to avoid importing ``main``.
 """
 
@@ -14,14 +14,14 @@ def build_claw_parser(subparsers, *, cmd_claw: Callable) -> None:
     claw_parser = subparsers.add_parser(
         "claw",
         help="OpenClaw migration tools",
-        description="Migrate settings, memories, skills, and API keys from OpenClaw to Deepsuck",
+        description="Migrate settings, memories, skills, and API keys from OpenClaw to Dag",
     )
     claw_subparsers = claw_parser.add_subparsers(dest="claw_action")
 
     # claw migrate
     claw_migrate = claw_subparsers.add_parser(
         "migrate",
-        help="Migrate from OpenClaw to Deepsuck",
+        help="Migrate from OpenClaw to Dag",
         description="Import settings, memories, skills, and API keys from an OpenClaw installation. "
         "Always shows a preview before making changes.",
     )
@@ -54,9 +54,9 @@ def build_claw_parser(subparsers, *, cmd_claw: Callable) -> None:
     claw_migrate.add_argument(
         "--no-backup",
         action="store_true",
-        help="Skip the pre-migration zip snapshot of ~/.deepsuck/ (by default a "
-        "single restore-point archive is written to ~/.deepsuck/backups/ "
-        "before apply; restorable with 'deepsuck import').",
+        help="Skip the pre-migration zip snapshot of ~/.dag/ (by default a "
+        "single restore-point archive is written to ~/.dag/backups/ "
+        "before apply; restorable with 'dag import').",
     )
     claw_migrate.add_argument(
         "--workspace-target", help="Absolute path to copy workspace instructions into"

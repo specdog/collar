@@ -1,5 +1,5 @@
 """
-Shared platform registry for Deepsuck Agent.
+Shared platform registry for DAG Agent.
 
 Single source of truth for platform metadata consumed by both
 skills_config (label display) and tools_config (default toolset
@@ -19,28 +19,28 @@ class PlatformInfo(NamedTuple):
 
 # Ordered so that TUI menus are deterministic.
 PLATFORMS: OrderedDict[str, PlatformInfo] = OrderedDict([
-    ("cli",            PlatformInfo(label="🖥️  CLI",            default_toolset="deepsuck-cli")),
-    ("telegram",       PlatformInfo(label="📱 Telegram",        default_toolset="deepsuck-telegram")),
-    ("discord",        PlatformInfo(label="💬 Discord",         default_toolset="deepsuck-discord")),
-    ("slack",          PlatformInfo(label="💼 Slack",           default_toolset="deepsuck-slack")),
-    ("whatsapp",       PlatformInfo(label="📱 WhatsApp",        default_toolset="deepsuck-whatsapp")),
-    ("whatsapp_cloud", PlatformInfo(label="📱 WhatsApp Business (Cloud)", default_toolset="deepsuck-whatsapp")),
-    ("signal",         PlatformInfo(label="📡 Signal",          default_toolset="deepsuck-signal")),
-    ("bluebubbles",    PlatformInfo(label="💙 BlueBubbles",     default_toolset="deepsuck-bluebubbles")),
-    ("email",          PlatformInfo(label="📧 Email",           default_toolset="deepsuck-email")),
-    ("homeassistant",  PlatformInfo(label="🏠 Home Assistant",  default_toolset="deepsuck-homeassistant")),
-    ("mattermost",     PlatformInfo(label="💬 Mattermost",      default_toolset="deepsuck-mattermost")),
-    ("matrix",         PlatformInfo(label="💬 Matrix",          default_toolset="deepsuck-matrix")),
-    ("dingtalk",       PlatformInfo(label="💬 DingTalk",        default_toolset="deepsuck-dingtalk")),
-    ("feishu",         PlatformInfo(label="🪽 Feishu",          default_toolset="deepsuck-feishu")),
-    ("wecom",          PlatformInfo(label="💬 WeCom",           default_toolset="deepsuck-wecom")),
-    ("wecom_callback", PlatformInfo(label="💬 WeCom Callback",  default_toolset="deepsuck-wecom-callback")),
-    ("weixin",         PlatformInfo(label="💬 Weixin",          default_toolset="deepsuck-weixin")),
-    ("qqbot",          PlatformInfo(label="💬 QQBot",           default_toolset="deepsuck-qqbot")),
-    ("yuanbao",        PlatformInfo(label="🤖 Yuanbao",         default_toolset="deepsuck-yuanbao")),
-    ("webhook",        PlatformInfo(label="🔗 Webhook",         default_toolset="deepsuck-webhook")),
-    ("api_server",     PlatformInfo(label="🌐 API Server",      default_toolset="deepsuck-api-server")),
-    ("cron",           PlatformInfo(label="⏰ Cron",            default_toolset="deepsuck-cron")),
+    ("cli",            PlatformInfo(label="🖥️  CLI",            default_toolset="dag-cli")),
+    ("telegram",       PlatformInfo(label="📱 Telegram",        default_toolset="dag-telegram")),
+    ("discord",        PlatformInfo(label="💬 Discord",         default_toolset="dag-discord")),
+    ("slack",          PlatformInfo(label="💼 Slack",           default_toolset="dag-slack")),
+    ("whatsapp",       PlatformInfo(label="📱 WhatsApp",        default_toolset="dag-whatsapp")),
+    ("whatsapp_cloud", PlatformInfo(label="📱 WhatsApp Business (Cloud)", default_toolset="dag-whatsapp")),
+    ("signal",         PlatformInfo(label="📡 Signal",          default_toolset="dag-signal")),
+    ("bluebubbles",    PlatformInfo(label="💙 BlueBubbles",     default_toolset="dag-bluebubbles")),
+    ("email",          PlatformInfo(label="📧 Email",           default_toolset="dag-email")),
+    ("homeassistant",  PlatformInfo(label="🏠 Home Assistant",  default_toolset="dag-homeassistant")),
+    ("mattermost",     PlatformInfo(label="💬 Mattermost",      default_toolset="dag-mattermost")),
+    ("matrix",         PlatformInfo(label="💬 Matrix",          default_toolset="dag-matrix")),
+    ("dingtalk",       PlatformInfo(label="💬 DingTalk",        default_toolset="dag-dingtalk")),
+    ("feishu",         PlatformInfo(label="🪽 Feishu",          default_toolset="dag-feishu")),
+    ("wecom",          PlatformInfo(label="💬 WeCom",           default_toolset="dag-wecom")),
+    ("wecom_callback", PlatformInfo(label="💬 WeCom Callback",  default_toolset="dag-wecom-callback")),
+    ("weixin",         PlatformInfo(label="💬 Weixin",          default_toolset="dag-weixin")),
+    ("qqbot",          PlatformInfo(label="💬 QQBot",           default_toolset="dag-qqbot")),
+    ("yuanbao",        PlatformInfo(label="🤖 Yuanbao",         default_toolset="dag-yuanbao")),
+    ("webhook",        PlatformInfo(label="🔗 Webhook",         default_toolset="dag-webhook")),
+    ("api_server",     PlatformInfo(label="🌐 API Server",      default_toolset="dag-api-server")),
+    ("cron",           PlatformInfo(label="⏰ Cron",            default_toolset="dag-cron")),
 ])
 
 
@@ -77,7 +77,7 @@ def get_all_platforms() -> "OrderedDict[str, PlatformInfo]":
             if entry.name not in merged:
                 merged[entry.name] = PlatformInfo(
                     label=f"{entry.emoji}  {entry.label}" if entry.emoji else entry.label,
-                    default_toolset=f"deepsuck-{entry.name}",
+                    default_toolset=f"dag-{entry.name}",
                 )
     except Exception:
         pass

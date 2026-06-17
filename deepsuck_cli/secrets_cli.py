@@ -1,4 +1,4 @@
-"""CLI handlers for ``deepsuck secrets bitwarden ...``.
+"""CLI handlers for ``dag secrets bitwarden ...``.
 
 Subcommands:
     setup    — interactive wizard: install bws, prompt for token + project, test fetch
@@ -23,25 +23,25 @@ from rich.panel import Panel
 from rich.table import Table
 
 from agent.secret_sources import bitwarden as bw
-from deepsuck_cli.config import (
+from dag_cli.config import (
     get_env_path,
     load_config,
     save_config,
     save_env_value,
 )
-from deepsuck_cli.secret_prompt import masked_secret_prompt
+from dag_cli.secret_prompt import masked_secret_prompt
 
 
 # ---------------------------------------------------------------------------
-# Argparse wiring — called from deepsuck_cli.main
+# Argparse wiring — called from dag_cli.main
 # ---------------------------------------------------------------------------
 
 
 def register_cli(parent_parser: argparse.ArgumentParser) -> None:
     """Attach the ``bitwarden`` subcommand tree to a parent parser.
 
-    Called from ``deepsuck_cli.main`` as part of building the top-level
-    ``deepsuck secrets`` parser.
+    Called from ``dag_cli.main`` as part of building the top-level
+    ``dag secrets`` parser.
     """
     sub = parent_parser.add_subparsers(dest="secrets_bw_command")
 
@@ -146,7 +146,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
                 f"  [red]Non-interactive mode (no TTY) requires all setup flags.[/red]\n"
                 f"  Missing: {', '.join(missing)}\n\n"
                 "  Usage:\n"
-                "    deepsuck secrets bitwarden setup \\\n"
+                "    dag secrets bitwarden setup \\\n"
                 "      --access-token '0.xxx' \\\n"
                 "      --server-url 'https://vault.bitwarden.com' \\\n"
                 "      --project-id 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'"
@@ -278,12 +278,12 @@ def cmd_setup(args: argparse.Namespace) -> int:
     console.print()
     console.print(
         "[green]✓ Bitwarden Secrets Manager is enabled.[/green]  "
-        "Secrets will be pulled at the start of every Deepsuck process."
+        "Secrets will be pulled at the start of every Dag process."
     )
     console.print(
-        "  Status:  [cyan]deepsuck secrets bitwarden status[/cyan]\n"
-        "  Refresh: [cyan]deepsuck secrets bitwarden sync[/cyan]\n"
-        "  Disable: [cyan]deepsuck secrets bitwarden disable[/cyan]"
+        "  Status:  [cyan]dag secrets bitwarden status[/cyan]\n"
+        "  Refresh: [cyan]dag secrets bitwarden sync[/cyan]\n"
+        "  Disable: [cyan]dag secrets bitwarden disable[/cyan]"
     )
     return 0
 
@@ -323,11 +323,11 @@ def cmd_status(args: argparse.Namespace) -> int:
     console.print(Panel(table, title="Bitwarden Secrets Manager", border_style="cyan"))
 
     if not enabled:
-        console.print("\n  Run [cyan]deepsuck secrets bitwarden setup[/cyan] to enable.")
+        console.print("\n  Run [cyan]dag secrets bitwarden setup[/cyan] to enable.")
         return 0
     if not token_set:
         console.print(
-            f"\n  [yellow]Enabled but {token_env} is not set — Deepsuck will skip BSM "
+            f"\n  [yellow]Enabled but {token_env} is not set — Dag will skip BSM "
             "and warn on next startup.[/yellow]"
         )
     if not project_id:
@@ -344,7 +344,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
     if not bw_cfg.get("enabled"):
         console.print(
             "[yellow]Bitwarden integration is disabled.  Run "
-            "`deepsuck secrets bitwarden setup` first.[/yellow]"
+            "`dag secrets bitwarden setup` first.[/yellow]"
         )
         return 1
 
@@ -403,7 +403,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
     if not args.apply:
         console.print(
             "\n  This was a dry-run — secrets are picked up automatically on the "
-            "next [cyan]deepsuck[/cyan] invocation.  Re-run with [cyan]--apply[/cyan] "
+            "next [cyan]dag[/cyan] invocation.  Re-run with [cyan]--apply[/cyan] "
             "to export into the current shell instead."
         )
     else:
@@ -420,7 +420,7 @@ def cmd_disable(args: argparse.Namespace) -> int:
     save_config(cfg)
     console.print(
         "[green]Disabled.[/green]  Bitwarden secrets will NOT be pulled on the next "
-        "Deepsuck invocation.\n"
+        "DAG invocation.\n"
         "  Your access token is left in .env — remove it manually if you also want "
         "to revoke the credential."
     )
@@ -491,7 +491,7 @@ def _list_projects(
             console.print(
                 "  [yellow]'invalid_client' from the US identity endpoint usually "
                 "means the token is for a different Bitwarden region.  Re-run "
-                "[cyan]deepsuck secrets bitwarden setup[/cyan] and pick EU or "
+                "[cyan]dag secrets bitwarden setup[/cyan] and pick EU or "
                 "self-hosted at the region prompt, or set [cyan]secrets.bitwarden."
                 "server_url[/cyan] in config.yaml.[/yellow]"
             )

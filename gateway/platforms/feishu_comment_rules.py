@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 # Paths
 # ---------------------------------------------------------------------------
 #
-# Uses the canonical ``get_deepsuck_home()`` helper (DEEPSUCK_HOME-aware and
+# Uses the canonical ``get_dag_home()`` helper (DAG_HOME-aware and
 # profile-safe). Resolved at import time; this module is lazy-imported by
 # the Feishu comment event handler, which runs long after profile overrides
 # have been applied, so freezing paths here is safe.
 
-RULES_FILE = get_deepsuck_home() / "feishu_comment_rules.json"
-PAIRING_FILE = get_deepsuck_home() / "feishu_comment_pairing.json"
+RULES_FILE = get_dag_home() / "feishu_comment_rules.json"
+PAIRING_FILE = get_dag_home() / "feishu_comment_pairing.json"
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -351,7 +351,7 @@ def _main() -> int:
     import sys
 
     try:
-        from deepsuck_cli.env_loader import load_hermes_dotenv
+        from dag_cli.env_loader import load_hermes_dotenv
         load_hermes_dotenv()
     except Exception:
         pass

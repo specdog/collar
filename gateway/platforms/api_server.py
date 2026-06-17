@@ -6,7 +6,7 @@ Exposes an HTTP server with endpoints:
 - POST /v1/responses               — OpenAI Responses API format (stateful via previous_response_id; X-Hermes-Session-Key supported)
 - GET  /v1/responses/{response_id} — Retrieve a stored response
 - DELETE /v1/responses/{response_id} — Delete a stored response
-- GET  /v1/models                  — lists deepsuck-agent as an available model
+- GET  /v1/models                  — lists dag-agent as an available model
 - GET  /v1/capabilities            — machine-readable API capabilities for external UIs
 - GET  /api/sessions               — list client-visible Hermes sessions
 - POST /api/sessions               — create an empty Hermes session
@@ -23,7 +23,7 @@ Exposes an HTTP server with endpoints:
 - GET  /health/detailed            — rich status for cross-container dashboard probing
 
 Any OpenAI-compatible frontend (Open WebUI, LobeChat, LibreChat,
-AnythingLLM, NextChat, ChatBox, etc.) can connect to deepsuck-agent
+AnythingLLM, NextChat, ChatBox, etc.) can connect to dag-agent
 through this adapter by pointing at http://localhost:8642/v1 and
 authenticating with API_SERVER_KEY.
 
@@ -63,21 +63,21 @@ logger = logging.getLogger(__name__)
 
 
 def _hermes_version() -> str:
-    """Return the deepsuck-agent version string, or "dev" if it can't be resolved.
+    """Return the dag-agent version string, or "dev" if it can't be resolved.
 
     Tries the installed package metadata first (authoritative for a pip/uv
-    install), then the in-tree ``deepsuck_cli.__version__`` (covers editable /
+    install), then the in-tree ``dag_cli.__version__`` (covers editable /
     source checkouts where metadata may be stale or absent). Never raises —
     a version probe must not be able to break the health endpoint.
     """
     try:
         from importlib.metadata import version
 
-        return version("deepsuck-agent")
+        return version("dag-agent")
     except Exception:
         pass
     try:
-        from deepsuck_cli import __version__
+        from dag_cli import __version__
 
         return __version__
     except Exception:
@@ -384,8 +384,8 @@ class ResponseStore:
         self._max_size = max_size
         if db_path is None:
             try:
-                from deepsuck_cli.config import get_deepsuck_home
-                db_path = str(get_deepsuck_home() / "response_store.db")
+                from dag_cli.config import get_dag_home
+                db_path = str(get_dag_home() / "response_store.db")
             except Exception:
                 db_path = ":memory:"
         self._db_path: Optional[str] = db_path if db_path != ":memory:" else None
@@ -395,10 +395,10 @@ class ResponseStore:
             self._conn = sqlite3.connect(":memory:", check_same_thread=False)
             self._db_path = None
         # Use shared WAL-fallback helper so response_store.db degrades
-        # gracefully on NFS/SMB/FUSE-mounted DEEPSUCK_HOME (same filesystem
+        # gracefully on NFS/SMB/FUSE-mounted DAG_HOME (same filesystem
         # issue addressed for state.db/kanban.db — see
         # hermes_state._WAL_INCOMPAT_MARKERS).
-        from deepsuck_state import apply_wal_with_fallback
+        from dag_state import apply_wal_with_fallback
         apply_wal_with_fallback(self._conn, db_label="response_store.db")
         self._conn.execute(
             """CREATE TABLE IF NOT EXISTS responses (
@@ -736,7 +736,7 @@ class APIServerAdapter(BasePlatformAdapter):
     OpenAI-compatible HTTP API server adapter.
 
     Runs an aiohttp web server that accepts OpenAI-format requests
-    and routes them through deepsuck-agent's AIAgent.
+    and routes them through dag-agent's AIAgent.
     """
 
     def __init__(self, config: PlatformConfig):
@@ -795,18 +795,18 @@ class APIServerAdapter(BasePlatformAdapter):
         Priority:
         1. Explicit override (config extra or API_SERVER_MODEL_NAME env var)
         2. Active profile name (so each profile advertises a distinct model)
-        3. Fallback: "deepsuck-agent"
+        3. Fallback: "dag-agent"
         """
         if explicit and explicit.strip():
             return explicit.strip()
         try:
-            from deepsuck_cli.profiles import get_active_profile_name
+            from dag_cli.profiles import get_active_profile_name
             profile = get_active_profile_name()
             if profile and profile not in {"default", "custom"}:
                 return profile
         except Exception:
             pass
-        return "deepsuck-agent"
+        return "dag-agent"
 
     def _cors_headers_for_origin(self, origin: str) -> Optional[Dict[str, str]]:
         """Return CORS headers for an allowed browser origin."""
@@ -992,12 +992,12 @@ class APIServerAdapter(BasePlatformAdapter):
     def _ensure_session_db(self):
         """Lazily initialise and return the shared SessionDB instance.
 
-        Sessions are persisted to ``state.db`` so that ``deepsuck sessions list``
+        Sessions are persisted to ``state.db`` so that ``dag sessions list``
         shows API-server conversations alongside CLI and gateway ones.
         """
         if self._session_db is None:
             try:
-                from deepsuck_state import SessionDB
+                from dag_state import SessionDB
                 self._session_db = SessionDB()
             except Exception as e:
                 logger.debug("SessionDB unavailable for API server: %s", e)
@@ -1034,7 +1034,7 @@ class APIServerAdapter(BasePlatformAdapter):
         """
         from run_agent import AIAgent
         from gateway.run import _resolve_runtime_agent_kwargs, _resolve_gateway_model, _load_gateway_config, GatewayRunner
-        from deepsuck_cli.tools_config import _get_platform_tools
+        from dag_cli.tools_config import _get_platform_tools
 
         runtime_kwargs = _resolve_runtime_agent_kwargs()
         reasoning_config = GatewayRunner._load_reasoning_config()
@@ -1077,7 +1077,7 @@ class APIServerAdapter(BasePlatformAdapter):
     async def _handle_health(self, request: "web.Request") -> "web.Response":
         """GET /health — simple health check."""
         return web.json_response(
-            {"status": "ok", "platform": "deepsuck-agent", "version": _hermes_version()}
+            {"status": "ok", "platform": "dag-agent", "version": _hermes_version()}
         )
 
     async def _handle_health_detailed(self, request: "web.Request") -> "web.Response":
@@ -1092,7 +1092,7 @@ class APIServerAdapter(BasePlatformAdapter):
         runtime = read_runtime_status() or {}
         return web.json_response({
             "status": "ok",
-            "platform": "deepsuck-agent",
+            "platform": "dag-agent",
             "version": _hermes_version(),
             "gateway_state": runtime.get("gateway_state"),
             "platforms": runtime.get("platforms", {}),
@@ -1103,7 +1103,7 @@ class APIServerAdapter(BasePlatformAdapter):
         })
 
     async def _handle_models(self, request: "web.Request") -> "web.Response":
-        """GET /v1/models — return deepsuck-agent as an available model."""
+        """GET /v1/models — return dag-agent as an available model."""
         auth_err = self._check_auth(request)
         if auth_err:
             return auth_err
@@ -1136,7 +1136,7 @@ class APIServerAdapter(BasePlatformAdapter):
 
         return web.json_response({
             "object": "hermes.api_server.capabilities",
-            "platform": "deepsuck-agent",
+            "platform": "dag-agent",
             "model": self._model_name,
             "auth": {
                 "type": "bearer",
@@ -1248,8 +1248,8 @@ class APIServerAdapter(BasePlatformAdapter):
             return auth_err
 
         try:
-            from deepsuck_cli.config import load_config
-            from deepsuck_cli.tools_config import (
+            from dag_cli.config import load_config
+            from dag_cli.tools_config import (
                 _get_effective_configurable_toolsets,
                 _get_platform_tools,
                 _toolset_has_keys,
@@ -4232,7 +4232,7 @@ class APIServerAdapter(BasePlatformAdapter):
             # Ported from openclaw/openclaw#64586.
             if is_network_accessible(self._host) and self._api_key:
                 try:
-                    from deepsuck_cli.auth import has_usable_secret
+                    from dag_cli.auth import has_usable_secret
                     if not has_usable_secret(self._api_key, min_length=8):
                         logger.error(
                             "[%s] Refusing to start: API_SERVER_KEY is set to a "

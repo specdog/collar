@@ -10,7 +10,7 @@ MAX_LINES = 50
 
 def search_codebase(query, roots=None):
     if roots is None:
-        roots = [os.getcwd(), str(Path.home() / "deepsuck")]
+        roots = [os.getcwd(), str(Path.home() / "dag")]
     
     keywords = query.lower().split()
     if not keywords: return []
@@ -61,7 +61,7 @@ def format_for_injection(results):
 if __name__ == "__main__":
     query = sys.stdin.read().strip() if not sys.stdin.isatty() else " ".join(sys.argv[1:])
     if not query: print(json.dumps({"error": "no query"})); sys.exit(1)
-    roots = [os.getcwd(), str(Path.home() / "deepsuck")]
+    roots = [os.getcwd(), str(Path.home() / "dag")]
     results = search_codebase(query, roots)
     if '--json' in sys.argv:
         print(json.dumps({"files": len(results), "results": results}, indent=2))

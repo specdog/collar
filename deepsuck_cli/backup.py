@@ -1,11 +1,11 @@
 """
-Backup and import commands for deepsuck CLI.
+Backup and import commands for dag CLI.
 
-`deepsuck backup` creates a zip archive of the entire ~/.deepsuck/ directory
-(excluding the deepsuck-agent repo and transient files).
+`dag backup` creates a zip archive of the entire ~/.dag/ directory
+(excluding the dag-agent repo and transient files).
 
-`deepsuck import` restores from a backup zip, overlaying onto the current
-DEEPSUCK_HOME root.
+`dag import` restores from a backup zip, overlaying onto the current
+DAG_HOME root.
 """
 
 import json
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from deepsuck_constants import get_default_deepsuck_root, get_deepsuck_home, display_deepsuck_home
+from dag_constants import get_default_dag_root, get_dag_home, display_dag_home
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +31,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Directory names to skip entirely (matched against each path component)
-# ``deepsuck-agent`` is special-cased to root level only in ``_should_exclude``
-# so that skill directories like ``skills/autonomous-ai-agents/deepsuck-agent/``
+# ``dag-agent`` is special-cased to root level only in ``_should_exclude``
+# so that skill directories like ``skills/autonomous-ai-agents/dag-agent/``
 # are not accidentally excluded.
 _EXCLUDED_DIRS = {
-    "deepsuck-agent",     # the codebase repo — re-clone instead
+    "dag-agent",     # the codebase repo — re-clone instead
     "__pycache__",      # bytecode caches — regenerated on import
     ".git",             # nested git dirs (profiles shouldn't have these, but safety)
     "node_modules",     # js deps if website/ somehow leaks in
@@ -69,16 +69,16 @@ _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
 
 
 def _should_exclude(rel_path: Path) -> bool:
-    """Return True if *rel_path* (relative to deepsuck root) should be skipped."""
+    """Return True if *rel_path* (relative to dag root) should be skipped."""
     parts = rel_path.parts
 
     for part in parts:
         if part not in _EXCLUDED_DIRS:
             continue
-        # ``deepsuck-agent`` only matches at the root level (first component).
+        # ``dag-agent`` only matches at the root level (first component).
         # Nested directories with the same name — e.g.
-        # ``skills/autonomous-ai-agents/deepsuck-agent/`` — must be preserved.
-        if part == "deepsuck-agent" and part != parts[0]:
+        # ``skills/autonomous-ai-agents/dag-agent/`` — must be preserved.
+        if part == "dag-agent" and part != parts[0]:
             continue
         return True
 
@@ -99,7 +99,7 @@ def _should_skip_backup_file(abs_path: Path, rel_path: Path, out_path: Path) -> 
         return True
 
     # zipfile.write() follows file symlinks, so skip links before any archive
-    # write can copy data from outside DEEPSUCK_HOME.
+    # write can copy data from outside DAG_HOME.
     if abs_path.is_symlink():
         return True
 
@@ -150,11 +150,11 @@ def _format_size(nbytes: int) -> str:
 
 
 def run_backup(args) -> None:
-    """Create a zip backup of the Deepsuck home directory."""
-    deepsuck_root = get_default_deepsuck_root()
+    """Create a zip backup of the Dag home directory."""
+    dag_root = get_default_dag_root()
 
-    if not deepsuck_root.is_dir():
-        print(f"Error: Deepsuck home directory not found at {deepsuck_root}")
+    if not dag_root.is_dir():
+        print(f"Error: Dag home directory not found at {dag_root}")
         sys.exit(1)
 
     # Determine output path
@@ -163,10 +163,10 @@ def run_backup(args) -> None:
         # If user gave a directory, put the zip inside it
         if out_path.is_dir():
             stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-            out_path = out_path / f"deepsuck-backup-{stamp}.zip"
+            out_path = out_path / f"dag-backup-{stamp}.zip"
     else:
         stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        out_path = Path.home() / f"deepsuck-backup-{stamp}.zip"
+        out_path = Path.home() / f"dag-backup-{stamp}.zip"
 
     # Ensure the suffix is .zip
     if out_path.suffix.lower() != ".zip":
@@ -176,29 +176,29 @@ def run_backup(args) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Collect files
-    print(f"Scanning {display_deepsuck_home()} ...")
+    print(f"Scanning {display_dag_home()} ...")
     files_to_add: list[tuple[Path, Path]] = []  # (absolute, relative)
     skipped_dirs = set()
 
-    for dirpath, dirnames, filenames in os.walk(deepsuck_root, followlinks=False):
+    for dirpath, dirnames, filenames in os.walk(dag_root, followlinks=False):
         dp = Path(dirpath)
-        rel_dir = dp.relative_to(deepsuck_root)
+        rel_dir = dp.relative_to(dag_root)
 
         # Prune excluded directories in-place so os.walk doesn't descend
-        # ``deepsuck-agent`` is only pruned at the root level; nested dirs
+        # ``dag-agent`` is only pruned at the root level; nested dirs
         # with the same name (e.g. in skills/) must be preserved.
         is_root = rel_dir == Path(".")
         orig_dirnames = dirnames[:]
         dirnames[:] = [
             d for d in dirnames
-            if d not in _EXCLUDED_DIRS or (d == "deepsuck-agent" and not is_root)
+            if d not in _EXCLUDED_DIRS or (d == "dag-agent" and not is_root)
         ]
         for removed in set(orig_dirnames) - set(dirnames):
             skipped_dirs.add(str(rel_dir / removed))
 
         for fname in filenames:
             fpath = dp / fname
-            rel = fpath.relative_to(deepsuck_root)
+            rel = fpath.relative_to(dag_root)
 
             if _should_skip_backup_file(fpath, rel, out_path):
                 continue
@@ -272,7 +272,7 @@ def run_backup(args) -> None:
         if len(errors) > 10:
             print(f"  ... and {len(errors) - 10} more")
 
-    print(f"\nRestore with: deepsuck import {out_path.name}")
+    print(f"\nRestore with: dag import {out_path.name}")
 
 
 # ---------------------------------------------------------------------------
@@ -280,7 +280,7 @@ def run_backup(args) -> None:
 # ---------------------------------------------------------------------------
 
 def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
-    """Check that a zip looks like a Deepsuck backup.
+    """Check that a zip looks like a Dag backup.
 
     Returns (ok, reason).
     """
@@ -288,7 +288,7 @@ def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
     if not names:
         return False, "zip archive is empty"
 
-    # Look for telltale files that a deepsuck home would have
+    # Look for telltale files that a dag home would have
     markers = {"config.yaml", ".env", "state.db"}
     found = set()
     for n in names:
@@ -299,7 +299,7 @@ def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
 
     if not found:
         return False, (
-            "zip does not appear to be a Deepsuck backup "
+            "zip does not appear to be a Dag backup "
             "(no config.yaml, .env, or state databases found)"
         )
 
@@ -309,7 +309,7 @@ def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
 def _detect_prefix(zf: zipfile.ZipFile) -> str:
     """Detect if the zip has a common directory prefix wrapping all entries.
 
-    Some tools zip as `.deepsuck/config.yaml` instead of `config.yaml`.
+    Some tools zip as `.dag/config.yaml` instead of `config.yaml`.
     Returns the prefix to strip (empty string if none).
     """
     names = [n for n in zf.namelist() if not n.endswith("/")]
@@ -323,15 +323,15 @@ def _detect_prefix(zf: zipfile.ZipFile) -> str:
     first_parts = {p[0] for p in parts_list if len(p) > 1}
     if len(first_parts) == 1:
         prefix = first_parts.pop()
-        # Only strip if it looks like a deepsuck dir name
-        if prefix in {".deepsuck", "deepsuck"}:
+        # Only strip if it looks like a dag dir name
+        if prefix in {".dag", "dag"}:
             return prefix + "/"
 
     return ""
 
 
 def run_import(args) -> None:
-    """Restore a Deepsuck backup from a zip file."""
+    """Restore a Dag backup from a zip file."""
     zip_path = Path(args.zipfile).expanduser().resolve()
 
     if not zip_path.is_file():
@@ -342,7 +342,7 @@ def run_import(args) -> None:
         print(f"Error: Not a valid zip file: {zip_path}")
         sys.exit(1)
 
-    deepsuck_root = get_default_deepsuck_root()
+    dag_root = get_default_dag_root()
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         # Validate
@@ -356,18 +356,18 @@ def run_import(args) -> None:
         file_count = len(members)
 
         print(f"Backup contains {file_count} files")
-        print(f"Target: {display_deepsuck_home()}")
+        print(f"Target: {display_dag_home()}")
 
         if prefix:
             print(f"Detected archive prefix: {prefix!r} (will be stripped)")
 
         # Check for existing installation
-        has_config = (deepsuck_root / "config.yaml").exists()
-        has_env = (deepsuck_root / ".env").exists()
+        has_config = (dag_root / "config.yaml").exists()
+        has_env = (dag_root / ".env").exists()
 
         if (has_config or has_env) and not args.force:
             print()
-            print("Warning: Target directory already has Deepsuck configuration.")
+            print("Warning: Target directory already has Dag configuration.")
             print("Importing will overwrite existing files with backup contents.")
             print()
             try:
@@ -381,7 +381,7 @@ def run_import(args) -> None:
 
         # Extract
         print(f"\nImporting {file_count} files ...")
-        deepsuck_root.mkdir(parents=True, exist_ok=True)
+        dag_root.mkdir(parents=True, exist_ok=True)
 
         errors = []
         restored = 0
@@ -397,11 +397,11 @@ def run_import(args) -> None:
             if not rel:
                 continue
 
-            target = deepsuck_root / rel
+            target = dag_root / rel
 
             # Security: reject absolute paths and traversals
             try:
-                target.resolve().relative_to(deepsuck_root.resolve())
+                target.resolve().relative_to(dag_root.resolve())
             except ValueError:
                 errors.append(f"  {rel}: path traversal blocked")
                 continue
@@ -424,7 +424,7 @@ def run_import(args) -> None:
         # Summary
         print()
         print(f"Import complete: {restored} files restored in {elapsed:.1f}s")
-        print(f"  Target: {display_deepsuck_home()}")
+        print(f"  Target: {display_dag_home()}")
 
         if errors:
             print(f"\n  Warnings ({len(errors)} files skipped):")
@@ -434,11 +434,11 @@ def run_import(args) -> None:
                 print(f"  ... and {len(errors) - 10} more")
 
         # Post-import: restore profile wrapper scripts
-        profiles_dir = deepsuck_root / "profiles"
+        profiles_dir = dag_root / "profiles"
         restored_profiles = []
         if profiles_dir.is_dir():
             try:
-                from deepsuck_cli.profiles import (
+                from dag_cli.profiles import (
                     create_wrapper_script, check_alias_collision,
                     _is_wrapper_dir_in_path, _get_wrapper_dir,
                 )
@@ -469,38 +469,38 @@ def run_import(args) -> None:
                         print('  Add to your shell config (~/.bashrc or ~/.zshrc):')
                         print('    export PATH="$HOME/.local/bin:$PATH"')
             except ImportError:
-                # deepsuck_cli.profiles might not be available (fresh install)
+                # dag_cli.profiles might not be available (fresh install)
                 if any(profiles_dir.iterdir()):
                     print(f"\n  Profiles detected but aliases could not be created.")
-                    print(f"  Run: deepsuck profile list  (after installing deepsuck)")
+                    print(f"  Run: dag profile list  (after installing dag)")
 
         # Guidance
         print()
-        if not (deepsuck_root / "deepsuck-agent").is_dir():
-            print("Note: The deepsuck-agent codebase was not included in the backup.")
-            print("  If this is a fresh install, run: deepsuck update")
+        if not (dag_root / "dag-agent").is_dir():
+            print("Note: The dag-agent codebase was not included in the backup.")
+            print("  If this is a fresh install, run: dag update")
 
         if restored_profiles:
             gw_profiles = [n for n, _ in restored_profiles]
             print("\nTo re-enable gateway services for profiles:")
             for pname in gw_profiles:
-                print(f"  deepsuck -p {pname} gateway install")
+                print(f"  dag -p {pname} gateway install")
 
-        print("Done. Your Deepsuck configuration has been restored.")
+        print("Done. Your Dag configuration has been restored.")
 
 
 # ---------------------------------------------------------------------------
-# Quick state snapshots (used by /snapshot slash command and deepsuck backup --quick)
+# Quick state snapshots (used by /snapshot slash command and dag backup --quick)
 # ---------------------------------------------------------------------------
 
-# Critical state files to include in quick snapshots (relative to DEEPSUCK_HOME).
+# Critical state files to include in quick snapshots (relative to DAG_HOME).
 # Everything else is either regeneratable (logs, cache) or managed separately
 # (skills, repo, sessions/).
 #
 # Entries may be individual files OR directories.  Directories are captured
 # recursively; missing entries are silently skipped.  Pairing data lives in
 # platform-specific JSON blobs outside state.db, so it's listed here explicitly
-# — `deepsuck update` snapshots this set before pulling so approved-user lists
+# — `dag update` snapshots this set before pulling so approved-user lists
 # are recoverable if anything goes wrong (issue #15733).
 _QUICK_STATE_FILES = (
     "state.db",
@@ -522,14 +522,14 @@ _QUICK_SNAPSHOTS_DIR = "state-snapshots"
 _QUICK_DEFAULT_KEEP = 20
 
 
-def _quick_snapshot_root(deepsuck_home: Optional[Path] = None) -> Path:
-    home = deepsuck_home or get_deepsuck_home()
+def _quick_snapshot_root(dag_home: Optional[Path] = None) -> Path:
+    home = dag_home or get_dag_home()
     return home / _QUICK_SNAPSHOTS_DIR
 
 
 def create_quick_snapshot(
     label: Optional[str] = None,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
     keep: Optional[int] = None,
 ) -> Optional[str]:
     """Create a quick state snapshot of critical files.
@@ -540,7 +540,7 @@ def create_quick_snapshot(
     Returns:
         Snapshot ID (timestamp-based), or None if no files found.
     """
-    home = deepsuck_home or get_deepsuck_home()
+    home = dag_home or get_dag_home()
     root = _quick_snapshot_root(home)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -615,10 +615,10 @@ def create_quick_snapshot(
 
 def list_quick_snapshots(
     limit: int = 20,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """List existing quick state snapshots, most recent first."""
-    root = _quick_snapshot_root(deepsuck_home)
+    root = _quick_snapshot_root(dag_home)
     if not root.exists():
         return []
 
@@ -641,14 +641,14 @@ def list_quick_snapshots(
 
 def restore_quick_snapshot(
     snapshot_id: str,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
 ) -> bool:
     """Restore state from a quick snapshot.
 
     Overwrites current state files with the snapshot's copies.
     Returns True if at least one file was restored.
     """
-    home = deepsuck_home or get_deepsuck_home()
+    home = dag_home or get_dag_home()
     root = _quick_snapshot_root(home)
     snap_dir = root / snapshot_id
 
@@ -688,7 +688,7 @@ def restore_quick_snapshot(
     return restored > 0
 
 
-# Relative path of the cron job database inside DEEPSUCK_HOME. Kept in sync with
+# Relative path of the cron job database inside DAG_HOME. Kept in sync with
 # the entry in ``_QUICK_STATE_FILES`` and with ``cron/jobs.py``'s ``JOBS_FILE``.
 _CRON_JOBS_REL = "cron/jobs.json"
 
@@ -722,9 +722,9 @@ def _count_cron_jobs(path: Path) -> Optional[int]:
 
 def restore_cron_jobs_if_emptied(
     snapshot_id: str,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Safety net for silent cron-job loss across ``deepsuck update``.
+    """Safety net for silent cron-job loss across ``dag update``.
 
     Config-version migrations have been observed to leave ``cron/jobs.json``
     valid-but-empty after an update, silently dropping every scheduled job
@@ -744,7 +744,7 @@ def restore_cron_jobs_if_emptied(
     Args:
         snapshot_id: The pre-update quick-snapshot id (from
             :func:`create_quick_snapshot`).
-        deepsuck_home: Override for the Deepsuck home directory (tests).
+        dag_home: Override for the Dag home directory (tests).
 
     Returns:
         ``None`` when no action was taken (the common, healthy path). On a
@@ -754,7 +754,7 @@ def restore_cron_jobs_if_emptied(
     if not snapshot_id:
         return None
 
-    home = deepsuck_home or get_deepsuck_home()
+    home = dag_home or get_dag_home()
     live_path = home / _CRON_JOBS_REL
 
     live_count = _count_cron_jobs(live_path)
@@ -811,20 +811,20 @@ def _prune_quick_snapshots(root: Path, keep: int = _QUICK_DEFAULT_KEEP) -> int:
 
 def prune_quick_snapshots(
     keep: int = _QUICK_DEFAULT_KEEP,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
 ) -> int:
     """Manually prune quick snapshots. Returns count deleted."""
-    return _prune_quick_snapshots(_quick_snapshot_root(deepsuck_home), keep=keep)
+    return _prune_quick_snapshots(_quick_snapshot_root(dag_home), keep=keep)
 
 
 def run_quick_backup(args) -> None:
-    """CLI entry point for deepsuck backup --quick."""
+    """CLI entry point for dag backup --quick."""
     label = getattr(args, "label", None)
     snap_id = create_quick_snapshot(label=label)
     if snap_id:
         print(f"State snapshot created: {snap_id}")
         snaps = list_quick_snapshots()
-        print(f"  {len(snaps)} snapshot(s) stored in {display_deepsuck_home()}/state-snapshots/")
+        print(f"  {len(snaps)} snapshot(s) stored in {display_dag_home()}/state-snapshots/")
         print(f"  Restore with: /snapshot restore {snap_id}")
     else:
         print("No state files found to snapshot.")
@@ -834,8 +834,8 @@ def run_quick_backup(args) -> None:
 # Shared full-zip backup helper
 # ---------------------------------------------------------------------------
 
-def _write_full_zip_backup(out_path: Path, deepsuck_root: Path) -> Optional[Path]:
-    """Write a full zip snapshot of ``deepsuck_root`` to ``out_path``.
+def _write_full_zip_backup(out_path: Path, dag_root: Path) -> Optional[Path]:
+    """Write a full zip snapshot of ``dag_root`` to ``out_path``.
 
     Uses the same exclusion rules and SQLite safe-copy as :func:`run_backup`.
     Returns the output path on success, None on failure (nothing to back up,
@@ -843,7 +843,7 @@ def _write_full_zip_backup(out_path: Path, deepsuck_root: Path) -> Optional[Path
     """
     files_to_add: list[tuple[Path, Path]] = []
     try:
-        for dirpath, dirnames, filenames in os.walk(deepsuck_root, followlinks=False):
+        for dirpath, dirnames, filenames in os.walk(dag_root, followlinks=False):
             dp = Path(dirpath)
             # Prune excluded directories in-place so os.walk doesn't descend
             dirnames[:] = [d for d in dirnames if d not in _EXCLUDED_DIRS]
@@ -851,7 +851,7 @@ def _write_full_zip_backup(out_path: Path, deepsuck_root: Path) -> Optional[Path
             for fname in filenames:
                 fpath = dp / fname
                 try:
-                    rel = fpath.relative_to(deepsuck_root)
+                    rel = fpath.relative_to(dag_root)
                 except ValueError:
                     continue
 
@@ -910,8 +910,8 @@ _PRE_UPDATE_PREFIX = "pre-update-"
 _PRE_UPDATE_DEFAULT_KEEP = 5
 
 
-def _pre_update_backup_dir(deepsuck_home: Optional[Path] = None) -> Path:
-    home = deepsuck_home or get_deepsuck_home()
+def _pre_update_backup_dir(dag_home: Optional[Path] = None) -> Path:
+    home = dag_home or get_dag_home()
     return home / _PRE_UPDATE_BACKUPS_DIR
 
 
@@ -953,24 +953,24 @@ def _prune_pre_update_backups(backup_dir: Path, keep: int) -> int:
 
 
 def create_pre_update_backup(
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
     keep: int = _PRE_UPDATE_DEFAULT_KEEP,
 ) -> Optional[Path]:
-    """Create a full zip backup of DEEPSUCK_HOME under ``backups/``.
+    """Create a full zip backup of DAG_HOME under ``backups/``.
 
     Mirrors :func:`run_backup` (same exclusion rules, same SQLite safe-copy)
-    but writes to ``<DEEPSUCK_HOME>/backups/pre-update-<timestamp>.zip`` and
+    but writes to ``<DAG_HOME>/backups/pre-update-<timestamp>.zip`` and
     auto-prunes old pre-update backups.
 
     Returns the path to the created zip, or ``None`` if no files were
     found or the backup could not be created.  Never raises — the caller
-    (``deepsuck update``) should continue even if the backup fails.
+    (``dag update``) should continue even if the backup fails.
     """
-    deepsuck_root = deepsuck_home or get_default_deepsuck_root()
-    if not deepsuck_root.is_dir():
+    dag_root = dag_home or get_default_dag_root()
+    if not dag_root.is_dir():
         return None
 
-    backup_dir = _pre_update_backup_dir(deepsuck_root)
+    backup_dir = _pre_update_backup_dir(dag_root)
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
@@ -980,7 +980,7 @@ def create_pre_update_backup(
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
     out_path = backup_dir / f"{_PRE_UPDATE_PREFIX}{stamp}.zip"
 
-    result = _write_full_zip_backup(out_path, deepsuck_root)
+    result = _write_full_zip_backup(out_path, dag_root)
     if result is None:
         return None
 
@@ -989,7 +989,7 @@ def create_pre_update_backup(
 
 
 # ---------------------------------------------------------------------------
-# Pre-migration auto-backup (used by `deepsuck claw migrate`)
+# Pre-migration auto-backup (used by `dag claw migrate`)
 # ---------------------------------------------------------------------------
 
 _PRE_MIGRATION_PREFIX = "pre-migration-"
@@ -1025,29 +1025,29 @@ def _prune_pre_migration_backups(backup_dir: Path, keep: int) -> int:
 
 
 def create_pre_migration_backup(
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
     keep: int = _PRE_MIGRATION_DEFAULT_KEEP,
 ) -> Optional[Path]:
-    """Create a full zip backup of DEEPSUCK_HOME under ``backups/`` before a
-    ``deepsuck claw migrate`` apply.
+    """Create a full zip backup of DAG_HOME under ``backups/`` before a
+    ``dag claw migrate`` apply.
 
     Shares implementation with :func:`create_pre_update_backup` via
     ``_write_full_zip_backup`` — same exclusions, same SQLite safe-copy,
-    restorable with ``deepsuck import <archive>``.  Writes to
-    ``<DEEPSUCK_HOME>/backups/pre-migration-<timestamp>.zip`` and auto-prunes
+    restorable with ``dag import <archive>``.  Writes to
+    ``<DAG_HOME>/backups/pre-migration-<timestamp>.zip`` and auto-prunes
     old pre-migration backups.
 
     Returns the path to the created zip, or ``None`` if nothing was found
     to back up (fresh install) or the write failed.  Never raises — the
     caller decides whether to abort or proceed.
     """
-    deepsuck_root = deepsuck_home or get_default_deepsuck_root()
-    if not deepsuck_root.is_dir():
+    dag_root = dag_home or get_default_dag_root()
+    if not dag_root.is_dir():
         return None
 
-    # Reuses the shared backups/ directory so `deepsuck import` and the
+    # Reuses the shared backups/ directory so `dag import` and the
     # update-backup listing pick up pre-migration archives too.
-    backup_dir = _pre_update_backup_dir(deepsuck_root)
+    backup_dir = _pre_update_backup_dir(dag_root)
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
@@ -1057,7 +1057,7 @@ def create_pre_migration_backup(
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
     out_path = backup_dir / f"{_PRE_MIGRATION_PREFIX}{stamp}.zip"
 
-    result = _write_full_zip_backup(out_path, deepsuck_root)
+    result = _write_full_zip_backup(out_path, dag_root)
     if result is None:
         return None
 

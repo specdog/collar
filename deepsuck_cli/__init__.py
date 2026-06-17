@@ -1,14 +1,14 @@
 """
-Deepsuck CLI - Unified command-line interface for Deepsuck Agent.
+Dag CLI - Unified command-line interface for DAG Agent.
 
 Provides subcommands for:
-- deepsuck chat          - Interactive chat (same as ./deepsuck)
-- deepsuck gateway       - Run gateway in foreground
-- deepsuck gateway start - Start gateway service
-- deepsuck gateway stop  - Stop gateway service
-- deepsuck setup         - Interactive setup wizard
-- deepsuck status        - Show status of all components
-- deepsuck cron          - Manage cron jobs
+- dag chat          - Interactive chat (same as ./dag)
+- dag gateway       - Run gateway in foreground
+- dag gateway start - Start gateway service
+- dag gateway stop  - Stop gateway service
+- dag setup         - Interactive setup wizard
+- dag status        - Show status of all components
+- dag cron          - Manage cron jobs
 """
 
 import os
@@ -31,7 +31,7 @@ def _ensure_utf8():
     The CLI prints box-drawing characters (┌│├└─) and the ⚕ glyph in the setup
     wizard, doctor, and status banners. Encoding those under a non-UTF-8 codec
     raises an unhandled UnicodeEncodeError that crashes the command before it
-    can even start — e.g. `deepsuck setup` on a fresh Pi.
+    can even start — e.g. `dag setup` on a fresh Pi.
 
     This runs at import time so it protects every CLI subcommand, on any
     platform. It re-wraps stdout/stderr as UTF-8 when their encoding is not
@@ -44,7 +44,7 @@ def _ensure_utf8():
     stream change and no environment mutation.
 
     Note: this is intentionally the earliest, platform-agnostic guard.
-    deepsuck_cli/stdio.py::configure_windows_stdio() runs later from the entry
+    dag_cli/stdio.py::configure_windows_stdio() runs later from the entry
     points and layers on the Windows-only extras (console code-page flip,
     EDITOR default, PATH augmentation); its stream reconfiguration is a
     harmless idempotent no-op once we have already repaired the streams here.

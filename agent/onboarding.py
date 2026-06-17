@@ -97,19 +97,19 @@ def tool_progress_hint_cli() -> str:
 
 
 def openclaw_residue_hint_cli() -> str:
-    """Banner shown the first time Deepsuck starts and finds ``~/.openclaw/``.
+    """Banner shown the first time Dag starts and finds ``~/.openclaw/``.
 
-    Points users at ``deepsuck claw migrate`` (non-destructive port of config,
-    memory, and skills) first. ``deepsuck claw cleanup`` is mentioned as the
+    Points users at ``dag claw migrate`` (non-destructive port of config,
+    memory, and skills) first. ``dag claw cleanup`` is mentioned as the
     follow-up step for users who have already migrated and want to archive
     the old directory — with a warning that archiving breaks OpenClaw.
     """
     return (
         "A legacy OpenClaw directory was detected at ~/.openclaw/.\n"
-        "To port your config, memory, and skills over to Deepsuck, run "
-        "`deepsuck claw migrate`.\n"
+        "To port your config, memory, and skills over to Dag, run "
+        "`dag claw migrate`.\n"
         "If you've already migrated and want to archive the old directory, "
-        "run `deepsuck claw cleanup` (renames it to ~/.openclaw.pre-migration — "
+        "run `dag claw cleanup` (renames it to ~/.openclaw.pre-migration — "
         "OpenClaw will stop working after this).\n"
         "This tip only shows once."
     )

@@ -11,7 +11,7 @@ def has_xai_credentials() -> bool:
     """Cheap probe — return True when xAI credentials are *likely* usable.
 
     Deliberately avoids :func:`resolve_xai_http_credentials` so callers in
-    hot-paint paths (``deepsuck tools`` repaint, tool-registration scans,
+    hot-paint paths (``dag tools`` repaint, tool-registration scans,
     ``WebSearchProvider.is_available()``) don't incur disk locks or — in
     the OAuth path — a network token refresh. The ABC contract on
     :meth:`agent.web_search_provider.WebSearchProvider.is_available`
@@ -20,7 +20,7 @@ def has_xai_credentials() -> bool:
     Resolution order, fast-to-slow:
 
     1. ``XAI_API_KEY`` env var (cheapest; covers explicit-key users).
-    2. ``~/.deepsuck/auth.json`` has a non-empty ``providers.xai-oauth.tokens.access_token``
+    2. ``~/.dag/auth.json`` has a non-empty ``providers.xai-oauth.tokens.access_token``
        (single file read, no expiry check, no refresh).
 
     Returns False on any exception so a corrupted auth store can't block
@@ -30,9 +30,9 @@ def has_xai_credentials() -> bool:
     if os.environ.get("XAI_API_KEY", "").strip():
         return True
     try:
-        from deepsuck_constants import get_deepsuck_home
+        from dag_constants import get_dag_home
 
-        auth_path = get_deepsuck_home() / "auth.json"
+        auth_path = get_dag_home() / "auth.json"
         if not auth_path.exists():
             return False
         store = json.loads(auth_path.read_text())
@@ -46,16 +46,16 @@ def has_xai_credentials() -> bool:
 
 
 def get_env_value(name: str, default=None):
-    """Read ``name`` from ``~/.deepsuck/.env`` first, then ``os.environ``.
+    """Read ``name`` from ``~/.dag/.env`` first, then ``os.environ``.
 
-    Wraps :func:`deepsuck_cli.config.get_env_value` so tests can patch
+    Wraps :func:`dag_cli.config.get_env_value` so tests can patch
     ``tools.xai_http.get_env_value`` to inject dotenv-only secrets into the
     xAI credential resolver.
     """
     try:
-        from deepsuck_cli.config import get_env_value as _deepsuck_get_env_value
+        from dag_cli.config import get_env_value as _dag_get_env_value
 
-        value = _deepsuck_get_env_value(name)
+        value = _dag_get_env_value(name)
         if value is not None:
             return value
     except Exception:
@@ -63,21 +63,21 @@ def get_env_value(name: str, default=None):
     return os.environ.get(name, default)
 
 
-def deepsuck_xai_user_agent() -> str:
-    """Return a stable Deepsuck-specific User-Agent for xAI HTTP calls."""
+def dag_xai_user_agent() -> str:
+    """Return a stable Dag-specific User-Agent for xAI HTTP calls."""
     try:
-        from deepsuck_cli import __version__
+        from dag_cli import __version__
     except Exception:
         __version__ = "unknown"
-    return f"Deepsuck-Agent/{__version__}"
+    return f"DAG-Agent/{__version__}"
 
 
 def resolve_xai_http_credentials(*, force_refresh: bool = False) -> Dict[str, str]:
     """Resolve bearer credentials for direct xAI HTTP endpoints.
 
-    Prefers Deepsuck-managed xAI OAuth credentials when available, then falls back
-    to ``XAI_API_KEY`` resolved via ``deepsuck_cli.config.get_env_value`` so keys
-    stored in ``~/.deepsuck/.env`` (the standard Deepsuck location) are honored —
+    Prefers Dag-managed xAI OAuth credentials when available, then falls back
+    to ``XAI_API_KEY`` resolved via ``dag_cli.config.get_env_value`` so keys
+    stored in ``~/.dag/.env`` (the standard Dag location) are honored —
     not just ones already exported into ``os.environ``. This keeps direct xAI
     endpoints (images, TTS, STT, etc.) aligned with the main runtime auth model
     and preserves the regression contract from PR #17140 / #17163.
@@ -90,7 +90,7 @@ def resolve_xai_http_credentials(*, force_refresh: bool = False) -> Dict[str, st
     """
     if not force_refresh:
         try:
-            from deepsuck_cli.runtime_provider import resolve_runtime_provider
+            from dag_cli.runtime_provider import resolve_runtime_provider
 
             runtime = resolve_runtime_provider(requested="xai-oauth")
             access_token = str(runtime.get("api_key") or "").strip()
@@ -105,7 +105,7 @@ def resolve_xai_http_credentials(*, force_refresh: bool = False) -> Dict[str, st
             pass
 
     try:
-        from deepsuck_cli.auth import resolve_xai_oauth_runtime_credentials
+        from dag_cli.auth import resolve_xai_oauth_runtime_credentials
 
         creds = resolve_xai_oauth_runtime_credentials(force_refresh=force_refresh)
         access_token = str(creds.get("api_key") or "").strip()

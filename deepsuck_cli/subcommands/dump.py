@@ -1,6 +1,6 @@
-"""``deepsuck dump`` subcommand parser.
+"""``dag dump`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -17,7 +17,7 @@ def build_dump_parser(subparsers, *, cmd_dump: Callable) -> None:
     dump_parser = subparsers.add_parser(
         "dump",
         help="Dump setup summary for support/debugging",
-        description="Output a compact, plain-text summary of your Deepsuck setup "
+        description="Output a compact, plain-text summary of your Dag setup "
         "that can be copy-pasted into Discord/GitHub for support context",
     )
     dump_parser.add_argument(

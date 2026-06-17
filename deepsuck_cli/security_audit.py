@@ -1,10 +1,10 @@
-"""On-demand supply-chain audit for Deepsuck Agent installs.
+"""On-demand supply-chain audit for DAG Agent installs.
 
-Scans three surfaces a Deepsuck user actually controls and we can map to
+Scans three surfaces a Dag user actually controls and we can map to
 upstream advisories without auth or extra binaries:
 
-1. The Deepsuck venv (every PyPI dist via ``importlib.metadata``).
-2. Python deps declared by user-installed plugins under ``~/.deepsuck/plugins``
+1. The Dag venv (every PyPI dist via ``importlib.metadata``).
+2. Python deps declared by user-installed plugins under ``~/.dag/plugins``
    (``requirements.txt`` + ``pyproject.toml`` best-effort pin extraction).
 3. MCP servers wired in ``config.yaml`` whose ``command/args`` look like
    ``npx -y <pkg>@<ver>`` or ``uvx <pkg>==<ver>``.
@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Optional
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 
 OSV_BATCH_URL = "https://api.osv.dev/v1/querybatch"
 OSV_VULN_URL = "https://api.osv.dev/v1/vulns/{vid}"
@@ -164,14 +164,14 @@ def _parse_pyproject_pins(text: str) -> list[tuple[str, str]]:
     return pins
 
 
-def _discover_plugins(deepsuck_home: Path) -> list[Component]:
-    """Python deps declared by plugins under ``~/.deepsuck/plugins``.
+def _discover_plugins(dag_home: Path) -> list[Component]:
+    """Python deps declared by plugins under ``~/.dag/plugins``.
 
     Plugins typically don't install into the venv (they're directory-based
     with relative imports), so their stated requirements are useful audit
     surface even when the venv scan misses them.
     """
-    plugins_dir = deepsuck_home / "plugins"
+    plugins_dir = dag_home / "plugins"
     if not plugins_dir.is_dir():
         return []
 
@@ -258,7 +258,7 @@ def _extract_mcp_component(server_name: str, command: str, args: list[str]) -> O
 def _discover_mcp() -> list[Component]:
     """Pinned MCP server packages from ``config.yaml``."""
     try:
-        from deepsuck_cli.mcp_config import _get_mcp_servers
+        from dag_cli.mcp_config import _get_mcp_servers
     except Exception:
         return []
 
@@ -416,10 +416,10 @@ def run_audit(
     skip_venv: bool = False,
     skip_plugins: bool = False,
     skip_mcp: bool = False,
-    deepsuck_home: Optional[Path] = None,
+    dag_home: Optional[Path] = None,
 ) -> list[Finding]:
     """Discover components, query OSV, return findings sorted by severity desc."""
-    home = deepsuck_home or Path(get_deepsuck_home())
+    home = dag_home or Path(get_dag_home())
     components: list[Component] = []
     if not skip_venv:
         components.extend(_discover_venv())
@@ -510,13 +510,13 @@ def _render_json(findings: list[Finding], total_components: int) -> str:
 
 
 def _count_components(
-    *, skip_venv: bool, skip_plugins: bool, skip_mcp: bool, deepsuck_home: Path
+    *, skip_venv: bool, skip_plugins: bool, skip_mcp: bool, dag_home: Path
 ) -> int:
     total = 0
     if not skip_venv:
         total += len(_discover_venv())
     if not skip_plugins:
-        total += len(_discover_plugins(deepsuck_home))
+        total += len(_discover_plugins(dag_home))
     if not skip_mcp:
         total += len(_discover_mcp())
     return total
@@ -526,8 +526,8 @@ def _count_components(
 
 
 def cmd_security_audit(args: argparse.Namespace) -> int:
-    """Implementation of `deepsuck security audit`."""
-    home = Path(get_deepsuck_home())
+    """Implementation of `dag security audit`."""
+    home = Path(get_dag_home())
     skip_venv = bool(getattr(args, "skip_venv", False))
     skip_plugins = bool(getattr(args, "skip_plugins", False))
     skip_mcp = bool(getattr(args, "skip_mcp", False))
@@ -542,7 +542,7 @@ def cmd_security_audit(args: argparse.Namespace) -> int:
         return 2
 
     total = _count_components(
-        skip_venv=skip_venv, skip_plugins=skip_plugins, skip_mcp=skip_mcp, deepsuck_home=home
+        skip_venv=skip_venv, skip_plugins=skip_plugins, skip_mcp=skip_mcp, dag_home=home
     )
     if total == 0:
         msg = "No components discovered (everything skipped, or empty environment)."
@@ -557,7 +557,7 @@ def cmd_security_audit(args: argparse.Namespace) -> int:
             skip_venv=skip_venv,
             skip_plugins=skip_plugins,
             skip_mcp=skip_mcp,
-            deepsuck_home=home,
+            dag_home=home,
         )
     except RuntimeError as exc:
         print(f"audit failed: {exc}", file=sys.stderr)

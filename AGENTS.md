@@ -1,6 +1,6 @@
 # Deepsuck Agent - Development Guide
 
-Instructions for AI coding assistants and developers working on the deepsuck-agent codebase.
+Instructions for AI coding assistants and developers working on the dag-agent codebase.
 
 **Never give up on the right solution.**
 
@@ -60,7 +60,7 @@ conservative at the waist.
   including large ones (a new messaging channel, a session-cap feature, a
   Windows PTY bridge). Breadth in the product is a goal, not a footprint
   concern — as long as it integrates with the existing setup/config UX
-  (`deepsuck tools`, `deepsuck setup`, auto-install) rather than bolting on a raw
+  (`dag tools`, `dag setup`, auto-install) rather than bolting on a raw
   env var.
 - **Refactor god-files into clean modules.** Extracting a multi-thousand-line
   cluster out of `cli.py` / `run_agent.py` / `gateway/run.py` into a focused
@@ -84,7 +84,7 @@ conservative at the waist.
 - **E2E validation, not just green unit mocks.** For anything touching
   resolution chains, config propagation, security boundaries, remote
   backends, or file/network I/O, exercise the real path with real imports
-  against a temp `DEEPSUCK_HOME`. Mocks hide integration bugs.
+  against a temp `DAG_HOME`. Mocks hide integration bugs.
 - **Cache-, alternation-, and invariant-safe.** Preserve prompt caching, strict
   message role alternation (never two same-role messages in a row; never a
   synthetic user message injected mid-loop), and a system prompt that is
@@ -117,7 +117,7 @@ conservative at the waist.
   feature.
 - **Outbound telemetry / usage attribution without opt-in gating.** No new
   analytics, third-party identifier tagging, or attribution tags until a
-  generic user-facing opt-in (config gate + setup prompt + `deepsuck tools`
+  generic user-facing opt-in (config gate + setup prompt + `dag tools`
   toggle) exists. Park behind a label, do not merge.
 - **Change-detector tests, cache-breaking mid-conversation, dead code wired in
   without E2E proof, and plugins that touch core files.** Plugins live in their
@@ -176,14 +176,14 @@ Each rung adds more permanent surface than the one above. Choose the highest
 1. **Extend existing code** — the capability is a variation of something that
    already exists. Zero new surface.
 2. **CLI command + skill** — manages config/state/infra expressible as shell
-   commands. The agent runs `deepsuck <subcommand>` guided by a skill. Zero
+   commands. The agent runs `dag <subcommand>` guided by a skill. Zero
    model-tool footprint. Default choice for subscriptions, scheduled tasks,
-   service setup. Examples: `deepsuck webhook`, `deepsuck cron`, `deepsuck tools`.
+   service setup. Examples: `dag webhook`, `dag cron`, `dag tools`.
 3. **Service-gated tool (`check_fn`)** — needs structured params/returns AND
    only appears when a prerequisite is configured. Zero footprint otherwise.
    Examples: Home Assistant tools (gated on token), memory-provider tools.
 4. **Plugin** — third-party/niche/user-specific capability that doesn't ship in
-   core. Lives in `~/.deepsuck/plugins/` or a pip package, discovered at runtime.
+   core. Lives in `~/.dag/plugins/` or a pip package, discovered at runtime.
 5. **MCP server (in the catalog)** — if the capability genuinely needs to be a
    tool (structured I/O the agent invokes) but isn't core-fundamental, prefer
    building it as an MCP server and adding it to the MCP catalog over growing
@@ -207,7 +207,7 @@ source .venv/bin/activate   # or: source venv/bin/activate
 ```
 
 `scripts/run_tests.sh` probes `.venv` first, then `venv`, then
-`$HOME/.deepsuck/deepsuck-agent/venv` (for worktrees that share a venv with the
+`$HOME/.dag/dag-agent/venv` (for worktrees that share a venv with the
 main checkout).
 
 ## Project Structure
@@ -217,17 +217,17 @@ The canonical source is the filesystem. The notes call out the load-bearing
 entry points you'll actually edit.
 
 ```
-deepsuck-agent/
+dag-agent/
 ├── run_agent.py          # AIAgent class — core conversation loop (~12k LOC)
 ├── model_tools.py        # Tool orchestration, discover_builtin_tools(), handle_function_call()
 ├── toolsets.py           # Toolset definitions, _DEEPSUCK_CORE_TOOLS list
 ├── cli.py                # DeepsuckCLI class — interactive CLI orchestrator (~11k LOC)
-├── deepsuck_state.py       # SessionDB — SQLite session store (FTS5 search)
-├── deepsuck_constants.py   # get_deepsuck_home(), display_deepsuck_home() — profile-aware paths
-├── deepsuck_logging.py     # setup_logging() — agent.log / errors.log / gateway.log (profile-aware)
+├── dag_state.py       # SessionDB — SQLite session store (FTS5 search)
+├── dag_constants.py   # get_dag_home(), display_dag_home() — profile-aware paths
+├── dag_logging.py     # setup_logging() — agent.log / errors.log / gateway.log (profile-aware)
 ├── batch_runner.py       # Parallel batch processing
 ├── agent/                # Agent internals (provider adapters, memory, caching, compression, etc.)
-├── deepsuck_cli/           # CLI subcommands, setup wizard, plugins loader, skin engine
+├── dag_cli/           # CLI subcommands, setup wizard, plugins loader, skin engine
 ├── tools/                # Tool implementations — auto-discovered via tools/registry.py
 │   └── environments/     # Terminal backends (local, docker, ssh, modal, daytona, singularity)
 ├── gateway/              # Messaging gateway — run.py + session.py + platforms/
@@ -241,14 +241,14 @@ deepsuck-agent/
 │   ├── context_engine/   # Context-engine plugins
 │   ├── model-providers/  # Inference backend plugins (openrouter, anthropic, gmi, ...)
 │   ├── kanban/           # Multi-agent board dispatcher + worker plugin
-│   ├── deepsuck-achievements/  # Gamified achievement tracking
+│   ├── dag-achievements/  # Gamified achievement tracking
 │   ├── observability/    # Metrics / traces / logs plugin
 │   ├── image_gen/        # Image-generation providers
 │   └── <others>/         # disk-cleanup, google_meet, platforms, spotify,
 │                         #   strike-freedom-cockpit, ...
 ├── optional-skills/      # Heavier/niche skills shipped but NOT active by default
 ├── skills/               # Built-in skills bundled with the repo
-├── ui-tui/               # Ink (React) terminal UI — `deepsuck --tui`
+├── ui-tui/               # Ink (React) terminal UI — `dag --tui`
 │   └── src/              # entry.tsx, app.tsx, gatewayClient.ts + app/components/hooks/lib
 ├── tui_gateway/          # Python JSON-RPC backend for the TUI
 ├── acp_adapter/          # ACP server (VS Code / Zed / JetBrains integration)
@@ -258,10 +258,10 @@ deepsuck-agent/
 └── tests/                # Pytest suite (~17k tests across ~900 files as of May 2026)
 ```
 
-**User config:** `~/.deepsuck/config.yaml` (settings), `~/.deepsuck/.env` (API keys only).
-**Logs:** `~/.deepsuck/logs/` — `agent.log` (INFO+), `errors.log` (WARNING+),
-`gateway.log` when running the gateway. Profile-aware via `get_deepsuck_home()`.
-Browse with `deepsuck logs [--follow] [--level ...] [--session ...]`.
+**User config:** `~/.dag/config.yaml` (settings), `~/.dag/.env` (API keys only).
+**Logs:** `~/.dag/logs/` — `agent.log` (INFO+), `errors.log` (WARNING+),
+`gateway.log` when running the gateway. Profile-aware via `get_dag_home()`.
+Browse with `dag logs [--follow] [--level ...] [--session ...]`.
 
 ## TypeScript Style
 
@@ -365,11 +365,11 @@ Reasoning content is stored in `assistant_msg["reasoning"]`.
 - **Rich** for banner/panels, **prompt_toolkit** for input with autocomplete
 - **KawaiiSpinner** (`agent/display.py`) — animated faces during API calls, `┊` activity feed for tool results
 - `load_cli_config()` in cli.py merges hardcoded defaults + user config YAML
-- **Skin engine** (`deepsuck_cli/skin_engine.py`) — data-driven CLI theming; initialized from `display.skin` config key at startup; skins customize banner colors, spinner faces/verbs/wings, tool prefix, response box, branding text
+- **Skin engine** (`dag_cli/skin_engine.py`) — data-driven CLI theming; initialized from `display.skin` config key at startup; skins customize banner colors, spinner faces/verbs/wings, tool prefix, response box, branding text
 - `process_command()` is a method on `DeepsuckCLI` — dispatches on canonical command name resolved via `resolve_command()` from the central registry
-- Skill slash commands: `agent/skill_commands.py` scans `~/.deepsuck/skills/`, injects as **user message** (not system prompt) to preserve prompt caching
+- Skill slash commands: `agent/skill_commands.py` scans `~/.dag/skills/`, injects as **user message** (not system prompt) to preserve prompt caching
 
-### Slash Command Registry (`deepsuck_cli/commands.py`)
+### Slash Command Registry (`dag_cli/commands.py`)
 
 All slash commands are defined in a central `COMMAND_REGISTRY` list of `CommandDef` objects. Every downstream consumer derives from this registry automatically:
 
@@ -377,13 +377,13 @@ All slash commands are defined in a central `COMMAND_REGISTRY` list of `CommandD
 - **Gateway** — `GATEWAY_KNOWN_COMMANDS` frozenset for hook emission, `resolve_command()` for dispatch
 - **Gateway help** — `gateway_help_lines()` generates `/help` output
 - **Telegram** — `telegram_bot_commands()` generates the BotCommand menu
-- **Slack** — `slack_subcommand_map()` generates `/deepsuck` subcommand routing
+- **Slack** — `slack_subcommand_map()` generates `/dag` subcommand routing
 - **Autocomplete** — `COMMANDS` flat dict feeds `SlashCommandCompleter`
 - **CLI help** — `COMMANDS_BY_CATEGORY` dict feeds `show_help()`
 
 ### Adding a Slash Command
 
-1. Add a `CommandDef` entry to `COMMAND_REGISTRY` in `deepsuck_cli/commands.py`:
+1. Add a `CommandDef` entry to `COMMAND_REGISTRY` in `dag_cli/commands.py`:
 ```python
 CommandDef("mycommand", "Description of what it does", "Session",
            aliases=("mc",), args_hint="[arg]"),
@@ -416,12 +416,12 @@ if canonical == "mycommand":
 
 ## TUI Architecture (ui-tui + tui_gateway)
 
-The TUI is a full replacement for the classic (prompt_toolkit) CLI, activated via `deepsuck --tui` or `DEEPSUCK_TUI=1`.
+The TUI is a full replacement for the classic (prompt_toolkit) CLI, activated via `dag --tui` or `DEEPSUCK_TUI=1`.
 
 ### Process Model
 
 ```
-deepsuck --tui
+dag --tui
   └─ Node (Ink)  ──stdio JSON-RPC──  Python (tui_gateway)
        │                                  └─ AIAgent + tools + sessions
        └─ renders transcript, composer, prompts, activity
@@ -456,31 +456,31 @@ Newline-delimited JSON-RPC over stdio. Requests from Ink, events from Python. Se
 ```bash
 cd ui-tui
 npm install       # first time
-npm run dev       # watch mode (rebuilds deepsuck-ink + tsx --watch)
+npm run dev       # watch mode (rebuilds dag-ink + tsx --watch)
 npm start         # production
-npm run build     # full build (deepsuck-ink + tsc)
+npm run build     # full build (dag-ink + tsc)
 npm run typecheck # typecheck only (tsc --noEmit)
 npm run lint      # eslint
 npm run fmt       # prettier
 npm test          # vitest
 ```
 
-### TUI in the Dashboard (`deepsuck dashboard` → `/chat`)
+### TUI in the Dashboard (`dag dashboard` → `/chat`)
 
-The dashboard embeds the real `deepsuck --tui` — **not** a rewrite.  See `deepsuck_cli/pty_bridge.py` + the `@app.websocket("/api/pty")` endpoint in `deepsuck_cli/web_server.py`.
+The dashboard embeds the real `dag --tui` — **not** a rewrite.  See `dag_cli/pty_bridge.py` + the `@app.websocket("/api/pty")` endpoint in `dag_cli/web_server.py`.
 
 - Browser loads `web/src/pages/ChatPage.tsx`, which mounts xterm.js's `Terminal` with the WebGL renderer, `@xterm/addon-fit` for container-driven resize, and `@xterm/addon-unicode11` for modern wide-character widths.
 - `/api/pty?token=…` upgrades to a WebSocket; auth uses the same ephemeral `_SESSION_TOKEN` as REST, via query param (browsers can't set `Authorization` on WS upgrade).
-- The server spawns whatever `deepsuck --tui` would spawn, through `ptyprocess` (POSIX PTY — WSL works, native Windows does not).
+- The server spawns whatever `dag --tui` would spawn, through `ptyprocess` (POSIX PTY — WSL works, native Windows does not).
 - Frames: raw PTY bytes each direction; resize via `\x1b[RESIZE:<cols>;<rows>]` intercepted on the server and applied with `TIOCSWINSZ`.
 
-**Do not re-implement the primary chat experience in React.** The main transcript, composer/input flow (including slash-command behavior), and PTY-backed terminal belong to the embedded `deepsuck --tui` — anything new you add to Ink shows up in the dashboard automatically. If you find yourself rebuilding the transcript or composer for the dashboard, stop and extend Ink instead.
+**Do not re-implement the primary chat experience in React.** The main transcript, composer/input flow (including slash-command behavior), and PTY-backed terminal belong to the embedded `dag --tui` — anything new you add to Ink shows up in the dashboard automatically. If you find yourself rebuilding the transcript or composer for the dashboard, stop and extend Ink instead.
 
 **Structured React UI around the TUI is allowed when it is not a second chat surface.** Sidebar widgets, inspectors, summaries, status panels, and similar supporting views (e.g. `ChatSidebar`, `ModelPickerDialog`, `ToolCall`) are fine when they complement the embedded TUI rather than replacing the transcript / composer / terminal. Keep their state independent of the PTY child's session and surface their failures non-destructively so the terminal pane keeps working unimpaired.
 
 ### Electron Desktop Chat App (`apps/desktop/`)
 
-A **separate** chat surface from both the classic CLI and the dashboard's embedded TUI. It is an Electron + React + nanostore renderer (`@assistant-ui/react`) that talks to a `tui_gateway` backend over JSON-RPC (`requestGateway(method, params)`). It does NOT embed `deepsuck --tui` — it has its own composer, transcript, and slash-command pipeline. Route desktop bugs to the `deepsuck-desktop-app-work` skill, not `deepsuck-dashboard-work`.
+A **separate** chat surface from both the classic CLI and the dashboard's embedded TUI. It is an Electron + React + nanostore renderer (`@assistant-ui/react`) that talks to a `tui_gateway` backend over JSON-RPC (`requestGateway(method, params)`). It does NOT embed `dag --tui` — it has its own composer, transcript, and slash-command pipeline. Route desktop bugs to the `dag-desktop-app-work` skill, not `dag-dashboard-work`.
 
 **Slash commands in the desktop app are curated client-side, then dispatched to the backend.** The pipeline:
 
@@ -500,8 +500,8 @@ A **separate** chat surface from both the classic CLI and the dashboard's embedd
 Before adding any tool, settle the footprint question first (see "The
 Footprint Ladder" in the Contribution Rubric): most capabilities should NOT
 be core tools. For custom or local-only tools, do **not** edit Deepsuck core.
-Use the plugin route instead: create `~/.deepsuck/plugins/<name>/plugin.yaml`
-and `~/.deepsuck/plugins/<name>/__init__.py`, then register tools with
+Use the plugin route instead: create `~/.dag/plugins/<name>/plugin.yaml`
+and `~/.dag/plugins/<name>/__init__.py`, then register tools with
 `ctx.register_tool(...)`. Plugin toolsets are discovered automatically and can be
 enabled or disabled without touching `tools/` or `toolsets.py`.
 
@@ -537,9 +537,9 @@ Auto-discovery: any `tools/*.py` file with a top-level `registry.register()` cal
 
 The registry handles schema collection, dispatch, availability checking, and error wrapping. All handlers MUST return a JSON string.
 
-**Path references in tool schemas**: If the schema description mentions file paths (e.g. default output directories), use `display_deepsuck_home()` to make them profile-aware. The schema is generated at import time, which is after `_apply_profile_override()` sets `DEEPSUCK_HOME`.
+**Path references in tool schemas**: If the schema description mentions file paths (e.g. default output directories), use `display_dag_home()` to make them profile-aware. The schema is generated at import time, which is after `_apply_profile_override()` sets `DAG_HOME`.
 
-**State files**: If a tool stores persistent state (caches, logs, checkpoints), use `get_deepsuck_home()` for the base directory — never `Path.home() / ".deepsuck"`. This ensures each profile gets its own state.
+**State files**: If a tool stores persistent state (caches, logs, checkpoints), use `get_dag_home()` for the base directory — never `Path.home() / ".dag"`. This ensures each profile gets its own state.
 
 **Agent-level tools** (todo, memory): intercepted by `run_agent.py` before `handle_function_call()`. See `tools/todo_tool.py` for the pattern.
 
@@ -571,7 +571,7 @@ Reference: #2810 (bounds pass), #9801 (SHA pinning + audit CI).
 ## Adding Configuration
 
 ### config.yaml options:
-1. Add to `DEFAULT_CONFIG` in `deepsuck_cli/config.py`
+1. Add to `DEFAULT_CONFIG` in `dag_cli/config.py`
 2. Bump `_config_version` (check the current value at the top of `DEFAULT_CONFIG`)
    ONLY if you need to actively migrate/transform existing user config
    (renaming keys, changing structure). Adding a new key to an existing
@@ -595,7 +595,7 @@ its own provider/model/base_url/max_tokens/reasoning_effort. See
 `archive_after_days`, `backup` (nested).
 
 ### .env variables (SECRETS ONLY — API keys, tokens, passwords):
-1. Add to `OPTIONAL_ENV_VARS` in `deepsuck_cli/config.py` with metadata:
+1. Add to `OPTIONAL_ENV_VARS` in `dag_cli/config.py` with metadata:
 ```python
 "NEW_API_KEY": {
     "description": "What it's for",
@@ -616,7 +616,7 @@ the env var in code (see `gateway_timeout`, `terminal.cwd` → `TERMINAL_CWD`).
 | Loader | Used by | Location |
 |--------|---------|----------|
 | `load_cli_config()` | CLI mode | `cli.py` — merges CLI-specific defaults + user YAML |
-| `load_config()` | `deepsuck tools`, `deepsuck setup`, most CLI subcommands | `deepsuck_cli/config.py` — merges `DEFAULT_CONFIG` + user YAML |
+| `load_config()` | `dag tools`, `dag setup`, most CLI subcommands | `dag_cli/config.py` — merges `DEFAULT_CONFIG` + user YAML |
 | Direct YAML load | Gateway runtime | `gateway/run.py` + `gateway/config.py` — reads user YAML raw |
 
 If you add a new key and the CLI sees it but the gateway doesn't (or vice
@@ -634,13 +634,13 @@ versa), you're on the wrong loader. Check `DEFAULT_CONFIG` coverage.
 
 ## Skin/Theme System
 
-The skin engine (`deepsuck_cli/skin_engine.py`) provides data-driven CLI visual customization. Skins are **pure data** — no code changes needed to add a new skin.
+The skin engine (`dag_cli/skin_engine.py`) provides data-driven CLI visual customization. Skins are **pure data** — no code changes needed to add a new skin.
 
 ### Architecture
 
 ```
-deepsuck_cli/skin_engine.py    # SkinConfig dataclass, built-in skins, YAML loader
-~/.deepsuck/skins/*.yaml       # User-installed custom skins (drop-in)
+dag_cli/skin_engine.py    # SkinConfig dataclass, built-in skins, YAML loader
+~/.dag/skins/*.yaml       # User-installed custom skins (drop-in)
 ```
 
 - `init_skin_from_config()` — called at CLI startup, reads `display.skin` from config
@@ -679,7 +679,7 @@ deepsuck_cli/skin_engine.py    # SkinConfig dataclass, built-in skins, YAML load
 
 ### Adding a built-in skin
 
-Add to `_BUILTIN_SKINS` dict in `deepsuck_cli/skin_engine.py`:
+Add to `_BUILTIN_SKINS` dict in `dag_cli/skin_engine.py`:
 
 ```python
 "mytheme": {
@@ -694,7 +694,7 @@ Add to `_BUILTIN_SKINS` dict in `deepsuck_cli/skin_engine.py`:
 
 ### User skins (YAML)
 
-Users create `~/.deepsuck/skins/<name>.yaml`:
+Users create `~/.dag/skins/<name>.yaml`:
 
 ```yaml
 name: cyberpunk
@@ -725,11 +725,11 @@ Activate with `/skin cyberpunk` or `display.skin: cyberpunk` in config.yaml.
 
 Deepsuck has two plugin surfaces. Both live under `plugins/` in the repo so
 repo-shipped plugins can be discovered alongside user-installed ones in
-`~/.deepsuck/plugins/` and pip-installed entry points.
+`~/.dag/plugins/` and pip-installed entry points.
 
-### General plugins (`deepsuck_cli/plugins.py` + `plugins/<name>/`)
+### General plugins (`dag_cli/plugins.py` + `plugins/<name>/`)
 
-`PluginManager` discovers plugins from `~/.deepsuck/plugins/`, `./.deepsuck/plugins/`,
+`PluginManager` discovers plugins from `~/.dag/plugins/`, `./.dag/plugins/`,
 and pip entry points. Each plugin exposes a `register(ctx)` function that
 can:
 
@@ -738,8 +738,8 @@ can:
   `on_session_start`, `on_session_end`
 - Register new tools via `ctx.register_tool(...)`
 - Register CLI subcommands via `ctx.register_cli_command(...)` — the
-  plugin's argparse tree is wired into `deepsuck` at startup so
-  `deepsuck <pluginname> <subcmd>` works with no change to `main.py`
+  plugin's argparse tree is wired into `dag` at startup so
+  `dag <pluginname> <subcmd>` works with no change to `main.py`
 
 Hooks are invoked from `model_tools.py` (pre/post tool) and `run_agent.py`
 (lifecycle). **Discovery timing pitfall:** `discover_plugins()` only runs
@@ -756,17 +756,17 @@ holographic, openviking, retaindb**.
 Each provider implements the `MemoryProvider` ABC (see `agent/memory_provider.py`)
 and is orchestrated by `agent/memory_manager.py`. Lifecycle hooks include
 `sync_turn(turn_messages)`, `prefetch(query)`, `shutdown()`, and optional
-`post_setup(deepsuck_home, config)` for setup-wizard integration.
+`post_setup(dag_home, config)` for setup-wizard integration.
 
 **CLI commands via `plugins/memory/<name>/cli.py`:** if a memory plugin
 defines `register_cli(subparser)`, `discover_plugin_cli_commands()` finds
-it at argparse setup time and wires it into `deepsuck <plugin>`. The
+it at argparse setup time and wires it into `dag <plugin>`. The
 framework only exposes CLI commands for the **currently active** memory
 provider (read from `memory.provider` in config.yaml), so disabled
-providers don't clutter `deepsuck --help`.
+providers don't clutter `dag --help`.
 
 **Rule (Teknium, May 2026):** plugins MUST NOT modify core files
-(`run_agent.py`, `cli.py`, `gateway/run.py`, `deepsuck_cli/main.py`, etc.).
+(`run_agent.py`, `cli.py`, `gateway/run.py`, `dag_cli/main.py`, etc.).
 If a plugin needs a capability the framework doesn't expose, expand the
 generic plugin surface (new hook, new ctx method) — never hardcode
 plugin-specific logic into core. PR #5295 removed 95 lines of hardcoded
@@ -775,9 +775,9 @@ honcho argparse from `main.py` for exactly this reason.
 **No new in-tree memory providers (policy, May 2026):** the set of
 built-in memory providers under `plugins/memory/` is closed. New memory
 backends must ship as **standalone plugin repos** that users install
-into `~/.deepsuck/plugins/` (or via pip entry points) — they implement
+into `~/.dag/plugins/` (or via pip entry points) — they implement
 the same `MemoryProvider` ABC, register through the same discovery
-path, and integrate via `deepsuck memory setup` / `post_setup()` without
+path, and integrate via `dag memory setup` / `post_setup()` without
 landing in this tree. PRs that add a new directory under
 `plugins/memory/` will be closed with a pointer to publish the
 provider as its own repo. Existing in-tree providers stay; bug fixes
@@ -794,7 +794,7 @@ discovery system** — scanned on first `get_provider_profile()` or
 
 Scan order:
 1. Bundled: `<repo>/plugins/model-providers/<name>/`
-2. User: `$DEEPSUCK_HOME/plugins/model-providers/<name>/`
+2. User: `$DAG_HOME/plugins/model-providers/<name>/`
 3. Legacy: `<repo>/providers/<name>.py` (back-compat)
 
 User plugins of the same name override bundled ones — `register_provider()`
@@ -816,7 +816,7 @@ plug into `agent/context_engine.py`; image-gen providers into
 `agent/image_gen_provider.py`. Reference / docs-companion plugins
 (`example-dashboard`, `strike-freedom-cockpit`, `plugin-llm-example`,
 `plugin-llm-async-example`) live in the
-[`deepsuck-example-plugins`](https://github.com/NousResearch/deepsuck-example-plugins)
+[`dag-example-plugins`](https://github.com/NousResearch/dag-example-plugins)
 companion repo, not in this tree.
 
 ---
@@ -829,7 +829,7 @@ Two parallel surfaces:
   Organized by category directories (e.g. `skills/github/`, `skills/mlops/`).
 - **`optional-skills/`** — heavier or niche skills shipped with the repo but
   NOT active by default. Installed explicitly via
-  `deepsuck skills install official/<category>/<skill>`. Adapter lives in
+  `dag skills install official/<category>/<skill>`. Adapter lives in
   `tools/skills_hub.py` (`OptionalSkillSource`). Categories include
   `autonomous-ai-agents`, `blockchain`, `communication`, `creative`,
   `devops`, `email`, `health`, `mcp`, `migration`, `mlops`, `productivity`,
@@ -842,13 +842,13 @@ niche skills belong in `optional-skills/`.
 
 Standard fields: `name`, `description`, `version`, `author`, `license`,
 `platforms` (OS-gating list: `[macos]`, `[linux, macos]`, ...),
-`metadata.deepsuck.tags`, `metadata.deepsuck.category`,
-`metadata.deepsuck.related_skills`, `metadata.deepsuck.config` (config.yaml
+`metadata.dag.tags`, `metadata.dag.category`,
+`metadata.dag.related_skills`, `metadata.dag.config` (config.yaml
 settings the skill needs — stored under `skills.config.<key>`, prompted
 during setup, injected at load time).
 
 Top-level `tags:` and `category:` are also accepted and mirrored from
-`metadata.deepsuck.*` by the loader.
+`metadata.dag.*` by the loader.
 
 ### Skill authoring standards (HARDLINE)
 
@@ -926,7 +926,7 @@ violate them.
    skill's own block must be dropped during salvage.
 
 The full salvage / modernization checklist for external skill PRs
-lives in the `deepsuck-agent-dev` skill at
+lives in the `dag-agent-dev` skill at
 `references/new-skill-pr-salvage.md` — load it before polishing
 contributor skill PRs.
 
@@ -945,7 +945,7 @@ Current toolset keys: `browser`, `clarify`, `code_execution`, `cronjob`,
 `messaging`, `moa`, `rl`, `safe`, `search`, `session_search`, `skills`,
 `spotify`, `terminal`, `todo`, `tts`, `video`, `vision`, `web`, `yuanbao`.
 
-Enable/disable per platform via `deepsuck tools` (the curses UI) or the
+Enable/disable per platform via `dag tools` (the curses UI) or the
 `tools.<platform>.enabled` / `tools.<platform>.disabled` lists in
 `config.yaml`.
 
@@ -988,15 +988,15 @@ work that must outlive the current turn, use `cronjob` or
 
 Background skill-maintenance system that tracks usage on agent-created
 skills and auto-archives stale ones. Users never lose skills; archives
-go to `~/.deepsuck/skills/.archive/` and are restorable.
+go to `~/.dag/skills/.archive/` and are restorable.
 
 - **Core:** `agent/curator.py` (review loop, auto-transitions, LLM review
   prompt) + `agent/curator_backup.py` (pre-run tar.gz snapshots).
-- **CLI:** `deepsuck_cli/curator.py` wires `deepsuck curator <verb>` where
+- **CLI:** `dag_cli/curator.py` wires `dag curator <verb>` where
   verbs are: `status`, `run`, `pause`, `resume`, `pin`, `unpin`,
   `archive`, `restore`, `prune`, `backup`, `rollback`.
 - **Telemetry:** `tools/skill_usage.py` owns the sidecar
-  `~/.deepsuck/skills/.usage.json` — per-skill `use_count`, `view_count`,
+  `~/.dag/skills/.usage.json` — per-skill `use_count`, `view_count`,
   `patch_count`, `last_activity_at`, `state` (active / stale /
   archived), `pinned`.
 
@@ -1021,7 +1021,7 @@ Full user-facing docs: `website/docs/user-guide/features/curator.md`.
 ## Cron (scheduled jobs)
 
 `cron/jobs.py` (job store) + `cron/scheduler.py` (tick loop). Agents
-schedule jobs via the `cronjob` tool; users via `deepsuck cron <verb>`
+schedule jobs via the `cronjob` tool; users via `dag cron <verb>`
 (`list`, `add`, `edit`, `pause`, `resume`, `run`, `remove`) or the
 `/cron` slash command.
 
@@ -1043,7 +1043,7 @@ Hardening invariants:
   cannot monopolize the scheduler.
 - Catchup window: half the job's period, clamped to 120s–2h.
 - Grace window: 120s for one-shot jobs whose fire time was missed.
-- File lock at `~/.deepsuck/cron/.tick.lock` prevents duplicate ticks
+- File lock at `~/.dag/cron/.tick.lock` prevents duplicate ticks
   across processes.
 - Cron sessions pass `skip_memory=True` by default; memory providers
   intentionally do not run during cron.
@@ -1057,12 +1057,12 @@ main conversation's message-role alternation stays intact.
 ## Kanban (multi-agent work queue)
 
 Durable SQLite-backed board that lets multiple profiles / workers
-collaborate on shared tasks. Users drive it via `deepsuck kanban <verb>`;
+collaborate on shared tasks. Users drive it via `dag kanban <verb>`;
 workers spawned by the dispatcher drive it via a dedicated `kanban_*`
 toolset so their schema footprint is zero when they're not inside a
 kanban task.
 
-- **CLI:** `deepsuck_cli/kanban.py` wires `deepsuck kanban` with verbs
+- **CLI:** `dag_cli/kanban.py` wires `dag kanban` with verbs
   `init`, `create`, `list` (alias `ls`), `show`, `assign`, `link`,
   `unlink`, `comment`, `complete`, `block`, `unblock`, `archive`,
   `tail`, plus less-commonly-used `watch`, `stats`, `runs`, `log`,
@@ -1077,12 +1077,12 @@ kanban task.
   assigned profiles. Runs **inside the gateway** by default via
   `kanban.dispatch_in_gateway: true`.
 - **Plugin assets:** `plugins/kanban/dashboard/` (web UI) +
-  `plugins/kanban/systemd/` (`deepsuck-kanban-dispatcher.service` for
+  `plugins/kanban/systemd/` (`dag-kanban-dispatcher.service` for
   standalone dispatcher deployment).
 
 Isolation model:
 - **Board** is the hard boundary — workers are spawned with
-  `DEEPSUCK_KANBAN_BOARD` pinned in their env so they can't see other
+  `DAG_KANBAN_BOARD` pinned in their env so they can't see other
   boards.
 - **Tenant** is a soft namespace *within* a board — one specialist
   fleet can serve multiple businesses with workspace-path + memory-key
@@ -1128,45 +1128,45 @@ in config.yaml (or `DEEPSUCK_BACKGROUND_NOTIFICATIONS` env var):
 ## Profiles: Multi-Instance Support
 
 Deepsuck supports **profiles** — multiple fully isolated instances, each with its own
-`DEEPSUCK_HOME` directory (config, API keys, memory, sessions, skills, gateway, etc.).
+`DAG_HOME` directory (config, API keys, memory, sessions, skills, gateway, etc.).
 
-The core mechanism: `_apply_profile_override()` in `deepsuck_cli/main.py` sets
-`DEEPSUCK_HOME` before any module imports. All `get_deepsuck_home()` references
+The core mechanism: `_apply_profile_override()` in `dag_cli/main.py` sets
+`DAG_HOME` before any module imports. All `get_dag_home()` references
 automatically scope to the active profile.
 
 ### Rules for profile-safe code
 
-1. **Use `get_deepsuck_home()` for all DEEPSUCK_HOME paths.** Import from `deepsuck_constants`.
-   NEVER hardcode `~/.deepsuck` or `Path.home() / ".deepsuck"` in code that reads/writes state.
+1. **Use `get_dag_home()` for all DAG_HOME paths.** Import from `dag_constants`.
+   NEVER hardcode `~/.dag` or `Path.home() / ".dag"` in code that reads/writes state.
    ```python
    # GOOD
-   from deepsuck_constants import get_deepsuck_home
-   config_path = get_deepsuck_home() / "config.yaml"
+   from dag_constants import get_dag_home
+   config_path = get_dag_home() / "config.yaml"
 
    # BAD — breaks profiles
-   config_path = Path.home() / ".deepsuck" / "config.yaml"
+   config_path = Path.home() / ".dag" / "config.yaml"
    ```
 
-2. **Use `display_deepsuck_home()` for user-facing messages.** Import from `deepsuck_constants`.
-   This returns `~/.deepsuck` for default or `~/.deepsuck/profiles/<name>` for profiles.
+2. **Use `display_dag_home()` for user-facing messages.** Import from `dag_constants`.
+   This returns `~/.dag` for default or `~/.dag/profiles/<name>` for profiles.
    ```python
    # GOOD
-   from deepsuck_constants import display_deepsuck_home
-   print(f"Config saved to {display_deepsuck_home()}/config.yaml")
+   from dag_constants import display_dag_home
+   print(f"Config saved to {display_dag_home()}/config.yaml")
 
    # BAD — shows wrong path for profiles
-   print("Config saved to ~/.deepsuck/config.yaml")
+   print("Config saved to ~/.dag/config.yaml")
    ```
 
-3. **Module-level constants are fine** — they cache `get_deepsuck_home()` at import time,
-   which is AFTER `_apply_profile_override()` sets the env var. Just use `get_deepsuck_home()`,
-   not `Path.home() / ".deepsuck"`.
+3. **Module-level constants are fine** — they cache `get_dag_home()` at import time,
+   which is AFTER `_apply_profile_override()` sets the env var. Just use `get_dag_home()`,
+   not `Path.home() / ".dag"`.
 
-4. **Tests that mock `Path.home()` must also set `DEEPSUCK_HOME`** — since code now uses
-   `get_deepsuck_home()` (reads env var), not `Path.home() / ".deepsuck"`:
+4. **Tests that mock `Path.home()` must also set `DAG_HOME`** — since code now uses
+   `get_dag_home()` (reads env var), not `Path.home() / ".dag"`:
    ```python
    with patch.object(Path, "home", return_value=tmp_path), \
-        patch.dict(os.environ, {"DEEPSUCK_HOME": str(tmp_path / ".deepsuck")}):
+        patch.dict(os.environ, {"DAG_HOME": str(tmp_path / ".dag")}):
        ...
    ```
 
@@ -1176,24 +1176,24 @@ automatically scope to the active profile.
    `disconnect()`/`stop()`. This prevents two profiles from using the same credential.
    See `gateway/platforms/telegram.py` for the canonical pattern.
 
-6. **Profile operations are HOME-anchored, not DEEPSUCK_HOME-anchored** — `_get_profiles_root()`
-   returns `Path.home() / ".deepsuck" / "profiles"`, NOT `get_deepsuck_home() / "profiles"`.
-   This is intentional — it lets `deepsuck -p coder profile list` see all profiles regardless
+6. **Profile operations are HOME-anchored, not DAG_HOME-anchored** — `_get_profiles_root()`
+   returns `Path.home() / ".dag" / "profiles"`, NOT `get_dag_home() / "profiles"`.
+   This is intentional — it lets `dag -p coder profile list` see all profiles regardless
    of which one is active.
 
 ## Known Pitfalls
 
-### DO NOT hardcode `~/.deepsuck` paths
-Use `get_deepsuck_home()` from `deepsuck_constants` for code paths. Use `display_deepsuck_home()`
-for user-facing print/log messages. Hardcoding `~/.deepsuck` breaks profiles — each profile
-has its own `DEEPSUCK_HOME` directory. This was the source of 5 bugs fixed in PR #3575.
+### DO NOT hardcode `~/.dag` paths
+Use `get_dag_home()` from `dag_constants` for code paths. Use `display_dag_home()`
+for user-facing print/log messages. Hardcoding `~/.dag` breaks profiles — each profile
+has its own `DAG_HOME` directory. This was the source of 5 bugs fixed in PR #3575.
 
 ### DO NOT introduce new `simple_term_menu` usage
-Existing call sites in `deepsuck_cli/main.py` remain for legacy fallback only;
+Existing call sites in `dag_cli/main.py` remain for legacy fallback only;
 the preferred UI is curses (stdlib) because `simple_term_menu` has
 ghost-duplication rendering bugs in tmux/iTerm2 with arrow keys. New
-interactive menus must use `deepsuck_cli/curses_ui.py` — see
-`deepsuck_cli/tools_config.py` for the canonical pattern.
+interactive menus must use `dag_cli/curses_ui.py` — see
+`dag_cli/tools_config.py` for the canonical pattern.
 
 ### DO NOT use `\033[K` (ANSI erase-to-EOL) in spinner/display code
 Leaks as literal `?[K` text under `prompt_toolkit`'s `patch_stdout`. Use space-padding: `f"\r{line}{' ' * pad}"`.
@@ -1226,21 +1226,21 @@ red flag.
 ### Don't wire in dead code without E2E validation
 Unused code that was never shipped was dead for a reason. Before wiring an
 unused module into a live code path, E2E test the real resolution chain
-with actual imports (not mocks) against a temp `DEEPSUCK_HOME`.
+with actual imports (not mocks) against a temp `DAG_HOME`.
 
-### Tests must not write to `~/.deepsuck/`
-The `_isolate_deepsuck_home` autouse fixture in `tests/conftest.py` redirects `DEEPSUCK_HOME` to a temp dir. Never hardcode `~/.deepsuck/` paths in tests.
+### Tests must not write to `~/.dag/`
+The `_isolate_dag_home` autouse fixture in `tests/conftest.py` redirects `DAG_HOME` to a temp dir. Never hardcode `~/.dag/` paths in tests.
 
 **Profile tests**: When testing profile features, also mock `Path.home()` so that
-`_get_profiles_root()` and `_get_default_deepsuck_home()` resolve within the temp dir.
-Use the pattern from `tests/deepsuck_cli/test_profiles.py`:
+`_get_profiles_root()` and `_get_default_dag_home()` resolve within the temp dir.
+Use the pattern from `tests/dag_cli/test_profiles.py`:
 ```python
 @pytest.fixture
 def profile_env(tmp_path, monkeypatch):
-    home = tmp_path / ".deepsuck"
+    home = tmp_path / ".dag"
     home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setenv("DEEPSUCK_HOME", str(home))
+    monkeypatch.setenv("DAG_HOME", str(home))
     return home
 ```
 
@@ -1290,7 +1290,7 @@ Five real sources of local-vs-CI drift the script closes:
 | | Without wrapper | With wrapper |
 |---|---|---|
 | Provider API keys | Whatever is in your env (auto-detects pool) | All `*_API_KEY`/`*_TOKEN`/etc. unset |
-| HOME / `~/.deepsuck/` | Your real config+auth.json | Temp dir per test |
+| HOME / `~/.dag/` | Your real config+auth.json | Temp dir per test |
 | Timezone | Local TZ (PDT etc.) | UTC |
 | Locale | Whatever is set | C.UTF-8 |
 | xdist workers | `-n auto` = all cores | `-n auto` (safe — subprocess isolation prevents cross-worker flakes) |

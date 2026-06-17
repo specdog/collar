@@ -1,5 +1,5 @@
 """
-Cron subcommand for deepsuck CLI.
+Cron subcommand for dag CLI.
 
 Handles standalone cron management commands like list, create, edit,
 pause/resume/run/remove, status, and tick.
@@ -14,7 +14,7 @@ from typing import Iterable, List, Optional
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from deepsuck_cli.colors import Colors, color
+from dag_cli.colors import Colors, color
 
 # Patterns that indicate a cron job targets the gateway lifecycle.
 # Matches commands that restart/stop the gateway or its service manager.
@@ -23,10 +23,10 @@ from deepsuck_cli.colors import Colors, color
 # the API gateway logs and report restart events").
 _GATEWAY_LIFECYCLE_PATTERNS = re.compile(
     r"(?i)"
-    r"(deepsuck\s+gateway\s+(restart|stop|start))"
-    r"|(launchctl\s+(kickstart|unload|load|stop|restart)\s+.*deepsuck)"
-    r"|(systemctl\s+(restart|stop|start)\s+.*deepsuck)"
-    r"|(p?kill\s+.*deepsuck.*gateway)"
+    r"(dag\s+gateway\s+(restart|stop|start))"
+    r"|(launchctl\s+(kickstart|unload|load|stop|restart)\s+.*dag)"
+    r"|(systemctl\s+(restart|stop|start)\s+.*dag)"
+    r"|(p?kill\s+.*dag.*gateway)"
 )
 
 
@@ -65,7 +65,7 @@ def cron_list(show_all: bool = False):
 
     if not jobs:
         print(color("No scheduled jobs.", Colors.DIM))
-        print(color("Create one with 'deepsuck cron create ...' or the /cron command in chat.", Colors.DIM))
+        print(color("Create one with 'dag cron create ...' or the /cron command in chat.", Colors.DIM))
         return
 
     print()
@@ -137,11 +137,11 @@ def cron_list(show_all: bool = False):
 
         print()
 
-    from deepsuck_cli.gateway import find_gateway_pids
+    from dag_cli.gateway import find_gateway_pids
     if not find_gateway_pids():
         print(color("  ⚠  Gateway is not running — jobs won't fire automatically.", Colors.YELLOW))
-        print(color("     Start it with: deepsuck gateway install", Colors.DIM))
-        print(color("                    sudo deepsuck gateway install --system  # Linux servers", Colors.DIM))
+        print(color("     Start it with: dag gateway install", Colors.DIM))
+        print(color("                    sudo dag gateway install --system  # Linux servers", Colors.DIM))
         print()
 
 
@@ -154,7 +154,7 @@ def cron_tick():
 def cron_status():
     """Show cron execution status."""
     from cron.jobs import list_jobs
-    from deepsuck_cli.gateway import find_gateway_pids
+    from dag_cli.gateway import find_gateway_pids
 
     print()
 
@@ -166,9 +166,9 @@ def cron_status():
         print(color("✗ Gateway is not running — cron jobs will NOT fire", Colors.RED))
         print()
         print("  To enable automatic execution:")
-        print("    deepsuck gateway install    # Install as a user service")
-        print("    sudo deepsuck gateway install --system  # Linux servers: boot-time system service")
-        print("    deepsuck gateway            # Or run in foreground")
+        print("    dag gateway install    # Install as a user service")
+        print("    sudo dag gateway install --system  # Linux servers: boot-time system service")
+        print("    dag gateway            # Or run in foreground")
 
     print()
 
@@ -202,7 +202,7 @@ def cron_create(args):
             "Blocked: cron job contains a gateway lifecycle command "
             "(restart/stop/kill).\n"
             "This is blocked to prevent restart loops (#30719).\n"
-            "Use `deepsuck gateway restart` from a shell outside the gateway.",
+            "Use `dag gateway restart` from a shell outside the gateway.",
             Colors.RED,
         ))
         return 1
@@ -353,5 +353,5 @@ def cron_command(args):
         return _job_action("remove", args.job_id, "Removed")
 
     print(f"Unknown cron command: {subcmd}")
-    print("Usage: deepsuck cron [list|create|edit|pause|resume|run|remove|status|tick]")
+    print("Usage: dag cron [list|create|edit|pause|resume|run|remove|status|tick]")
     sys.exit(1)

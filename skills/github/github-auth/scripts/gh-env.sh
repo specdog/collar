@@ -23,8 +23,8 @@ if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
     GH_USER=$(gh api user --jq '.login' 2>/dev/null)
 elif [ -n "$GITHUB_TOKEN" ]; then
     GH_AUTH_METHOD="curl"
-elif _deepsuck_env="${DEEPSUCK_HOME:-$HOME/.deepsuck}/.env"; [ -f "$_deepsuck_env" ] && grep -q "^GITHUB_TOKEN=" "$_deepsuck_env" 2>/dev/null; then
-    GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_deepsuck_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
+elif _dag_env="${DAG_HOME:-$HOME/.dag}/.env"; [ -f "$_dag_env" ] && grep -q "^GITHUB_TOKEN=" "$_dag_env" 2>/dev/null; then
+    GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_dag_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
     if [ -n "$GITHUB_TOKEN" ]; then
         GH_AUTH_METHOD="curl"
     fi

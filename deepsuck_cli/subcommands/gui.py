@@ -1,6 +1,6 @@
-"""``deepsuck gui`` subcommand parser.
+"""``dag gui`` subcommand parser.
 
-Extracted verbatim from ``deepsuck_cli/main.py:main()`` (god-file Phase 2).
+Extracted verbatim from ``dag_cli/main.py:main()`` (god-file Phase 2).
 Handler injected to avoid importing ``main``.
 """
 
@@ -17,7 +17,7 @@ def build_gui_parser(subparsers, *, cmd_gui: Callable) -> None:
         aliases=["gui"],
         help="Build and launch the native desktop app",
         description=(
-            "Launch the Deepsuck Electron desktop app. By default this installs "
+            "Launch the Dag Electron desktop app. By default this installs "
             "workspace Node dependencies, builds the current OS's unpacked "
             "Electron app, then launches that packaged artifact."
         ),
@@ -40,11 +40,11 @@ def build_gui_parser(subparsers, *, cmd_gui: Callable) -> None:
     gui_parser.add_argument(
         "--ignore-existing",
         action="store_true",
-        help="Force Desktop to ignore any deepsuck CLI already on PATH during backend resolution",
+        help="Force Desktop to ignore any dag CLI already on PATH during backend resolution",
     )
     gui_parser.add_argument(
-        "--deepsuck-root",
-        help="Override the Deepsuck source root used by Desktop (sets DEEPSUCK_DESKTOP_DEEPSUCK_ROOT)",
+        "--dag-root",
+        help="Override the Dag source root used by Desktop (sets DEEPSUCK_DESKTOP_DEEPSUCK_ROOT)",
     )
     gui_parser.add_argument(
         "--cwd",

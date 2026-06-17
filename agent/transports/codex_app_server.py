@@ -6,11 +6,11 @@ do an `initialize` handshake, then drive `thread/start` + `turn/start` and
 consume streaming `item/*` notifications until `turn/completed`.
 
 This module is the wire-level speaker only. Higher-level concerns (event
-projection into Deepsuck' display, approval bridging, transcript projection into
+projection into Dag' display, approval bridging, transcript projection into
 AIAgent.messages, plugin migration) live in sibling modules.
 
 Status: optional opt-in runtime gated behind `model.openai_runtime ==
-"codex_app_server"`. Deepsuck' default tool dispatch is unchanged when this
+"codex_app_server"`. Dag' default tool dispatch is unchanged when this
 runtime is not selected.
 """
 
@@ -86,15 +86,15 @@ class CodexAppServerClient:
         # Codex sandbox on, but add the Kanban root as the only extra writable
         # root. Without this, codex-runtime workers finish their actual work
         # but crash/block when kanban_complete/kanban_block writes SQLite.
-        if spawn_env.get("DEEPSUCK_KANBAN_TASK"):
-            kanban_db = spawn_env.get("DEEPSUCK_KANBAN_DB")
+        if spawn_env.get("DAG_KANBAN_TASK"):
+            kanban_db = spawn_env.get("DAG_KANBAN_DB")
             kanban_root = (
                 os.path.dirname(kanban_db)
                 if kanban_db
                 else spawn_env.get(
-                    "DEEPSUCK_KANBAN_ROOT",
+                    "DAG_KANBAN_ROOT",
                     os.path.join(
-                        spawn_env.get("DEEPSUCK_HOME", os.path.expanduser("~/.deepsuck")),
+                        spawn_env.get("DAG_HOME", os.path.expanduser("~/.dag")),
                         "kanban",
                     ),
                 )
@@ -141,8 +141,8 @@ class CodexAppServerClient:
 
     def initialize(
         self,
-        client_name: str = "deepsuck",
-        client_title: str = "Deepsuck Agent",
+        client_name: str = "dag",
+        client_title: str = "DAG Agent",
         client_version: str = "0.1",
         capabilities: Optional[dict] = None,
         timeout: float = 10.0,

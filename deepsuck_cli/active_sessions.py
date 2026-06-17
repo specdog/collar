@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from deepsuck_constants import get_deepsuck_home
+from dag_constants import get_dag_home
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +72,13 @@ def resolve_max_concurrent_sessions(config: Any) -> Optional[int]:
 
 def active_session_limit_message(active_count: int, max_sessions: int) -> str:
     return (
-        f"Deepsuck is at the active session limit ({active_count}/{max_sessions}). "
+        f"DAG is at the active session limit ({active_count}/{max_sessions}). "
         "Try again when another session finishes."
     )
 
 
 def _state_dir() -> Path:
-    return get_deepsuck_home() / "runtime"
+    return get_dag_home() / "runtime"
 
 
 def _state_path() -> Path:

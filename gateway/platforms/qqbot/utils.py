@@ -14,10 +14,10 @@ from .constants import QQBOT_VERSION
 # ---------------------------------------------------------------------------
 
 def _get_hermes_version() -> str:
-    """Return the deepsuck-agent package version, or 'dev' if unavailable."""
+    """Return the dag-agent package version, or 'dev' if unavailable."""
     try:
         from importlib.metadata import version
-        return version("deepsuck-agent")
+        return version("dag-agent")
     except Exception:
         return "dev"
 

@@ -861,11 +861,17 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         padding=(0, 2),
     )
 
-    console.print(
-        f"\n[bold #D4AF37] ⣿⣿⣿ ⣿⣿⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]"
-        f"\n[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿ ⣿ [/]"
-        f"\n[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿⣿⣿ ⣿⣿⣿ [/]"
-        f"\n[bold #D4AF37] ⣿    ⣿ ⣿ ⣿   ⣿   ⣿ ⣿ ⣿⣿  [/]"
-        f"\n[bold #D4AF37] ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿⣿⣿ ⣿ ⣿ ⣿ ⣿ [/]"
-    )
+    from rich.text import Text
+    braille = Text()
+    braille.append("\n")
+    braille.append("⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ ", style="bold #D4AF37")
+    braille.append("\n")
+    braille.append("⣿      ⣿    ⣿  ⣿      ⣿      ⣿    ⣿  ⣿    ⣿ ", style="bold #D4AF37")
+    braille.append("\n")
+    braille.append("⣿      ⣿    ⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ ", style="bold #D4AF37")
+    braille.append("\n")
+    braille.append("⣿      ⣿    ⣿  ⣿      ⣿      ⣿  ⣿    ⣿⣿    ", style="bold #D4AF37")
+    braille.append("\n")
+    braille.append("⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿    ⣿  ⣿    ⣿ ", style="bold #D4AF37")
+    console.print(braille, justify="center")
     console.print(outer_panel)

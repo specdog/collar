@@ -130,7 +130,6 @@ DEFAULT_AGENT_IDENTITY = (
 # DAG-path notation: Entity-> Target:verb(card).  Verbs abbreviated to 5 chars.
 # Post-v1.5.0: 452 chars, 7 entities, 14 edges.  Cached after turn 1.
 DAG_GROUND_ENTITY_GRAPH = (
-    "DAG ground truth — trace paths, not prose:\n"
     "Technique→ Integration:wired(1m), TechniqueStack:combi(1m), "
     "ResearchPipeline:disco(1m), KnowledgeSource:sourc(mm), Benchmark:measu(mm)\n"
     "KnowledgeSource→ ResearchPipeline:polls(1m), KnowledgeFetch:queri(1m), "

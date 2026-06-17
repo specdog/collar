@@ -3026,8 +3026,18 @@ def _build_compact_banner() -> str:
     line1 = line1[:content_width].ljust(content_width)
     line2 = version_line[:content_width].ljust(content_width)
 
+    # Banner hero + collar text above the version box
+    hero_block = ""
+    try:
+        _hero = getattr(_skin, "banner_hero", None) if _skin else None
+        if _hero:
+            hero_block = f"\n[bold {title_color}]c o l l a r[/]\n\n{_hero}\n"
+    except Exception:
+        pass
+
     return (
-        f"\n[bold {border_color}]╔{bar}╗[/]\n"
+        f"{hero_block}"
+        f"[bold {border_color}]╔{bar}╗[/]\n"
         f"[bold {border_color}]║[/] [{title_color}]{line1}[/] [bold {border_color}]║[/]\n"
         f"[bold {border_color}]║[/] [dim {dim_color}]{line2}[/] [bold {border_color}]║[/]\n"
         f"[bold {border_color}]╚{bar}╝[/]\n"

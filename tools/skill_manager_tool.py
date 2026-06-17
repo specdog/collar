@@ -556,6 +556,86 @@ def _atomic_write_text(file_path: Path, content: str, encoding: str = "utf-8") -
 # Core actions
 # =============================================================================
 
+
+# ── SKILL.dag auto-regeneration ─────────────────────────────────────────
+
+def _regenerate_dag(skill_dir, skill_md_content=None):
+    """Auto-generate SKILL.dag from SKILL.md content. Best-effort."""
+    dag_path = skill_dir / "SKILL.dag"
+    try:
+        if skill_md_content is None:
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.is_file():
+                return
+            skill_md_content = skill_md.read_text(encoding="utf-8")
+        if not skill_md_content or not skill_md_content.strip():
+            return
+
+        # Strip YAML frontmatter
+        body = skill_md_content
+        fm = {}
+        if body.startswith("---"):
+            end = body.find("\n---", 3)
+            if end != -1:
+                fm_text = body[3:end]
+                body = body[end + 4:].strip()
+                for line in fm_text.split("\n"):
+                    if ":" in line:
+                        k, _, v = line.partition(":")
+                        fm[k.strip()] = v.strip().strip('"').strip("'")
+
+        skill_name = fm.get("name", skill_dir.name)
+        desc = fm.get("description", "")
+
+        # Build compact DAG from body sections
+        lines = body.split("\n")
+        dag_lines = [f"[{skill_name}]", f"Desc→ {desc[:80]}(11)" if desc else ""]
+
+        section_map = {
+            "quick start": "Quick", "installation": "Install", "setup": "Setup",
+            "usage": "Usage", "commands": "Cmd", "configuration": "Config",
+            "workflow": "Flow", "rules": "Rule", "steps": "Step",
+            "overview": "Overview", "getting started": "Start",
+            "prerequisites": "Prereq", "troubleshooting": "Fix",
+            "testing": "Test", "reference": "Ref", "cli reference": "CLI",
+            "api": "API", "examples": "Example",
+        }
+
+        current_section = None
+        section_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("## "):
+                section = stripped[3:].strip()
+                for key, abbr in section_map.items():
+                    if key in section.lower():
+                        current_section = abbr
+                        section_count += 1
+                        break
+                else:
+                    current_section = section.split()[0][:10]
+                    section_count += 1
+                continue
+            if current_section and stripped and not stripped.startswith("#") and not stripped.startswith("```") and not stripped.startswith("|"):
+                abbrev = stripped[:60].rstrip()
+                if len(stripped) > 60:
+                    abbrev += "..."
+                abbrev = abbrev.replace(":", ";")
+                dag_lines.append(f"{current_section}→ {abbrev}(11)")
+                current_section = None
+
+        dag_text = "\n".join(l for l in dag_lines if l)
+        if len(dag_text) > 2500:
+            dag_text = "\n".join(dag_lines[:30])
+
+        dag_path.write_text(dag_text.strip() + "\n", encoding="utf-8")
+    except Exception:
+        pass  # best-effort — .dag is a cache, never blocks skill ops
+
+
+
 def _create_skill(name: str, content: str, category: str = None) -> Dict[str, Any]:
     """Create a new user skill with SKILL.md content."""
     # Validate name
@@ -591,6 +671,7 @@ def _create_skill(name: str, content: str, category: str = None) -> Dict[str, An
     # Write SKILL.md atomically
     skill_md = skill_dir / "SKILL.md"
     _atomic_write_text(skill_md, content)
+    _regenerate_dag(skill_dir, content)
 
     # Security scan — roll back on block
     scan_error = _security_scan_skill(skill_dir)
@@ -631,6 +712,7 @@ def _edit_skill(name: str, content: str) -> Dict[str, Any]:
     # Back up original content for rollback
     original_content = skill_md.read_text(encoding="utf-8") if skill_md.exists() else None
     _atomic_write_text(skill_md, content)
+    _regenerate_dag(existing["path"], content)
 
     # Security scan — roll back on block
     scan_error = _security_scan_skill(existing["path"])
@@ -727,6 +809,8 @@ def _patch_skill(
 
     original_content = content  # for rollback
     _atomic_write_text(target, new_content)
+    if not file_path:  # regenerating SKILL.dag from patched SKILL.md
+        _regenerate_dag(skill_dir, new_content)
 
     # Security scan — roll back on block
     scan_error = _security_scan_skill(skill_dir)

@@ -918,15 +918,18 @@ def create_profile(
         except OSError:
             pass  # best-effort — save_env_value creates the file on demand
 
-    # Seed a default SOUL.md so the user has a file to customize immediately.
-    # Skipped when the profile already has one (from --clone / --clone-all).
-    soul_path = profile_dir / "SOUL.md"
-    if not soul_path.exists():
-        try:
-            from deepsuck_cli.default_soul import DEFAULT_SOUL_MD
-            soul_path.write_text(DEFAULT_SOUL_MD, encoding="utf-8")
-        except Exception:
-            pass  # best-effort — don't fail profile creation over this
+    # Seed default SOUL.dag + SOUL.dog so the user has files to customize.
+    # .dag is primary (agent reads DAG-path format), .dog is the prose spec.
+    # Skipped when the profile already has them (from --clone / --clone-all).
+    for soul_name, soul_content in [("SOUL.dag", None), ("SOUL.dog", None)]:
+        soul_path = profile_dir / soul_name
+        if not soul_path.exists():
+            try:
+                from deepsuck_cli.default_soul import DEFAULT_SOUL_DAG, DEFAULT_SOUL_DOG
+                text = DEFAULT_SOUL_DAG if soul_name == "SOUL.dag" else DEFAULT_SOUL_DOG
+                soul_path.write_text(text, encoding="utf-8")
+            except Exception:
+                pass  # best-effort
 
     # Write the opt-out marker so seed_profile_skills() and `deepsuck update`'s
     # all-profile sync loop both skip this profile for bundled-skill seeding.

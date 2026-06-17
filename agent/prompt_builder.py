@@ -125,6 +125,23 @@ DEFAULT_AGENT_IDENTITY = (
     "Output only results. If tool fails try another. If all fail: FAIL: reason."
 )
 
+# Native DAG ground-truth graph -- bakes intelligence-amplifier .dag into the
+# harness so grounding fires regardless of hook availability.  Compact
+# DAG-path notation: Entity-> Target:verb(card).  Verbs abbreviated to 5 chars.
+# Post-v1.5.0: 452 chars, 7 entities, 14 edges.  Cached after turn 1.
+DAG_GROUND_ENTITY_GRAPH = (
+    "DAG ground truth — trace paths, not prose:\n"
+    "Technique→ Integration:wired(1m), TechniqueStack:combi(1m), "
+    "ResearchPipeline:disco(1m), KnowledgeSource:sourc(mm), Benchmark:measu(mm)\n"
+    "KnowledgeSource→ ResearchPipeline:polls(1m), KnowledgeFetch:queri(1m), "
+    "Technique:sourc(mm)\n"
+    "ResearchPipeline→ KnowledgeSource:polls(1m), Technique:disco(1m)\n"
+    "Integration→ Technique:wired(1m)\n"
+    "Benchmark→ Technique:measu(mm)\n"
+    "TechniqueStack→ Technique:combi(1m)\n"
+    "KnowledgeFetch→ KnowledgeSource:queri(1m)"
+)
+
 DEEPSUCK_AGENT_HELP_GUIDANCE = ""
 
 MEMORY_GUIDANCE = (
@@ -1462,32 +1479,42 @@ def _truncate_content(content: str, filename: str, max_chars: int = CONTEXT_FILE
     return head + marker + tail
 
 
-def load_soul_md() -> Optional[str]:
-    """Load SOUL.md from DEEPSUCK_HOME and return its content, or None.
+def load_soul_identity() -> Optional[str]:
+    """Load SOUL.dag or SOUL.md from DEEPSUCK_HOME as agent identity.
+
+    Tries SOUL.dag first (DAG-path format, native .dag ground truth),
+    falls back to SOUL.md (prose format).  Returns None if neither exists.
 
     Used as the agent identity (slot #1 in the system prompt).  When this
     returns content, ``build_context_files_prompt`` should be called with
-    ``skip_soul=True`` so SOUL.md isn't injected twice.
+    ``skip_soul=True`` so the identity isn't injected twice.
     """
     try:
         from deepsuck_cli.config import ensure_deepsuck_home
         ensure_deepsuck_home()
     except Exception as e:
-        logger.debug("Could not ensure DEEPSUCK_HOME before loading SOUL.md: %s", e)
+        logger.debug("Could not ensure DEEPSUCK_HOME before loading identity: %s", e)
 
-    soul_path = get_deepsuck_home() / "SOUL.md"
-    if not soul_path.exists():
-        return None
-    try:
-        content = soul_path.read_text(encoding="utf-8").strip()
-        if not content:
-            return None
-        content = _scan_context_content(content, "SOUL.md")
-        content = _truncate_content(content, "SOUL.md")
-        return content
-    except Exception as e:
-        logger.debug("Could not read SOUL.md from %s: %s", soul_path, e)
-        return None
+    deepsuck_home = get_deepsuck_home()
+    # .dag is important, .dog is fallback (prose spec), .md is last resort
+    for filename in ("SOUL.dag", "SOUL.dog", "SOUL.md"):
+        soul_path = deepsuck_home / filename
+        if not soul_path.exists():
+            continue
+        try:
+            content = soul_path.read_text(encoding="utf-8").strip()
+            if not content:
+                continue
+            content = _scan_context_content(content, filename)
+            content = _truncate_content(content, filename)
+            return content
+        except Exception as e:
+            logger.debug("Could not read %s from %s: %s", filename, soul_path, e)
+    return None
+
+
+# Backward-compatible alias so existing callers in tests/gateway still resolve.
+load_soul_md = load_soul_identity
 
 
 def _load_deepsuck_md(cwd_path: Path) -> str:

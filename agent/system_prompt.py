@@ -27,6 +27,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from agent.prompt_builder import (
+    DAG_GROUND_ENTITY_GRAPH,
     DEFAULT_AGENT_IDENTITY,
     GOOGLE_MODEL_OPERATIONAL_GUIDANCE,
     DEEPSUCK_AGENT_HELP_GUIDANCE,
@@ -94,6 +95,10 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
         if _soul_content:
             stable_parts.append(_soul_content)
             _soul_loaded = True
+
+    # Native DAG ground-truth graph -- bakes IA .dag directly into the
+    # harness.  No hook dependency.  Stable across sessions for caching.
+    stable_parts.append(DAG_GROUND_ENTITY_GRAPH)
 
     if not _soul_loaded:
         # Fallback to hardcoded identity

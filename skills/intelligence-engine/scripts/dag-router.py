@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dag-router.py — multi-DAG grounding. Shows entities + ALL edges uncompressed."""
+"""Minimal DAG grounding. Compact output. Skips harness self-description."""
 import sys, json, os
 from pathlib import Path
 
@@ -9,15 +9,13 @@ KNOWN_ROOTS = [
     str(Path.home() / "projects"),
     str(Path.home() / "specdog" / "projects"),
 ]
-ALWAYS_INCLUDE = [
-    str(Path.home() / "deepsuck" / "projects" / "deepsuck-harness" / "deepsuck-harness.dag"),
-]
+# Harness describes enforcement internals — hooks handle that at code level.
+# Skip it from ground truth to avoid self-referential noise.
+SKIP_DAGS = {"deepsuck-harness"}
 
 def find_all_dags(roots=None):
     roots = roots or KNOWN_ROOTS
     dags, seen = [], set()
-    for p in ALWAYS_INCLUDE:
-        if os.path.exists(p) and p not in seen: seen.add(p); dags.append(p)
     for root in roots:
         if not os.path.isdir(root): continue
         for dirpath, dirs, files in os.walk(root):
@@ -26,8 +24,28 @@ def find_all_dags(roots=None):
             for f in files:
                 if f.endswith('.dag'):
                     p = os.path.join(dirpath, f)
+                    pname = os.path.basename(p).replace('.dag','')
+                    if pname in SKIP_DAGS: continue
                     if p not in seen: seen.add(p); dags.append(p)
     return dags
+
+def parse_node(n):
+    """Handle both array and dict DAG node formats."""
+    if isinstance(n, dict):
+        return {
+            "name": n.get("i", n.get("id", "?")),
+            "type": n.get("t", n.get("g", "?")),
+            "desc": str(n.get("d", n.get("desc", "")))[:120],
+            "state": (n.get("s", n.get("state", [])) or ["unknown"])[0] if isinstance(n.get("s", n.get("state", [])), list) else str(n.get("s", n.get("state", "unknown"))),
+        }
+    elif isinstance(n, list):
+        return {
+            "name": n[1] if len(n) > 1 else "?",
+            "type": n[2] if len(n) > 2 else "?",
+            "desc": str(n[3])[:120] if len(n) > 3 else "",
+            "state": (n[4][0] if isinstance(n[4], list) and n[4] else "unknown") if len(n) > 4 and n[4] else "unknown",
+        }
+    return {"name": "?", "type": "?", "desc": "", "state": "unknown"}
 
 def load_all_entities(roots=None):
     dags = find_all_dags(roots)
@@ -37,12 +55,9 @@ def load_all_entities(roots=None):
             with open(dp) as f: dag = json.load(f)
             pname = os.path.basename(dp).replace('.dag','')
             for n in dag.get("n", []):
-                all_entities.append({
-                    "dag": pname, "name": n.get("i","?"), "type": n.get("g","?"),
-                    "desc": n.get("d","")[:200], "states": n.get("s",[]),
-                    "lifecycle": n.get("l",[]),
-                    "edges": [{"target":e.get("t","?"), "verb":e.get("v","?"), "card":e.get("c","?"), "required":e.get("r",False)} for e in n.get("es",[])]
-                })
+                e = parse_node(n)
+                e["dag"] = pname
+                all_entities.append(e)
         except: pass
     return {"dags_found": len(dags), "entities": all_entities}
 
@@ -51,7 +66,6 @@ def search_entities(entities, query):
     if not keywords: return entities
     scored = []
     for e in entities:
-        if "error" in e: continue
         text = (e.get("name","") + " " + e.get("desc","")).lower()
         score = sum(1 for kw in keywords if kw in text)
         if score > 0: scored.append((score, e))
@@ -59,30 +73,20 @@ def search_entities(entities, query):
     result = [e for _, e in scored]
     return result if result else entities
 
-def build_ground_truth_string(entities, query=None, limit=50):
+def build_compact(entities, query=None, limit=50):
     if query:
         matched = search_entities(entities, query)
-        # Put matched entities first, then append remaining
         matched_names = {e['name'] for e in matched}
         rest = [e for e in entities if e['name'] not in matched_names]
-        entities = matched + rest
+        entities = matched[:limit] + rest[:(limit - len(matched))]
     lines = []
-    dags_seen = set()
-    for e in entities[:limit]: dags_seen.add(e.get("dag","?"))
-    lines.append(f"GROUND TRUTH - {len(dags_seen)} DAG(s), {min(limit,len(entities))} entities:")
     current_dag = None
     for e in entities[:limit]:
         dag = e.get("dag","?")
         if dag != current_dag:
-            current_dag = dag; lines.append(f"\n[{dag}]")
-        lines.append(f"  {e['name']} ({e['type']}): {e['desc']}")
-        if e.get('states'): lines.append(f"    States: {', '.join(e['states'])}")
-        if e.get('lifecycle'): lines.append(f"    Lifecycle: {' -> '.join(e['lifecycle'])}")
-        if e.get('edges'):
-            lines.append(f"    Relationships:")
-            for ed in e['edges']:
-                req = "required" if ed.get('required') else "optional"
-                lines.append(f"      -> {ed['target']} [{ed['verb']}] ({ed['card']}, {req})")
+            current_dag = dag
+            lines.append(f"[{dag}]")
+        lines.append(f"  {e['name']}: {e['desc']}")
     return "\n".join(lines)
 
 if __name__ == "__main__":
@@ -93,4 +97,4 @@ if __name__ == "__main__":
     if '--all' in sys.argv:
         print(json.dumps(data, indent=2))
     else:
-        print(build_ground_truth_string(data["entities"], query))
+        print(build_compact(data["entities"], query))

@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # ANSI building blocks for conversation display
 # =========================================================================
 
-_GOLD = "\033[1;38;2;255;215;0m"  # True-color #FFD700 bold
+_GOLD = "\033[1;38;2;212;175;55m"  # True-color polished brass bold
 _BOLD = "\033[1m"
 _DIM = "\033[2m"
 _RST = "\033[0m"
@@ -61,23 +61,63 @@ def _skin_color(key: str, fallback: str) -> str:
 
 from dag_cli import __version__ as VERSION, __release_date__ as RELEASE_DATE
 
-DAG_AGENT_LOGO = """[bold #FFD700]D E E P S U C K[/]"""
+def _load_branding_logo() -> str:
+    """Load logo from branding.dag/.dog, collect all logo lines."""
+    try:
+        dag_home = get_dag_home()
+        for ext in (".dag", ".dog"):
+            f = dag_home / "dags" / ("branding" + ext)
+            if f.is_file():
+                lines = []
+                for line in f.read_text().split("\n"):
+                    if line.startswith("logo "):
+                        lines.append(line[5:])  # after "logo "
+                if lines:
+                    return "\n".join(lines)
+    except Exception:
+        pass
+    # harness fallback
+    try:
+        harness = Path(__file__).parent.parent / "dags" / "branding.dog"
+        if harness.is_file():
+            lines = []
+            for line in harness.read_text().split("\n"):
+                if line.startswith("logo "):
+                    lines.append("[bold #D4AF37]" + line[5:] + "[/]")
+            if lines:
+                return "\n".join(lines)
+    except Exception:
+        pass
+    return "[bold #D4AF37]c o l l a r[/]"
 
-DAG_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣇⠸⣿⣿⠇⣸⣿⣿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⢀⣠⣴⣶⠿⠋⣩⡿⣿⡿⠻⣿⡇⢠⡄⢸⣿⠟⢿⣿⢿⣍⠙⠿⣶⣦⣄⡀⠀[/]
-[#FFBF00]⠀⠀⠉⠉⠁⠶⠟⠋⠀⠉⠀⢀⣈⣁⡈⢁⣈⣁⡀⠀⠉⠀⠙⠻⠶⠈⠉⠉⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣿⡿⠛⢁⡈⠛⢿⣿⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠿⣿⣦⣤⣈⠁⢠⣴⣿⠿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠻⢿⣿⣦⡉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢷⣦⣈⠛⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣴⠦⠈⠙⠿⣦⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣤⡈⠁⢤⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠷⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠑⢶⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⢰⡆⠈⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⠈⣡⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
+def _load_agent_name() -> str:
+    """Load agent name from branding, fallback to Collar."""
+    try:
+        dag_home = get_dag_home()
+        for ext in (".dag", ".dog"):
+            f = dag_home / "dags" / f"branding{ext}"
+            if f.is_file():
+                for line in f.read_text().split("\n"):
+                    if line.startswith("agent_name: "):
+                        return line[12:].strip().strip(chr(34)).strip(chr(39))
+    except Exception:
+        pass
+    return "collar"
+
+DAG_AGENT_LOGO = _load_branding_logo()
+DAG_AGENT_NAME = _load_agent_name()
+
+DAG_CADUCEUS = """[#D4AF37]     ⣀⣀⣀⣀  ⣀⣀⣀⣀[/]
+[#722F37]   ⣠⣿⣿⣿⣿  ⣿⣿⣿⣿⣦[/]
+[#722F37]  ⣴⣿⣿⣿⣿    ⣿⣿⣿⣿⣷[/]
+[#1A1A1A]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
+[#1A1A1A]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
+[#1A1A1A]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
+[#722F37]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
+[#722F37]  ⢿⣿⣿⣿⣤  ⣤⣿⣿⣿⡿[/]
+[#1A1A1A]   ⠀⠻⣿⣿⣿⣿⣿⣿⠟[/]
+[#722F37]     ⠀⠈⠙⠙⠙⠉[/]
+[#D4AF37]  c o l l a r[/]"""
 
 
 
@@ -470,7 +510,7 @@ def get_latest_release_tag(repo_dir: Optional[Path] = None) -> Optional[tuple]:
 
 def format_banner_version_label() -> str:
     """Return the version label shown in the startup banner title."""
-    base = f"DAG Agent v{VERSION} ({RELEASE_DATE})"
+    base = f"collar v{VERSION} ({RELEASE_DATE})"
     state = get_git_banner_state()
     if not state:
         return base
@@ -589,10 +629,10 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     layout_table.add_column("right", justify="left")
 
     # Resolve skin colors once for the entire banner
-    accent = _skin_color("banner_accent", "#FFBF00")
-    dim = _skin_color("banner_dim", "#B8860B")
-    text = _skin_color("banner_text", "#FFF8DC")
-    session_color = _skin_color("session_border", "#8B8682")
+    accent = _skin_color("banner_accent", "#9B1B30")
+    dim = _skin_color("banner_dim", "#722F37")
+    text = _skin_color("banner_text", "#F5F0E8")
+    session_color = _skin_color("session_border", "#722F37")
 
     # Use skin's custom caduceus art if provided
     try:
@@ -609,7 +649,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     if len(model_short) > 28:
         model_short = model_short[:25] + "..."
     ctx_str = f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]" if context_length else ""
-    left_lines.append(f"[{accent}]{model_short}[/]{ctx_str} [dim {dim}]·[/] [dim {dim}]Nous Research[/]")
+    left_lines.append(f"[{accent}]{model_short}[/]{ctx_str}")
 
     if os.getenv("DAG_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
@@ -805,8 +845,8 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     right_content = "\n".join(right_lines)
     layout_table.add_row(left_content, right_content)
 
-    title_color = _skin_color("banner_title", "#FFD700")
-    border_color = _skin_color("banner_border", "#CD7F32")
+    title_color = _skin_color("banner_title", "#D4AF37")
+    border_color = _skin_color("banner_border", "#722F37")
     version_label = format_banner_version_label()
     release_info = get_latest_release_tag()
     if release_info:
@@ -821,10 +861,4 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         padding=(0, 2),
     )
 
-    console.print()
-    term_width = shutil.get_terminal_size().columns
-    if term_width >= 95:
-        _logo = _bskin.banner_logo if _bskin and hasattr(_bskin, 'banner_logo') and _bskin.banner_logo else DAG_AGENT_LOGO
-        console.print(_logo)
-        console.print()
     console.print(outer_panel)

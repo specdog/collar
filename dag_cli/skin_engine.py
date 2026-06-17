@@ -196,7 +196,7 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "help_header": "(🦴) Available Commands",
         },
         "tool_prefix": "┊",
-        "banner_hero": """[#9B1B30]         ▲   ▲   ▲   ▲         [/]
+        "banner_hero": """[#9B1B30]        ▲   ▲   ▲   ▲   ▲        [/]
 [#D4AF37]   ╔════════════════════╗[/]
 [#D4AF37]   ║[/][#9B1B30]  c  o  l  l  a  r  [/][#D4AF37]║[/]
 [#D4AF37]   ╚════════════════════╝[/]""",

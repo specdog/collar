@@ -775,8 +775,11 @@ def _serve_plugin_skill(
             ensure_ascii=False,
         )
 
+    # Prefer SKILL.dag (compact DAG-path) over SKILL.md (prose)
+    _dag = skill_md.parent / "SKILL.dag"
+    _src = _dag if _dag.is_file() else skill_md
     try:
-        content = skill_md.read_text(encoding="utf-8")
+        content = _src.read_text(encoding="utf-8")
     except Exception as e:
         return json.dumps(
             {"success": False, "error": f"Failed to read skill '{namespace}:{bare}': {e}"},
@@ -1095,6 +1098,12 @@ def skill_view(
                 },
                 ensure_ascii=False,
             )
+
+        # Prefer SKILL.dag (compact DAG-path format) over SKILL.md (prose)
+        if skill_dir is not None:
+            dag_candidate = skill_dir / "SKILL.dag"
+            if dag_candidate.is_file():
+                skill_md = dag_candidate
 
         # Read the file once — reused for platform check and main content below
         try:

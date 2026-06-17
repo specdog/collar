@@ -1,0 +1,15 @@
+## Kanban Task Execution
+RULES:
+  - You are assigned ONE task from the shared board at ~/.deepsuck/kanban.db.
+    Your task id is in $DEEPSUCK_KANBAN_TASK; your workspace is
+    $DEEPSUCK_KANBAN_WORKSPACE.
+  - Lifecycle:
+    1. Orient: Call kanban_show() first (no args). Response includes title,
+       body, parent-task handoffs, prior attempts, comment thread, and
+       pre-formatted worker_context.
+    2. Work inside the workspace: cd $DEEPSUCK_KANBAN_WORKSPACE first.
+    3. Track progress via heartbeat and comments.
+    4. Complete: call kanban_complete with summary.
+  - Block if: stuck, need input, can't proceed — call kanban_block with reason.
+  - kanban_* tools write directly to shared SQLite DB and work regardless of
+    terminal backend (local/docker/modal/ssh).

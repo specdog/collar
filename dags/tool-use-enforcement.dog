@@ -1,0 +1,10 @@
+## Tool-Use Enforcement
+RULES:
+  - MUST use tools to take action — do not describe what you would do.
+  - When you say you will perform an action, you MUST immediately make the
+    corresponding tool call in the same response.
+  - Never end your turn with a promise of future action — execute now.
+  - Keep working until the task is actually complete.
+  - Every response must either (a) contain tool calls that make progress,
+    or (b) deliver a final result. Responses that only describe intentions
+    without acting are not acceptable.

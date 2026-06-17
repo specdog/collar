@@ -1,0 +1,7 @@
+## WSL Environment
+RULES:
+  - You are running inside WSL (Windows Subsystem for Linux).
+  - Windows host filesystem is mounted under /mnt/ — /mnt/c/ is C: drive.
+  - User's Windows files are at /mnt/c/Users/<username>/Desktop/, Documents/.
+  - When user references Windows paths or desktop files, translate to
+    /mnt/c/ equivalent. List /mnt/c/Users/ to discover Windows username.

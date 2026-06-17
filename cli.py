@@ -3026,19 +3026,12 @@ def _build_compact_banner() -> str:
     line1 = line1[:content_width].ljust(content_width)
     line2 = version_line[:content_width].ljust(content_width)
 
-    # Braille COLLAR + banner hero above the version box
+    # Banner hero above the version box
     hero_block = ""
     try:
         _hero = getattr(_skin, "banner_hero", None) if _skin else None
         if _hero:
-            braille = (
-                f"[bold {title_color}]⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ [/]\n"
-                f"[bold {title_color}]⣿      ⣿    ⣿  ⣿      ⣿      ⣿    ⣿  ⣿    ⣿ [/]\n"
-                f"[bold {title_color}]⣿      ⣿    ⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ [/]\n"
-                f"[bold {title_color}]⣿      ⣿    ⣿  ⣿      ⣿      ⣿  ⣿    ⣿⣿    [/]\n"
-                f"[bold {title_color}]⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿    ⣿  ⣿    ⣿ [/]"
-            )
-            hero_block = f"\n{braille}\n\n{_hero}\n"
+            hero_block = f"\n{_hero}\n"
     except Exception:
         pass
 
@@ -4191,12 +4184,12 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
             yolo_active = self._is_session_yolo_active()
             if width < 52:
-                text = f"🔗 {snapshot['model_short']} · {duration_label}"
+                text = f"🦴 {snapshot['model_short']} · {duration_label}"
                 if yolo_active:
                     text += " · ⚠ YOLO"
                 return self._trim_status_bar_text(text, width)
             if width < 76:
-                parts = [f"🔗 {snapshot['model_short']}", percent_label]
+                parts = [f"🦴 {snapshot['model_short']}", percent_label]
                 compressions = snapshot.get("compressions", 0)
                 if compressions:
                     parts.append(f"🗜️ {compressions}")
@@ -4219,7 +4212,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 context_label = "ctx --"
 
             compressions = snapshot.get("compressions", 0)
-            parts = [f"🔗 {snapshot['model_short']}", context_label, percent_label]
+            parts = [f"🦴 {snapshot['model_short']}", "by specdog/justin", context_label, percent_label]
             if compressions:
                 parts.append(f"🗜️ {compressions}")
             bg_count = snapshot.get("active_background_tasks", 0)
@@ -4239,7 +4232,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 parts.append("⚠ YOLO")
             return self._trim_status_bar_text(" │ ".join(parts), width)
         except Exception:
-            return f"🔗 {self.model if getattr(self, 'model', None) else 'DAG'}"
+            return f"🦴 {self.model if getattr(self, 'model', None) else 'DAG'}"
 
     def _get_status_bar_fragments(self):
         if not self._status_bar_visible or getattr(self, '_model_picker_state', None):
@@ -4889,10 +4882,10 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
             try:
                 from dag_cli.skin_engine import get_active_skin
                 _skin = get_active_skin()
-                label = _skin.get_branding("response_label", "🔗 Dag")
+                label = _skin.get_branding("response_label", "🦴 collar")
                 _text_hex = _skin.get_color("banner_text", "#FFF8DC")
             except Exception:
-                label = "🔗 Dag"
+                label = "🦴 collar"
                 _text_hex = "#FFF8DC"
             # Build a true-color ANSI escape for the response text color
             # so streamed content matches the Rich Panel appearance.
@@ -10178,7 +10171,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     if not _streaming_box_opened:
                         _streaming_box_opened = True
                         w = self._scrollback_box_width(getattr(self.console, "width", 80))
-                        label = " 🔗 Dag "
+                        label = " 🦴 collar "
                         if self.show_timestamps:
                             label = f"{label}{datetime.now().strftime('%H:%M')} "
                         fill = w - 2 - DagCLI._status_bar_display_width(label)
@@ -10520,11 +10513,11 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 try:
                     from dag_cli.skin_engine import get_active_skin
                     _skin = get_active_skin()
-                    label = _skin.get_branding("response_label", "🔗 Dag")
+                    label = _skin.get_branding("response_label", "🦴 collar")
                     _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#CD7F32"))
                     _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#FFF8DC"))
                 except Exception:
-                    label = "🔗 Dag"
+                    label = "🦴 collar"
                     _resp_color = _maybe_remap_for_light_mode("#CD7F32")
                     _resp_text = _maybe_remap_for_light_mode("#FFF8DC")
 
@@ -10722,9 +10715,9 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         else:
             try:
                 from dag_cli.skin_engine import get_active_goodbye
-                goodbye = get_active_goodbye("Goodbye! 🔗")
+                goodbye = get_active_goodbye("Goodbye! 🦴")
             except Exception:
-                goodbye = "Goodbye! 🔗"
+                goodbye = "Goodbye! 🦴"
             print(goodbye)
 
     def _get_tui_prompt_symbols(self) -> tuple[str, str]:
@@ -10813,7 +10806,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if self._command_running:
             return _state_fragment("class:prompt-working", self._command_spinner_frame())
         if self._agent_running:
-            return _state_fragment("class:prompt-working", "🔗")
+            return _state_fragment("class:prompt-working", "🦴")
         if self._voice_mode:
             return _state_fragment("class:voice-prompt", "🎤")
         return [("class:prompt", symbol)]

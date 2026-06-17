@@ -107,17 +107,7 @@ def _load_agent_name() -> str:
 DAG_AGENT_LOGO = _load_branding_logo()
 DAG_AGENT_NAME = _load_agent_name()
 
-DAG_CADUCEUS = """[#D4AF37]     ⣀⣀⣀⣀  ⣀⣀⣀⣀[/]
-[#722F37]   ⣠⣿⣿⣿⣿  ⣿⣿⣿⣿⣦[/]
-[#722F37]  ⣴⣿⣿⣿⣿    ⣿⣿⣿⣿⣷[/]
-[#1A1A1A]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
-[#1A1A1A]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
-[#1A1A1A]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
-[#722F37]  ⣿⣿⣿⣿      ⣿⣿⣿⣿[/]
-[#722F37]  ⢿⣿⣿⣿⣤  ⣤⣿⣿⣿⡿[/]
-[#1A1A1A]   ⠀⠻⣿⣿⣿⣿⣿⣿⠟[/]
-[#722F37]     ⠀⠈⠙⠙⠙⠉[/]
-[#D4AF37]  c o l l a r[/]"""
+
 
 
 
@@ -638,10 +628,10 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     try:
         from dag_cli.skin_engine import get_active_skin
         _bskin = get_active_skin()
-        _hero = _bskin.banner_hero if hasattr(_bskin, 'banner_hero') and _bskin.banner_hero else DAG_CADUCEUS
+        _hero = _bskin.banner_hero if hasattr(_bskin, 'banner_hero') and _bskin.banner_hero else ""
     except Exception:
         _bskin = None
-        _hero = DAG_CADUCEUS
+        _hero = ""
     left_lines = ["", _hero, ""]
     model_short = model.split("/")[-1] if "/" in model else model
     if model_short.endswith(".gguf"):
@@ -654,6 +644,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     if os.getenv("DAG_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
     left_lines.append(f"[dim {dim}]{cwd}[/]")
+    left_lines.append(f"[dim {dim}]by specdog/justin[/]")
     if session_id:
         left_lines.append(f"[dim {session_color}]Session: {session_id}[/]")
     left_content = "\n".join(left_lines)
@@ -862,16 +853,19 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
     )
 
     from rich.text import Text
-    braille = Text()
-    braille.append("\n")
-    braille.append("⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ ", style="bold #D4AF37")
-    braille.append("\n")
-    braille.append("⣿      ⣿    ⣿  ⣿      ⣿      ⣿    ⣿  ⣿    ⣿ ", style="bold #D4AF37")
-    braille.append("\n")
-    braille.append("⣿      ⣿    ⣿  ⣿      ⣿      ⣿⣿⣿⣿  ⣿⣿⣿⣿ ", style="bold #D4AF37")
-    braille.append("\n")
-    braille.append("⣿      ⣿    ⣿  ⣿      ⣿      ⣿  ⣿    ⣿⣿    ", style="bold #D4AF37")
-    braille.append("\n")
-    braille.append("⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿⣿⣿⣿  ⣿    ⣿  ⣿    ⣿ ", style="bold #D4AF37")
-    console.print(braille, justify="center")
+    collar = Text()
+    collar.append("\n\n")
+    collar.append("  ██████╗   ██████╗  ██╗      ██╗       █████╗  ██████╗  ", style="bold #D4AF37")
+    collar.append("\n")
+    collar.append(" ██╔════╝  ██╔═══██╗ ██║      ██║      ██╔══██╗ ██╔══██╗ ", style="bold #D4AF37")
+    collar.append("\n")
+    collar.append(" ██║       ██║   ██║ ██║      ██║      ███████║ ██████╔╝ ", style="bold #D4AF37")
+    collar.append("\n")
+    collar.append(" ██║       ██║   ██║ ██║      ██║      ██╔══██║ ██╔══██╗ ", style="bold #D4AF37")
+    collar.append("\n")
+    collar.append(" ╚██████╗  ╚██████╔╝ ███████╗ ███████╗ ██║  ██║ ██║  ██║ ", style="bold #D4AF37")
+    collar.append("\n")
+    collar.append("  ╚═════╝   ╚═════╝  ╚══════╝ ╚══════╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ", style="bold #D4AF37")
+    collar.append("\n\n")
+    console.print(collar, justify="center")
     console.print(outer_panel)

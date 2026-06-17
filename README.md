@@ -48,3 +48,13 @@ dag-router --facts      # project entities only (2ms)
 
 - [dotdog](https://github.com/specdog/dotdog) — `.dog` spec format + compiler
 - [specdog](https://github.com/specdog) — the org
+
+## Dogfood
+
+Collar's own behavioral guidance is written in `.dog` and compiled to `.dag` via dotdog:
+
+```
+dags/*.dog   →  dotdog compile  →  dags/*.dag   →  collar loads
+```
+
+The harness that reads `.dag` files uses `.dag` files itself.

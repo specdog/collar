@@ -1,4 +1,4 @@
-# Self-Refine & Hermes Agent Self-Evolution
+# Self-Refine & Collar Agent Self-Evolution
 
 Session learning (2026-06-16): the gap between cosplay and real intelligence amplification.
 
@@ -32,9 +32,9 @@ source /Users/dico/dag/.venv/bin/activate
 echo "output" | python3 scripts/self-refine.py
 ```
 
-## Hermes Agent Self-Evolution (NousResearch)
+## Collar Agent Self-Evolution (NousResearch)
 
-**Discovered this session**: `github.com/NousResearch/hermes-agent-self-evolution` — 4119 stars, MIT license.
+**Discovered this session**: `github.com/NousResearch/collar-agent-self-evolution` — 4119 stars, MIT license.
 
 Uses DSPy + GEPA (Genetic-Pareto Prompt Evolution, ICLR 2026 Oral) to auto-evolve skills, tool descriptions, system prompts, and code. No GPU training — API calls only (~$2-10 per optimization run).
 
@@ -49,10 +49,10 @@ Read skill → Generate eval dataset → GEPA Optimizer → Candidate variants �
 
 **If bloat becomes acceptable**: Install and point at dag:
 ```bash
-HERMES_AGENT_REPO=/Users/dico/dag python -m evolution.skills.evolve_skill --skill intelligence-engine --iterations 10
+COLLAR_AGENT_REPO=/Users/dico/dag python -m evolution.skills.evolve_skill --skill intelligence-engine --iterations 10
 ```
 
-Note: requires `pip install -e "/tmp/hermes-agent-self-evolution[dev]"` in the dag venv. Installed and tested this session — works but pulls in ~30 packages.
+Note: requires `pip install -e "/tmp/collar-agent-self-evolution[dev]"` in the dag venv. Installed and tested this session — works but pulls in ~30 packages.
 
 ## Cosplay vs Real — The Definitive List
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal DAG grounding. Compact output. Skips harness self-description."""
+"""Token-optimal DAG grounding. Query-matched only, 60-char descs, max 15 entities."""
 import sys, json, os
 from pathlib import Path
 
@@ -9,9 +9,9 @@ KNOWN_ROOTS = [
     str(Path.home() / "projects"),
     str(Path.home() / "specdog" / "projects"),
 ]
-# Harness describes enforcement internals — hooks handle that at code level.
-# Skip it from ground truth to avoid self-referential noise.
 SKIP_DAGS = {"deepsuck-harness"}
+MAX_ENTITIES = 15
+DESC_MAX = 60
 
 def find_all_dags(roots=None):
     roots = roots or KNOWN_ROOTS
@@ -30,24 +30,24 @@ def find_all_dags(roots=None):
     return dags
 
 def parse_node(n):
-    """Handle both array and dict DAG node formats."""
     if isinstance(n, dict):
-        return {
-            "name": n.get("i", n.get("id", "?")),
-            "type": n.get("t", n.get("g", "?")),
-            "desc": str(n.get("d", n.get("desc", "")))[:120],
-            "state": (n.get("s", n.get("state", [])) or ["unknown"])[0] if isinstance(n.get("s", n.get("state", [])), list) else str(n.get("s", n.get("state", "unknown"))),
-        }
+        name = str(n.get("i", n.get("id", "")))
+        desc = str(n.get("d", n.get("desc", "")))
+        typ = str(n.get("t", n.get("g", "")))
     elif isinstance(n, list):
-        return {
-            "name": n[1] if len(n) > 1 else "?",
-            "type": n[2] if len(n) > 2 else "?",
-            "desc": str(n[3])[:120] if len(n) > 3 else "",
-            "state": (n[4][0] if isinstance(n[4], list) and n[4] else "unknown") if len(n) > 4 and n[4] else "unknown",
-        }
-    return {"name": "?", "type": "?", "desc": "", "state": "unknown"}
+        name = str(n[1]) if len(n) > 1 else ""
+        desc = str(n[3]) if len(n) > 3 else ""
+        typ = str(n[2]) if len(n) > 2 else ""
+    else:
+        return None
+    # Skip predictions, empty names, states (no desc = noise)
+    if not name or not desc or typ == "prediction":
+        return None
+    # Truncate description
+    desc = desc[:DESC_MAX].rsplit(" ",1)[0] if len(desc) > DESC_MAX else desc
+    return {"name": name, "desc": desc}
 
-def load_all_entities(roots=None):
+def load_entities(roots=None):
     dags = find_all_dags(roots)
     all_entities = []
     for dp in dags:
@@ -56,45 +56,45 @@ def load_all_entities(roots=None):
             pname = os.path.basename(dp).replace('.dag','')
             for n in dag.get("n", []):
                 e = parse_node(n)
-                e["dag"] = pname
-                all_entities.append(e)
+                if e:
+                    e["dag"] = pname
+                    all_entities.append(e)
         except: pass
-    return {"dags_found": len(dags), "entities": all_entities}
+    return all_entities
 
-def search_entities(entities, query):
+def match(query, entities):
     keywords = [kw.lower() for kw in query.lower().split() if len(kw) > 2]
-    if not keywords: return entities
+    if not keywords:
+        return entities[:MAX_ENTITIES]
     scored = []
     for e in entities:
-        text = (e.get("name","") + " " + e.get("desc","")).lower()
+        text = (e["name"] + " " + e["desc"]).lower()
         score = sum(1 for kw in keywords if kw in text)
-        if score > 0: scored.append((score, e))
+        if score > 0:
+            scored.append((score, e))
     scored.sort(key=lambda x: x[0], reverse=True)
-    result = [e for _, e in scored]
-    return result if result else entities
+    return [e for _, e in scored][:MAX_ENTITIES]
 
-def build_compact(entities, query=None, limit=50):
-    if query:
-        matched = search_entities(entities, query)
-        matched_names = {e['name'] for e in matched}
-        rest = [e for e in entities if e['name'] not in matched_names]
-        entities = matched[:limit] + rest[:(limit - len(matched))]
+def build_compact(matched):
+    if not matched:
+        return ""
     lines = []
-    current_dag = None
-    for e in entities[:limit]:
-        dag = e.get("dag","?")
-        if dag != current_dag:
-            current_dag = dag
-            lines.append(f"[{dag}]")
+    cur = None
+    for e in matched:
+        if e["dag"] != cur:
+            cur = e["dag"]
+            lines.append(f"[{cur}]")
         lines.append(f"  {e['name']}: {e['desc']}")
     return "\n".join(lines)
 
 if __name__ == "__main__":
     query = None
     for i,a in enumerate(sys.argv[1:]):
-        if a=='--query' and i+1<len(sys.argv): query = sys.argv[i+1]
-    data = load_all_entities()
+        if a == '--query' and i+2 < len(sys.argv):
+            query = sys.argv[i+2]
+    entities = load_entities()
+    matched = match(query or "", entities)
     if '--all' in sys.argv:
-        print(json.dumps(data, indent=2))
+        print(json.dumps({"total": len(entities), "matched": len(matched), "entities": matched}, indent=2))
     else:
-        print(build_compact(data["entities"], query))
+        print(build_compact(matched))

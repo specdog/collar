@@ -52,7 +52,7 @@ def load_ground_truth(question):
         r = subprocess.run(["python3", dr, "--query", question[:200]],
             capture_output=True, text=True, timeout=5)
         if r.returncode == 0 and r.stdout.strip():
-            parts.append(r.stdout.strip())
+            parts.append(r.stdout.strip()[:3000])  # keep first 3000 chars of DAG output
     except: pass
     
     # Codebase
@@ -111,7 +111,7 @@ def multi_perspective(question):
     return call(SYS_JUDGE, debate[:12000], 0.3)
 
 # ── SELF-REFINE ─────────────────────────────────────────────────────
-CRITIQUE_SYS = "You are a harsh reviewer. Find EVERY error: wrong facts, missing sources, undefined metrics, hallucinated details. List each error on its own line starting with -"
+CRITIQUE_SYS = "You are a ruthless reviewer. For the text, identify every single error — factual inaccuracies, missing edge cases, vague claims. For each error, state what is wrong and cite the specific evidence that contradicts it. Be decisive. Never hedge. Output each error as: - ERROR: [description] | EVIDENCE: [citation]"
 REFINE_SYS = """You are fixing output based on critique. CRITICAL RULES:
 1. Only cite facts/entities that appear in the GROUND TRUTH
 2. If something is NOT in the ground truth, say "unverified" — NEVER invent

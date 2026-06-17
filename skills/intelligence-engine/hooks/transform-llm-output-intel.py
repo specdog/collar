@@ -33,8 +33,19 @@ def run_pipeline(text, fast=False):
 if __name__ == "__main__":
     try: payload = json.loads(sys.stdin.read())
     except: payload = {}
+    
+    # DEBUG: log actual payload structure
+    import os as _os
+    debug_file = _os.path.expanduser("~/.deepsuck/metrics/hook_debug.json")
+    try:
+        with open(debug_file, "w") as f:
+            json.dump({"keys": list(payload.keys()), "has_extra": "extra" in payload, "extra_keys": list(payload.get("extra", {}).keys()) if isinstance(payload.get("extra"), dict) else str(type(payload.get("extra")))}, f)
+    except: pass
 
     text = payload.get("extra", {}).get("text", "")
+    # Also try top-level text field
+    if not text:
+        text = payload.get("text", "")
     
     # Skip trivial responses
     if not text or len(text) < 80:

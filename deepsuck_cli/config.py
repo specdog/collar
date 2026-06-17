@@ -744,12 +744,18 @@ def _secure_file(path):
 
 
 def _ensure_default_soul_md(home: Path) -> None:
-    """Seed a default SOUL.md into DEEPSUCK_HOME if the user doesn't have one yet."""
-    soul_path = home / "SOUL.md"
-    if soul_path.exists():
-        return
-    soul_path.write_text(DEFAULT_SOUL_MD, encoding="utf-8")
-    _secure_file(soul_path)
+    """Seed default SOUL.dag + SOUL.dog into DEEPSUCK_HOME if missing.
+
+    .dag is primary (agent reads DAG-path format), .dog is the prose spec.
+    .md is deprecated.
+    """
+    from deepsuck_cli.default_soul import DEFAULT_SOUL_DAG, DEFAULT_SOUL_DOG
+    for name, text in [("SOUL.dag", DEFAULT_SOUL_DAG), ("SOUL.dog", DEFAULT_SOUL_DOG)]:
+        soul_path = home / name
+        if soul_path.exists():
+            continue
+        soul_path.write_text(text, encoding="utf-8")
+        _secure_file(soul_path)
 
 
 def ensure_deepsuck_home():

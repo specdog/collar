@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DAG-path grounding with cross-DAG hop resolution. 1-hop max."""
+"""DAG-path grounding — compact, no self-loops, 4-edge cap, resolved hops."""
 import sys, json, os
 from pathlib import Path
 
@@ -12,6 +12,21 @@ KNOWN_ROOTS = [
 SKIP_DAGS = {"deepsuck-harness"}
 HARNESS_DAG = str(Path.home() / "deepsuck" / "projects" / "deepsuck-harness" / "deepsuck-harness.dag")
 MAX_ENTITIES = 15
+MAX_EDGES = 5
+
+def compact_card(card):
+    """1:N→1N, many:many→mm, 1:many→1m, N:M→NM, N:1→N1, 1:1→11"""
+    c = card.replace(":", "").replace("many", "m").replace("any", "*")
+    return c if len(c) <= 3 else card[:4]
+
+def card_rank(card):
+    """Lower = more specific. 1:1 best, mm worst."""
+    if "1:1" in card or "11" in card: return 0
+    if "1:N" in card or "1N" in card or "1:m" in card or "1m" in card: return 1
+    if "N:1" in card or "N1" in card or "m:1" in card: return 2
+    if "N:M" in card or "NM" in card: return 3
+    if "m:m" in card or "mm" in card: return 4
+    return 5
 
 def find_all_dags(roots=None):
     roots = roots or KNOWN_ROOTS
@@ -30,7 +45,6 @@ def find_all_dags(roots=None):
     return dags
 
 def load_edge_index(path):
-    """Load a DAG file as {entity_name: [edge_strs]} for cross-DAG resolution."""
     idx = {}
     try:
         with open(path) as f: dag = json.load(f)
@@ -42,18 +56,14 @@ def load_edge_index(path):
         for n in nodes:
             if isinstance(n, list) and len(n) > 6:
                 name = n[1]
-                edges = n[6] if isinstance(n[6], list) else []
-                idx[name] = [(id_map.get(e[0], str(e[0])), str(e[1]), str(e[2])) for e in edges if isinstance(e, list) and len(e)>=3]
+                raw = n[6] if isinstance(n[6], list) else []
+                idx[name] = [(id_map.get(e[0], str(e[0])), str(e[1]), str(e[2])) for e in raw if isinstance(e, list) and len(e)>=3]
             elif isinstance(n, dict):
                 name = n.get("i","")
-                edges = n.get("es", [])
-                idx[name] = [(e.get("t","?"), e.get("v",""), e.get("c","")) for e in edges]
+                raw = n.get("es", [])
+                idx[name] = [(e.get("t","?"), e.get("v",""), e.get("c","")) for e in raw]
     except: pass
     return idx
-
-def format_edge(tgt, verb, card, required=False):
-    req = "!" if required else ""
-    return f"{tgt}[{verb}]({card}){req}"
 
 def load_all(roots=None):
     harness_idx = load_edge_index(HARNESS_DAG)
@@ -69,45 +79,73 @@ def load_all(roots=None):
                 if isinstance(n, list): id_map[n[0]] = n[1]
                 elif isinstance(n, dict): id_map[n.get("i","")] = n.get("i","")
             for n in nodes:
-                if isinstance(n, dict):
-                    name = str(n.get("i",""))
-                    typ = str(n.get("t", n.get("g", "")))
-                    raw_edges = n.get("es", [])
-                    if not name or typ in ("prediction", "state"): continue
-                    edge_strs = []
-                    for e in raw_edges:
-                        tgt = e.get("t","?")
-                        verb = e.get("v","")
-                        card = e.get("c","?")
-                        req = e.get("r", False)
-                        edge_str = format_edge(tgt, verb, card, req)
-                        # Cross-DAG resolution: if target is in harness index, chain 1 hop
-                        if tgt in harness_idx and harness_idx[tgt]:
-                            chain = ", ".join(f"{ct}[{cv}]" for ct, cv, cc in harness_idx[tgt][:3])
-                            edge_str += f"▸{chain}"
-                        edge_strs.append(edge_str)
-                    all_entities.append({"dag": pname, "name": name, "edges": edge_strs})
-                elif isinstance(n, list) and len(n) > 6:
-                    name = str(n[1])
-                    typ = str(n[2])
-                    raw_edges = n[6] if isinstance(n[6], list) else []
-                    if not name or typ in ("prediction", "state"): continue
-                    edge_strs = []
-                    for e in raw_edges:
-                        if not isinstance(e, list) or len(e) < 3: continue
-                        tgt = id_map.get(e[0], str(e[0]))
-                        verb = str(e[1])
-                        card = str(e[2])
-                        req = e[3] if len(e) > 3 else False
-                        edge_str = format_edge(tgt, verb, card, req)
-                        if tgt in harness_idx and harness_idx[tgt]:
-                            chain = ", ".join(f"{ct}[{cv}]" for ct, cv, cc in harness_idx[tgt][:3])
-                            edge_str += f"▸{chain}"
-                        edge_strs.append(edge_str)
-                    if edge_strs:
-                        all_entities.append({"dag": pname, "name": name, "edges": edge_strs})
+                name, edges = parse_node(n, id_map, harness_idx)
+                if name and edges:
+                    all_entities.append({"dag": pname, "name": name, "edges": edges})
         except: pass
     return all_entities
+
+def parse_node(n, id_map, harness_idx):
+    """Extract name + sorted/capped edge strings. Drops self-loops."""
+    if isinstance(n, dict):
+        name = str(n.get("i",""))
+        typ = str(n.get("t", n.get("g", "")))
+        raw = n.get("es", [])
+        if not name or typ in ("prediction", "state"): return (None, [])
+        return (name, build_edges(name, raw, id_map, harness_idx, is_dict=True))
+    elif isinstance(n, list) and len(n) > 6:
+        name = str(n[1])
+        typ = str(n[2])
+        raw = n[6] if isinstance(n[6], list) else []
+        if not name or typ in ("prediction", "state"): return (None, [])
+        return (name, build_edges(name, raw, id_map, harness_idx, is_dict=False))
+    return (None, [])
+
+def build_edges(entity_name, raw_edges, id_map, harness_idx, is_dict):
+    edge_tuples = []
+    for e in raw_edges:
+        if is_dict:
+            tgt = e.get("t","?")
+            verb = e.get("v","")
+            card = e.get("c","?")
+            req = e.get("r", False)
+        else:
+            if not isinstance(e, list) or len(e) < 3: continue
+            tgt = id_map.get(e[0], str(e[0]))
+            verb = str(e[1])
+            card = str(e[2])
+            req = e[3] if len(e) > 3 else False
+        
+        # Drop self-loops
+        if tgt == entity_name: continue
+        
+        c = compact_card(card)
+        edge_tuples.append((tgt, verb, c, req))
+    
+    # Sort: required first by specificity, then optional by specificity
+    required = [e for e in edge_tuples if e[3]]
+    optional = [e for e in edge_tuples if not e[3]]
+    required.sort(key=lambda x: card_rank(x[2]))
+    optional.sort(key=lambda x: card_rank(x[2]))
+    
+    # Always keep required edges, fill rest with best optional. Cap at MAX_EDGES.
+    slots = MAX_EDGES - len(required)
+    edge_tuples = required + optional[:max(0, slots)]
+    if len(edge_tuples) > MAX_EDGES:
+        edge_tuples = edge_tuples[:MAX_EDGES]
+    
+    # Format with cross-DAG resolution
+    edge_strs = []
+    for tgt, verb, card, req in edge_tuples:
+        req_mark = "!" if req else ""
+        edge_str = f"{tgt}[{verb}]({card}){req_mark}"
+        # Cross-DAG hop
+        if tgt in harness_idx and harness_idx[tgt]:
+            chain = ", ".join(f"{ct}[{cv}]" for ct, cv, cc in harness_idx[tgt][:3])
+            edge_str += f"▸{chain}"
+        edge_strs.append(edge_str)
+    
+    return edge_strs
 
 def match(query, entities):
     keywords = [kw.lower() for kw in query.lower().split() if len(kw) > 2]

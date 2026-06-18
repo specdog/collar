@@ -1,0 +1,23 @@
+# collar — steer
+
+> Mid-turn user injection via out-of-band marker. Trust marker exact match.
+
+---
+
+### Entity: steer
+
+Midturn→ User:inject(11) | Marker:outband(11) | Tool:append(11)
+Trust→ Marker:exact(11) | Toolout:ignore(11) | File:ignore(11)
+Auth→ User:direct(11) | Request:adjust(11)
+
+```yaml
+entity: steer
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: steer
+states: [active]
+lifecycle: active
+```

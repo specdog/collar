@@ -1,0 +1,40 @@
+# collar — platforms
+
+> Per-platform output rules. Markdown format, media, character limits.
+
+---
+
+### Entity: platforms
+
+WhatsApp→ Markdown:never(11) | Media:MEDIA(11)
+WhatsAppCloud→ Markdown:ok(11) | Tables:never(11) | Window:24hr(11)
+Telegram→ Markdown:rich(11) | Tables:ok(11) | Media:MEDIA(11)
+Discord→ Markdown:ok(11) | Media:MEDIA(11)
+Slack→ Markdown:ok(11) | Media:MEDIA(11)
+Signal→ Markdown:never(11) | Media:MEDIA(11)
+Email→ Markdown:never(11) | Plain:text(11) | Media:MEDIA(11)
+Cron→ User:none(11) | Execute:autonom(11) | Decide:reason(11)
+CLI→ Markdown:never(11) | Text:simple(11) | Media:never(11)
+SMS→ Markdown:never(11) | Plain:text(11) | Brief:direct(11)
+BlueBubbles→ iMessage:plain(11) | Media:MEDIA(11)
+Mattermost→ Markdown:full(11) | Tables:ok(11) | Media:MEDIA(11)
+Matrix→ Markdown:ok(11) | HTML:convert(11) | Media:MEDIA(11)
+Feishu→ Markdown:ok(11) | Media:MEDIA(11)
+Weixin→ Markdown:ok(11) | Media:MEDIA(11)
+WeCom→ Markdown:ok(11) | Media:MEDIA(11) | Images:10MB(11) | Files:20MB(11)
+QQ→ Markdown:ok(11) | Media:MEDIA(11)
+Yuanbao→ Markdown:ok(11) | Media:MEDIA(11) | Sticker:real(11) | PNG:never(11)
+API→ Markdown:never(11) | Plain:text(11) | Brief:natural(11)
+WebUI→ Markdown:full(11) | Latex:ok(11) | Mermaid:ok(11) | Media:MEDIA(11)
+
+```yaml
+entity: platforms
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: platforms
+states: [active]
+lifecycle: active
+```

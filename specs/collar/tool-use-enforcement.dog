@@ -1,0 +1,23 @@
+# collar — tool-enforce
+
+> Every response must use tools. Execute intent, produce result, finish task.
+
+---
+
+### Entity: tool-enforce
+
+Response→ Tool:mustct(11) | Plan:never(11) | Intent:actnow(11)
+Turn→ Action:execut(11) | Result:produc(11) | Task:finish(11)
+Output→ Toolcall:always(11) | Describe:never(11) | Promise:never(11)
+
+```yaml
+entity: tool-enforce
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: tool-enforce
+states: [active]
+lifecycle: active
+```

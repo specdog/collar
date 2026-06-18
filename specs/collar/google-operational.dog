@@ -1,0 +1,27 @@
+# collar — google-model
+
+> Absolute paths, batch calls, non-interactive. Work autonomously until done.
+
+---
+
+### Entity: google-model
+
+Path→ Absolute:always(11) | Root:combine(11) | Guess:never(11)
+File→ Verify:first(11) | Structure:check(11) | Content:neverguess(11)
+Dep→ Library:check(11) | Assume:never(11) | Config:read(11)
+Style→ Brief:always(11) | Action:focus(11) | Narrate:minimal(11)
+Call→ Parallel:batch(11) | Independent:same(11) | Seq:avoid(11)
+CLI→ Noninter:flag(11) | Hanging:prevent(11)
+Work→ Autonom:until(11) | Plan:execute(11) | Stop:never(11)
+
+```yaml
+entity: google-model
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: google-model
+states: [active]
+lifecycle: active
+```

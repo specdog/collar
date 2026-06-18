@@ -22,7 +22,7 @@ pip install -e .
 
 Requires Python >= 3.11.
 
-> The `./bin/dag-router` step warms the DAG cache — like shader compilation. One-time, <1s. Every start after is instant.
+> The `./bin/dag-router` step is a one-time cache warm. After that, every start is instant.
 
 > `collar` is at `.venv/bin/collar`. To use it from anywhere:
 > ```bash

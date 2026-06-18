@@ -1,0 +1,23 @@
+# collar — memory-guidance
+
+> DAG-first memory recall validation. Facts are rechecked against the spec on recall before entering context.
+
+---
+
+### Entity: memory
+
+Save→ Facts:durable(11) | Prefs:always(11) | Tasks:never(11)
+Write→ Declare:fact(11) | Instruct:never(11) | Stale:never(11)
+Recall→ Session:search(11) | Proced:skills(11) | State:forget(11) | Validate:recheck(11)
+
+```yaml
+entity: memory
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: memory
+states: [active]
+lifecycle: active
+```

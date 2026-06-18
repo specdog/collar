@@ -1,0 +1,47 @@
+# dotdog MCP — DAG query interface
+
+> On-demand DAG path tracing via dotdog serve MCP. The agent queries entities and
+> traverses relationships at inference time instead of reading pre-injected text.
+> Token savings: zero DAG bytes in system prompt (currently ~4KB/turn).
+
+---
+
+### Entity: dotdog-mcp
+
+The DAG harness is available via `dotdog serve` MCP. Query paths, don't bake them
+into the prompt. Six tools available: getEntity, traverse, search, schema, summary,
+listProjects.
+
+#### Guidelines
+
+1. **Query on demand** — call getEntity("memory") when tracing a memory path
+2. **Cache in-session** — once fetched, entity data is valid for the turn
+3. **Fallback** — DAG text injected as backup if MCP is unavailable
+4. **Never guess paths** — if MCP is down and no fallback, say so
+
+```yaml
+entity: dotdog-mcp
+type: entity
+properties:
+  tools:
+    type: json
+    required: true
+    default:
+      - getEntity
+      - traverse
+      - search
+      - schema
+      - summary
+      - listProjects
+  project:
+    type: string
+    required: true
+    default: collar
+  fallback:
+    type: boolean
+    required: false
+    default: true
+    description: Inject DAG text from disk if MCP unavailable
+states: [active]
+lifecycle: active
+```

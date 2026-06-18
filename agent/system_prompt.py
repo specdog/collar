@@ -40,6 +40,11 @@ from agent.prompt_builder import (
 )
 from agent.runtime_cwd import resolve_context_cwd
 
+# MCP on-demand: when True, DAG paths are queried via dotdog serve MCP at
+# inference time instead of being baked into the system prompt. Token savings
+# ~4KB/turn. Keep False during Phase 1 rollout. Flip to True in Phase 2.
+DAG_MCP_ON_DEMAND = False
+
 
 def _ra():
     """Lazy reference to the ``run_agent`` module.
@@ -97,14 +102,13 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     stable_parts.append(DAG_GROUND_ENTITY_GRAPH)
 
     if not _soul_loaded:
-        # Native Rust-merged DAG context — single block replacing all
-        # individual guidance constants.  Includes identity, memory,
-        # skills, task completion, steer channel, computer use, kanban,
-        # session search, platform hints, and tool enforcement.
-        # SKIP_ENTITIES + SKIP_DAGS applied by the Rust router.
-        if _MERGED_DAGS:
+        # DAG ground truth available via dotdog MCP (on-demand).
+        # Query getEntity / traverse instead of baking paths into the prompt.
+        # ~4KB token savings per turn when DAG_MCP_ON_DEMAND is True.
+        # Fallback: injected DAG text if MCP is unavailable or disabled.
+        if not DAG_MCP_ON_DEMAND and _MERGED_DAGS:
             stable_parts.append(_MERGED_DAGS)
-        else:
+        elif not _MERGED_DAGS:
             stable_parts.append(DEFAULT_AGENT_IDENTITY)  # fallback
 
     # Pointer to the dag-agent skill + docs for user questions about Dag itself.

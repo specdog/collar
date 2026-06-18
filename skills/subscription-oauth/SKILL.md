@@ -22,7 +22,8 @@ Qwen Plus/Pro → dag auth add qwen-oauth
 Nous Portal → dag auth add nous
 xAI SuperGrok → dag auth add xai-oauth
 Anthropic Claude Pro → dag auth add anthropic --type oauth
-Google Gemini → dag auth add gemini-oauth
+Google Gemini Advanced → dag auth add google-gemini-cli
+MiniMax → dag auth add minimax-oauth
 
 After auth: dag model → pick provider → /reset if in session.
 
@@ -73,11 +74,18 @@ Verify: dag auth list → dag chat -q "test" --provider anthropic
 
 ## Google Gemini
 
-dag auth add gemini-oauth
+dag auth add google-gemini-cli
 Needs Google One AI Premium or Gemini Advanced subscription.
 ⚠ May not work for auxiliary tasks (vision, compression). Main chat OK.
-Pitfalls: provider is "gemini" not "gemini-oauth" in dag model.
+Pitfalls: provider is "gemini" not "google-gemini-cli" in dag model.
 Verify: dag auth list → dag chat -q "test" --provider gemini
+
+## MiniMax
+
+dag auth add minimax-oauth
+Needs MiniMax subscription. Region-dependent (global vs CN endpoints).
+Pitfalls: 401=re-auth. CN users may need minimax-cn config.
+Verify: dag auth list → dag chat -q "test" --provider minimax
 
 ## Rate Limits
 
@@ -86,7 +94,7 @@ Fallback: OpenRouter (OPENROUTER_API_KEY) — one key, 200+ models, pay-per-toke
 
 ## Cmd
 
-dag auth add openai-codex|qwen-oauth|xai-oauth|nous|anthropic|gemini-oauth
+dag auth add openai-codex|qwen-oauth|xai-oauth|nous|anthropic|google-gemini-cli|minimax-oauth
 dag auth list
 dag auth remove PROVIDER
 dag auth reset PROVIDER

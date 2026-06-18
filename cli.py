@@ -8493,6 +8493,22 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         else:
             print("  🟡 Cancelled. No credits added.")
 
+    def _handle_benchmark(self, args: str = ""):
+        """Run dogbench token benchmark."""
+        try:
+            from dogbench_pkg import build_telemetry, estimate_hermes_baseline, read_collar_session
+            s = read_collar_session()
+            if not s["prompt_tokens"]:
+                self._console_print("[yellow]No session data yet. Chat first, then benchmark.[/]")
+                return
+            t = build_telemetry(self.model, s["prompt_tokens"], s["completion_tokens"],
+                               baseline_tokens=estimate_hermes_baseline(s["prompt_tokens"]))
+            self._console_print(t.to_json())
+        except ImportError:
+            self._console_print("[yellow]dogbench not installed. Run: pip install dogbench[/]")
+        except Exception as e:
+            self._console_print(f"[red]Benchmark failed: {e}[/]")
+
     def _show_insights(self, command: str = "/insights"):
         """Show usage insights and analytics from session history."""
         # Parse optional --days flag

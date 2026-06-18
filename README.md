@@ -41,7 +41,7 @@ collar auth add nous
 
 Then `collar model` to pick your provider. Done.
 
-More providers (Anthropic, Gemini) and troubleshooting: see `skills/subscription-oauth/SKILL.md`.
+More providers and troubleshooting: [`skills/subscription-oauth/SKILL.md`](skills/subscription-oauth/SKILL.md).
 
 Prefer API keys? Set `OPENROUTER_API_KEY` in `~/.dag/.env` — one key, 200+ models, pay-per-token.
 

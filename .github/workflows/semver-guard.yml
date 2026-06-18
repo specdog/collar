@@ -1,0 +1,89 @@
+name: semver-guard
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: validate PR title is conventional commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const prNumber = context.payload.pull_request.number;
+
+            // Conventional commits: type[(scope)]: description
+            // Allowed types per collar commit convention
+            const allowed = ['feat', 'fix', 'chore', 'docs', 'refactor', 'perf', 'ci', 'test', 'style'];
+            const re = new RegExp(`^(${allowed.join('|')})(\\(.+\\))?:\\s.+`);
+
+            if (!re.test(title)) {
+              const msg = `❌ **Semver violation** — PR title must be a conventional commit.
+
+            **Expected format:** \`type: description\`
+            **Allowed types:** \`${allowed.join('`, `')}\`
+
+            Examples:
+            - \`feat: add MCP on-demand toggle\`
+            - \`fix: wire benchmark dispatch\`
+            - \`chore: bump deps\`
+
+            Rename the PR to fix this.`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: msg
+              });
+
+              core.setFailed(`PR title "${title}" is not a conventional commit`);
+            } else {
+              console.log(`✅ Valid conventional commit: "${title}"`);
+            }
+
+      - name: check version bump for feat/fix
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const prNumber = context.payload.pull_request.number;
+
+            // Only enforce version bumps on feat: and fix: PRs
+            if (!/^(feat|fix)(\(.+\))?:/.test(title)) {
+              console.log('Not a feat/fix PR — skipping version bump check');
+              return;
+            }
+
+            // Check if pyproject.toml was modified
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const versionBumped = files.some(f => f.filename === 'pyproject.toml');
+
+            if (!versionBumped) {
+              const warn = `⚠️ **Version bump missing** — \`feat:\` and \`fix:\` PRs should bump the version in \`pyproject.toml\`.
+
+            - \`feat:\` → bump MINOR (e.g. 1.0.2 → 1.1.0)
+            - \`fix:\` → bump PATCH (e.g. 1.0.2 → 1.0.3)
+
+            If this is intentional (no user-facing change), add a comment explaining why.`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: warn
+              });
+            } else {
+              console.log('✅ pyproject.toml modified — version bump detected');
+            }

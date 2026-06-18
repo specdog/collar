@@ -1,7 +1,11 @@
 # collar — DAG-first agent harness
 
+[![Version](https://img.shields.io/badge/version-1.0.2-blue)](https://github.com/specdog/collar/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
+[![Semver](https://img.shields.io/badge/semver-2.0.0-green)](https://semver.org)
+[![dotdog validate](https://github.com/specdog/collar/actions/workflows/dotdog-validate.yml/badge.svg)](https://github.com/specdog/collar/actions/workflows/dotdog-validate.yml)
+[![semver guard](https://github.com/specdog/collar/actions/workflows/semver-guard.yml/badge.svg)](https://github.com/specdog/collar/actions/workflows/semver-guard.yml)
 [![DAG savings](https://raw.githubusercontent.com/specdog/collar/main/dotdog-badge.svg)](https://github.com/specdog/collar)
 
 > **Entity→Target:verb(card)** — ground truth via `.dag` files.

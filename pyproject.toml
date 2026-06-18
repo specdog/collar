@@ -275,6 +275,7 @@ all = [
 ]
 
 [project.scripts]
+collar = "dag_cli.main:main"
 dag = "dag_cli.main:main"
 dag-agent = "run_agent:main"
 dag-acp = "acp_adapter.entry:main"

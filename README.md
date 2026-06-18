@@ -17,7 +17,7 @@ git clone https://github.com/specdog/collar.git
 cd collar
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-./bin/dag-router > /dev/null  # warm the DAG cache (<1s, one-time)
+npm install -g dotdog           # spec compiler for .dag files
 ```
 
 Requires Python >= 3.11.

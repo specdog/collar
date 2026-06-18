@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![DAG savings](https://img.shields.io/badge/dag-95%25_smaller-green)](https://github.com/specdog/collar)
+[![benchmark](https://img.shields.io/badge/saves-55%25%20vs%20Claude%20Code-green)](https://github.com/specdog/dogbench/blob/main/benchmark.md)
 
 > **Entity→Target:verb(card)** — ground truth via `.dag` files.
 

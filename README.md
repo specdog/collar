@@ -22,7 +22,7 @@ pip install -e .
 
 Requires Python >= 3.11.
 
-> The `./bin/dag-router` step is a one-time cache warm. After that, every start is instant.
+> The first run takes a second to load. After that, it's instant.
 
 > `collar` is at `.venv/bin/collar`. To use it from anywhere:
 > ```bash

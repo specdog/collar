@@ -9,8 +9,12 @@
 [![DAG savings](https://raw.githubusercontent.com/specdog/collar/main/dotdog-badge.svg)](https://github.com/specdog/collar)
 
 > **Entity→Target:verb(card)** — ground truth via `.dag` files.
-
-Created by **Justin DiClemente** ([@logohere](https://github.com/logohere)) under [specdog](https://github.com/specdog).
+>
+> **`.dog`** = human spec format. **`.dag`** = agent runtime format. **`.md`** = last resort.
+>
+> Collar is a DAG-first AI agent harness — it reads `.dag` files as its behavioral ground truth. Skills auto-compile from `.dog` specs into `.dag` edges. No prose config, no baked-in prompts. Just DAG paths.
+>
+> Created by **Justin DiClemente** ([@logohere](https://github.com/logohere)) under [specdog](https://github.com/specdog).
 
 Forked from NousResearch/hermes-agent. Rebuilt as a DAG-first harness.
 

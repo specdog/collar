@@ -21,6 +21,30 @@ pip install -e .
 
 Requires Python >= 3.11.
 
+## I don't have an API key
+
+Have an AI subscription? Use OAuth — no API key needed.
+
+```bash
+# ChatGPT Plus / Pro ($20/mo+)
+dag auth add openai-codex
+
+# xAI SuperGrok / Premium+
+dag auth add xai-oauth
+
+# Qwen Plus / Pro
+dag auth add qwen-oauth
+
+# Nous Portal (free tier OK)
+dag auth add nous
+```
+
+Then `dag model` to pick your provider. Done.
+
+More providers (Anthropic, Gemini) and troubleshooting: see `skills/subscription-oauth/SKILL.md`.
+
+Prefer API keys? Set `OPENROUTER_API_KEY` in `~/.dag/.env` — one key, 200+ models, pay-per-token.
+
 ## Quick Start
 
 ```bash

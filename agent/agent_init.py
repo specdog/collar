@@ -907,7 +907,7 @@ def init_agent(
             if not agent.quiet_mode:
                 print(f"🤖 AI Agent initialized with model: {agent.model}")
                 if base_url:
-                    print(f"🔗 Using custom base URL: {base_url}")
+                    print(f"🦴 Using custom base URL: {base_url}")
                 # ``api_key`` may be a callable Entra ID bearer
                 # provider (Azure Foundry). The OpenAI SDK mints a
                 # fresh JWT per request internally — the banner

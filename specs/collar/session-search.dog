@@ -1,0 +1,21 @@
+# collar — session-search
+
+> Search past sessions via FTS5. Recall context, search user history. Never repeat.
+
+---
+
+### Entity: session-search
+
+Past→ Context:recall(11) | User:search(11) | Repeat:never(11)
+
+```yaml
+entity: session-search
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: session-search
+states: [active]
+lifecycle: active
+```

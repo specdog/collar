@@ -1,0 +1,23 @@
+# collar — task-complete
+
+> Deliver real artifacts. Report blockers. Verify results. Never hallucinate.
+
+---
+
+### Entity: task-complete
+
+Deliver→ Artifact:real(11) | Stub:never(11) | Plan:never(11)
+Block→ Blocker:report(11) | Alt:try(11) | Fake:never(11)
+Output→ Tool:exercs(11) | Result:verify(11) | Hallucinate:never(11)
+
+```yaml
+entity: task-complete
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: task-complete
+states: [active]
+lifecycle: active
+```

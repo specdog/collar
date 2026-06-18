@@ -1,0 +1,22 @@
+# collar — wsl
+
+> Windows Subsystem for Linux path translation. Mount points, drive mapping.
+
+---
+
+### Entity: wsl
+
+Host→ Windows:below(11) | FS:mountmnt(11) | Drive:Cslash(11)
+Path→ User:Users(11) | Desktop:mntc(11) | Translate:equiv(11)
+
+```yaml
+entity: wsl
+type: entity
+properties:
+  id:
+    type: string
+    required: true
+    default: wsl
+states: [active]
+lifecycle: active
+```

@@ -1,0 +1,4 @@
+[memory]
+Save→ Facts:durable(11), Prefs:always(11), Tasks:never(11)
+Write→ Declare:fact(11), Instruct:never(11), Stale:never(11)
+Recall→ Session:search(11), Proced:skills(11), State:forget(11), Validate:recheck(11)

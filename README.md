@@ -21,6 +21,13 @@ pip install -e .
 
 Requires Python >= 3.11.
 
+> After install, `collar` works inside the venv. To make it available everywhere, add to your shell rc:
+> ```bash
+> echo 'alias collar="source ~/collar/.venv/bin/activate && collar"' >> ~/.zshrc
+> source ~/.zshrc
+> ```
+> Or use `~/collar/.venv/bin/collar` directly.
+
 ## I don't have an API key
 
 Have an AI subscription? Use OAuth — no API key needed.

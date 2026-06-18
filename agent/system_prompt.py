@@ -42,8 +42,8 @@ from agent.runtime_cwd import resolve_context_cwd
 
 # MCP on-demand: when True, DAG paths are queried via dotdog serve MCP at
 # inference time instead of being baked into the system prompt. Token savings
-# ~4KB/turn. Keep False during Phase 1 rollout. Flip to True in Phase 2.
-DAG_MCP_ON_DEMAND = False
+# ~4KB/turn. Phase 2: enabled.
+DAG_MCP_ON_DEMAND = True
 
 
 def _ra():

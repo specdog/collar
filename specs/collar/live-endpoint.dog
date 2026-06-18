@@ -1,0 +1,98 @@
+# Spec Platform — Live Endpoint Validation
+
+> `dotdog live` — fetch endpoints, diff responses against contracts. Read-only. Never mutates. Falls back to backup on failure.
+
+---
+
+## Format
+
+### Entity: Endpoint
+
+A live HTTP contract with failover. Primary fails → backup tried. Only one must match.
+
+```yaml
+entity: Endpoint
+type: entity
+properties:
+  url:
+    type: string
+    required: true
+  backup_url:
+    type: string
+    required: false
+    description: Fallback endpoint. Tried if primary is unreachable.
+  method:
+    type: enum
+    values: [GET]
+    required: true
+    default: GET
+  headers:
+    type: json
+    required: false
+  expect_status:
+    type: number
+    required: true
+    default: 200
+  expect_body:
+    type: json
+    required: true
+    description: Expected response shape. Extra keys = warn. Missing keys = fail.
+  timeout:
+    type: number
+    required: false
+    default: 10
+states: [passing, degraded, failing, unreachable]
+lifecycle: passing → degraded → failing → unreachable
+```
+
+### Contract example
+
+```yaml
+entity: memory-endpoint
+type: endpoint
+properties:
+  url:
+    type: string
+    default: https://api.collar.sh/v1/memory
+  backup_url:
+    type: string
+    default: https://backup.collar.sh/v1/memory
+  expect_body:
+    type: json
+    default:
+      memory_enabled: true
+      recall_validate: true
+```
+
+### Failover logic
+
+```
+1. GET primary
+   → 200 + body matches → passing (exit 0)
+   → 200 + body drift   → try backup
+   → !200 / unreachable  → try backup
+
+2. GET backup
+   → 200 + body matches → degraded (exit 0 with warning)
+   → anything else       → failing (exit 1 for drift, exit 2 for unreachable)
+```
+
+### Exit codes
+
+```
+0  — primary or backup matched
+1  — drift (neither primary nor backup matched schema)
+2  — unreachable (both endpoints down)
+3  — degraded (backup matched, primary didn't)
+```
+
+## Relationship
+
+### Relationship: Endpoint → Endpoint
+
+```yaml
+relationship: Endpoint → Endpoint
+verb: fails_over
+cardinality: 1:1
+invariants: Primary endpoint fails over to backup. Backup only checked on primary failure.
+```

@@ -1,0 +1,87 @@
+{
+  "v": 2,
+  "p": "collar",
+  "n": [
+    [
+      0,
+      "Endpoint",
+      "entity",
+      "A live HTTP contract with failover. Primary fails → backup tried. Only one must match.",
+      [
+        "url",
+        "s!",
+        "backup_url",
+        "s!",
+        "method",
+        "e!",
+        "headers",
+        "j!",
+        "expect_status",
+        "n!",
+        "expect_body",
+        "j!",
+        "timeout",
+        "n!"
+      ],
+      [
+        "passing",
+        "degraded",
+        "failing",
+        "unreachable"
+      ],
+      [
+        [
+          0,
+          "fails_over",
+          "1:1"
+        ]
+      ]
+    ],
+    [
+      1,
+      "memory-endpoint",
+      "endpoint",
+      "",
+      [],
+      [],
+      []
+    ],
+    [
+      2,
+      "memory",
+      "entity",
+      "Save→ Facts:durable(11) | Prefs:always(11) | Tasks:never(11) Write→ Declare:fact(11) | Instruct:never(11) | Stale:never(11) Recall→ Session:search(11) | Proced:skills(11) | State:forget(11) | Validate:recheck(11)",
+      [
+        "id",
+        "s!"
+      ],
+      [
+        "active"
+      ],
+      []
+    ],
+    [
+      3,
+      "memory",
+      "entity",
+      "Save→ Facts:durable(11) | Prefs:always(11) | Tasks:never(11) Write→ Declare:fact(11) | Instruct:never(11) | Stale:never(11) Recall→ Session:search(11) | Proced:skills(11) | State:forget(11) | Validate:recheck(11)",
+      [
+        "id",
+        "s!"
+      ],
+      [
+        "active"
+      ],
+      []
+    ]
+  ],
+  "tk": {
+    "m": "chars/4",
+    "st": 713,
+    "ct": 665,
+    "dt": 228,
+    "sv": 68,
+    "cs": 65.7,
+    "saved": 485
+  }
+}

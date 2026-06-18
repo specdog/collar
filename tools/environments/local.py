@@ -234,13 +234,13 @@ def _sanitize_subprocess_env(base_env: dict | None, extra_env: dict | None = Non
 
 
 def _find_bash() -> str:
-    """Find bash for command execution."""
+    """Find a shell for command execution (prefers user's SHELL)."""
     if not _IS_WINDOWS:
         return (
-            shutil.which("bash")
+            os.environ.get("SHELL")
+            or shutil.which("bash")
             or ("/usr/bin/bash" if os.path.isfile("/usr/bin/bash") else None)
             or ("/bin/bash" if os.path.isfile("/bin/bash") else None)
-            or os.environ.get("SHELL")
             or "/bin/sh"
         )
 
@@ -439,18 +439,12 @@ def _resolve_shell_init_files() -> list[str]:
         # pyenv that self-install into the user's shell rc land on PATH in
         # the captured snapshot.
         #
-        # ~/.profile and ~/.bash_profile run first because they have no
-        # interactivity guard — installers like ``n`` and ``nvm`` append
-        # their PATH export there on most distros, and a non-interactive
-        # ``. ~/.profile`` picks that up.
-        #
-        # ~/.bashrc runs last. On Debian/Ubuntu the default bashrc starts
-        # with ``case $- in *i*) ;; *) return;; esac`` and exits early
-        # when sourced non-interactively, which is why sourcing bashrc
-        # alone misses nvm/n PATH additions placed below that guard. We
-        # still include it so users who put PATH logic in bashrc (and
-        # stripped the guard, or never had one) keep working.
-        candidates.extend(["~/.profile", "~/.bash_profile", "~/.bashrc"])
+        # Detect the user's shell to source the right rc files.
+        user_shell = os.environ.get("SHELL", "")
+        if "zsh" in user_shell:
+            candidates.extend(["~/.zshenv", "~/.zprofile", "~/.zshrc"])
+        else:
+            candidates.extend(["~/.profile", "~/.bash_profile", "~/.bashrc"])
 
     resolved: list[str] = []
     for raw in candidates:

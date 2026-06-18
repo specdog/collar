@@ -27,19 +27,19 @@ Have an AI subscription? Use OAuth — no API key needed.
 
 ```bash
 # ChatGPT Plus / Pro ($20/mo+)
-dag auth add openai-codex
+collar auth add openai-codex
 
 # xAI SuperGrok / Premium+
-dag auth add xai-oauth
+collar auth add xai-oauth
 
 # Qwen Plus / Pro
-dag auth add qwen-oauth
+collar auth add qwen-oauth
 
 # Nous Portal (free tier OK)
-dag auth add nous
+collar auth add nous
 ```
 
-Then `dag model` to pick your provider. Done.
+Then `collar model` to pick your provider. Done.
 
 More providers (Anthropic, Gemini) and troubleshooting: see `skills/subscription-oauth/SKILL.md`.
 

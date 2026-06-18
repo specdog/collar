@@ -29,18 +29,14 @@ from typing import Any, Dict, List, Optional
 from agent.prompt_builder import (
     DAG_GROUND_ENTITY_GRAPH,
     DEFAULT_AGENT_IDENTITY,
-    GOOGLE_MODEL_OPERATIONAL_GUIDANCE,
     DAG_AGENT_HELP_GUIDANCE,
-    KANBAN_GUIDANCE,
-    MEMORY_GUIDANCE,
-    OPENAI_MODEL_EXECUTION_GUIDANCE,
-    PLATFORM_HINTS,
-    SESSION_SEARCH_GUIDANCE,
-    SKILLS_GUIDANCE,
-    STEER_CHANNEL_NOTE,
-    TASK_COMPLETION_GUIDANCE,
     TOOL_USE_ENFORCEMENT_GUIDANCE,
     TOOL_USE_ENFORCEMENT_MODELS,
+    GOOGLE_MODEL_OPERATIONAL_GUIDANCE,
+    OPENAI_MODEL_EXECUTION_GUIDANCE,
+    PLATFORM_HINTS,
+    STEER_CHANNEL_NOTE,
+    _MERGED_DAGS,  # native Rust-merged DAG context — single block, no duplication
 )
 from agent.runtime_cwd import resolve_context_cwd
 
@@ -101,41 +97,18 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     stable_parts.append(DAG_GROUND_ENTITY_GRAPH)
 
     if not _soul_loaded:
-        # Fallback to hardcoded identity
-        stable_parts.append(DEFAULT_AGENT_IDENTITY)
+        # Native Rust-merged DAG context — single block replacing all
+        # individual guidance constants.  Includes identity, memory,
+        # skills, task completion, steer channel, computer use, kanban,
+        # session search, platform hints, and tool enforcement.
+        # SKIP_ENTITIES + SKIP_DAGS applied by the Rust router.
+        if _MERGED_DAGS:
+            stable_parts.append(_MERGED_DAGS)
+        else:
+            stable_parts.append(DEFAULT_AGENT_IDENTITY)  # fallback
 
     # Pointer to the dag-agent skill + docs for user questions about Dag itself.
     stable_parts.append(DAG_AGENT_HELP_GUIDANCE)
-
-    # Universal task-completion / no-fabrication guidance.  Applied to ALL
-    # models regardless of tool_use_enforcement gating — the failure modes
-    # this targets (stopping after a stub; fabricating output when a real
-    # path is blocked) are not model-family specific.  Gated only by
-    # config.yaml ``agent.task_completion_guidance`` (default True) so
-    # users who want a leaner prompt can turn it off.
-    if getattr(agent, "_task_completion_guidance", True) and agent.valid_tool_names:
-        stable_parts.append(TASK_COMPLETION_GUIDANCE)
-
-    # Tool-aware behavioral guidance: only inject when the tools are loaded
-    tool_guidance = []
-    if "memory" in agent.valid_tool_names:
-        tool_guidance.append(MEMORY_GUIDANCE)
-    if "session_search" in agent.valid_tool_names:
-        tool_guidance.append(SESSION_SEARCH_GUIDANCE)
-    if "skill_manage" in agent.valid_tool_names:
-        tool_guidance.append(SKILLS_GUIDANCE)
-    # Kanban worker/orchestrator lifecycle — only present when the
-    # dispatcher spawned this process (kanban_show check_fn gates on
-    # DAG_KANBAN_TASK env var). Normal chat sessions never see
-    # this block. Resolved once at __init__ (see _kanban_worker_guidance).
-    _kanban_guidance = getattr(agent, "_kanban_worker_guidance", None)
-    if _kanban_guidance:
-        tool_guidance.append(_kanban_guidance)
-    elif _kanban_guidance is None and "kanban_show" in agent.valid_tool_names:
-        # Fallback for code paths that bypass agent_init (rare).
-        tool_guidance.append(KANBAN_GUIDANCE)
-    if tool_guidance:
-        stable_parts.append(" ".join(tool_guidance))
 
     # Steering only lands inside tool results, so it's only reachable when the
     # agent has tools. Static text → byte-stable prompt (no cache hit).

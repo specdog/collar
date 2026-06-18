@@ -1,0 +1,37 @@
+name: dag-guard
+
+on:
+  pull_request:
+    paths:
+      - 'dags/*.dag'
+
+jobs:
+  warn:
+    runs-on: ubuntu-latest
+    steps:
+      - name: flag ground truth change
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const msg = `⚠️ **Ground truth modified** — this PR touches \`.dag\` files in \`dags/\`.
+
+            These are the harness DAG edges loaded at runtime. Review carefully:
+            - Does the change trace correctly through existing paths?
+            - Was this change explicitly directed by the user?
+            - Does it conflict with any existing spec?
+
+            **Do not merge without explicit approval.**`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: msg
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['dag-ground-truth']
+            });

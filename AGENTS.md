@@ -6,7 +6,7 @@
 
 **NEVER read prose config directly.** Query `.dag` files. `.dog` is human format. `.dag` is agent format. `.md` is last resort.
 
-- **.dag**: always query first — source of truth
+- **.dag**: always query first — source of truth. **NEVER modify without explicit user direction.**
 - **.dog**: human writes, agent never touches
 - **.md**: read for context only
 

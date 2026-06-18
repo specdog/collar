@@ -7479,6 +7479,8 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self._handle_suggestions_command(cmd_original)
         elif canonical == "blueprint":
             self._handle_blueprint_command(cmd_original)
+        elif canonical == "benchmark":
+            self._handle_benchmark(cmd_original)
         elif canonical == "curator":
             self._handle_curator_command(cmd_original)
         elif canonical == "kanban":

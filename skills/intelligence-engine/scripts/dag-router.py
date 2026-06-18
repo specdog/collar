@@ -28,6 +28,24 @@ def card_rank(card):
     if "m:m" in card or "mm" in card: return 4
     return 5
 
+def abbrev_dag(name):
+    """Abbreviate DAG name for compact headers: deepsuck-harness→dh, collar-harness→ch"""
+    parts = name.replace('-',' ').replace('_',' ').split()
+    if len(parts) >= 2:
+        return ''.join(p[0] for p in parts[:2])
+    return name[:3]
+
+def abbrev_verb(verb):
+    """Abbreviate verb to 5 chars max for token savings."""
+    if len(verb) <= 5:
+        return verb
+    # Common abbreviations
+    abbr = {'references':'refer','implements':'imple','routes_through':'route',
+            'produces':'produ','refreshes':'refre','validates':'valid',
+            'triggers':'trig','complements':'compl','executes':'execu',
+            'queries':'queri','wired_through':'wired','polls':'polls'}
+    return abbr.get(verb, verb[:5])
+
 def find_all_dags(roots=None):
     roots = roots or KNOWN_ROOTS
     dags, seen = [], set()
@@ -64,6 +82,46 @@ def load_edge_index(path):
                 idx[name] = [(e.get("t","?"), e.get("v",""), e.get("c","")) for e in raw]
     except: pass
     return idx
+
+def load_compact(roots=None):
+    """Fast path: read pre-built compact text from .dag files.
+    Handles both JSON .dag (extracts 'compact' field) and plain-text .dag (uses directly)."""
+    dags = find_all_dags(roots)
+    blocks = []  # [(dag_name, compact_text)]
+    for dp in dags:
+        try:
+            with open(dp) as f:
+                raw = f.read(4096)
+            # Try JSON first (dotdog-compiled .dag with compact field)
+            if raw.strip().startswith('{'):
+                dag = json.loads(raw)
+                compact = dag.get("compact", "")
+                if compact and '\n' in compact:
+                    pname = os.path.basename(dp).replace('.dag','')
+                    blocks.append((pname, compact))
+            else:
+                # Plain-text .dag — already in compact format
+                text = raw.strip()
+                if text and '\n' in text:
+                    pname = os.path.basename(dp).replace('.dag','')
+                    blocks.append((pname, text))
+        except: pass
+    return blocks
+
+def match_compact(query, blocks, max_chars=4000):
+    """Keyword match against pre-built compact blocks. Returns concatenated text.
+    If no keywords match, returns all blocks (better context than nothing)."""
+    keywords = [kw.lower() for kw in (query or "").lower().split() if len(kw) > 2]
+    if not keywords:
+        return "\n".join(b[1] for b in blocks)
+    matched = []
+    for pname, text in blocks:
+        if any(kw in text.lower() for kw in keywords):
+            matched.append(text)
+    if not matched:
+        # No keyword hits — return all to avoid empty context
+        return "\n".join(b[1] for b in blocks)
+    return "\n".join(matched)
 
 def load_all(roots=None):
     harness_idx = load_edge_index(HARNESS_DAG)
@@ -134,14 +192,15 @@ def build_edges(entity_name, raw_edges, id_map, harness_idx, is_dict):
     if len(edge_tuples) > MAX_EDGES:
         edge_tuples = edge_tuples[:MAX_EDGES]
     
-    # Format with cross-DAG resolution
+    # Format with cross-DAG resolution (compact: verb→5chars, no [] brackets)
     edge_strs = []
     for tgt, verb, card, req in edge_tuples:
-        req_mark = "!" if req else ""
-        edge_str = f"{tgt}[{verb}]({card}){req_mark}"
+        req_mark = ""  # Drop ! — agent doesn't need it, saves tokens
+        abbrev = abbrev_verb(verb)
+        edge_str = f"{tgt}:{abbrev}({card})"
         # Cross-DAG hop
         if tgt in harness_idx and harness_idx[tgt]:
-            chain = ", ".join(f"{ct}[{cv}]" for ct, cv, cc in harness_idx[tgt][:3])
+            chain = ">".join(f"{ct}:{abbrev_verb(cv)}" for ct, cv, cc in harness_idx[tgt][:3])
             edge_str += f"▸{chain}"
         edge_strs.append(edge_str)
     
@@ -161,14 +220,15 @@ def match(query, entities):
     return [e for _, e in scored][:MAX_ENTITIES]
 
 def build_compact(matched):
+    """Token-optimized compact format. Separators: → entity→edge, > between edges."""
     if not matched: return ""
     lines, cur = [], None
     for e in matched:
         if e["dag"] != cur:
             cur = e["dag"]
-            lines.append(f"[{cur}]")
-        edge_str = ", ".join(e["edges"])
-        lines.append(f"  {e['name']} ◂ {edge_str}" if edge_str else f"  {e['name']}")
+            lines.append(f"[{abbrev_dag(cur)}]")
+        edge_str = ">".join(e["edges"])
+        lines.append(f"{e['name']}→{edge_str}" if edge_str else e['name'])
     return "\n".join(lines)
 
 if __name__ == "__main__":
@@ -176,9 +236,22 @@ if __name__ == "__main__":
     for i,a in enumerate(sys.argv[1:]):
         if a == '--query' and i+2 < len(sys.argv):
             query = sys.argv[i+2]
-    entities = load_all()
-    matched = match(query or "", entities)
-    if '--all' in sys.argv:
-        print(json.dumps({"total": len(entities), "matched": len(matched), "entities": matched}, indent=2))
+    # Fast path: use pre-built compact from dotdog compiled .dag files
+    blocks = load_compact()
+    if blocks:
+        result = match_compact(query or "", blocks)
+        # Cap at 4000 chars to prevent context blow-up
+        if len(result) > 4000:
+            result = result[:4000]
+        if '--all' in sys.argv:
+            print(json.dumps({"total": len(blocks), "matched": len(result.split('\n')), "compact": result}, indent=2))
+        else:
+            print(result)
     else:
-        print(build_compact(matched))
+        # Fallback: full JSON parse for .dag files without compact field
+        entities = load_all()
+        matched = match(query or "", entities)
+        if '--all' in sys.argv:
+            print(json.dumps({"total": len(entities), "matched": len(matched), "entities": matched}, indent=2))
+        else:
+            print(build_compact(matched))

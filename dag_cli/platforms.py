@@ -38,7 +38,7 @@ PLATFORMS: OrderedDict[str, PlatformInfo] = OrderedDict([
     ("weixin",         PlatformInfo(label="💬 Weixin",          default_toolset="dag-weixin")),
     ("qqbot",          PlatformInfo(label="💬 QQBot",           default_toolset="dag-qqbot")),
     ("yuanbao",        PlatformInfo(label="🤖 Yuanbao",         default_toolset="dag-yuanbao")),
-    ("webhook",        PlatformInfo(label="🔗 Webhook",         default_toolset="dag-webhook")),
+    ("webhook",        PlatformInfo(label="🦴 Webhook",         default_toolset="dag-webhook")),
     ("api_server",     PlatformInfo(label="🌐 API Server",      default_toolset="dag-api-server")),
     ("cron",           PlatformInfo(label="⏰ Cron",            default_toolset="dag-cron")),
 ])

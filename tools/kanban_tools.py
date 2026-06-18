@@ -1427,5 +1427,5 @@ registry.register(
     schema=KANBAN_LINK_SCHEMA,
     handler=_handle_link,
     check_fn=_check_kanban_mode,
-    emoji="🔗",
+    emoji="🦴",
 )

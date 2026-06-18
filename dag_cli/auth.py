@@ -3806,14 +3806,29 @@ def resolve_codex_runtime_credentials(
                 "last_refresh": None,
                 "auth_mode": "chatgpt",
             }
-        if read_error is not None:
-            raise read_error
-        raise AuthError(
-            "No Codex credentials stored. Run `dag auth` to authenticate.",
-            provider="openai-codex",
-            code="codex_auth_missing",
-            relogin_required=True,
-        )
+        # Cold start: no Dag-stored Codex creds and an empty credential pool.
+        # Before failing, adopt a valid Codex CLI session (~/.codex/auth.json)
+        # when the user is already logged in there. This restores the import
+        # convenience the removed ``dag login`` command used to offer, so
+        # selecting the openai-codex provider "just works" for anyone already
+        # authenticated with the Codex CLI / VS Code. We persist a *copy* into
+        # Dag's own store (never writing back to the shared file) and refresh
+        # independently — matching the self-heal recovery path above. Opt out
+        # with DAG_CODEX_NO_CLI_IMPORT=1 to force an explicit `dag auth` login.
+        if os.getenv("DAG_CODEX_NO_CLI_IMPORT", "").strip().lower() not in {"1", "true", "yes"}:
+            imported = _recover_codex_tokens_from_cli("cold_start_no_dag_credentials")
+            if imported:
+                data = {"tokens": imported, "last_refresh": imported.get("last_refresh")}
+
+        if data is None:
+            if read_error is not None:
+                raise read_error
+            raise AuthError(
+                "No Codex credentials stored. Run `dag auth` to authenticate.",
+                provider="openai-codex",
+                code="codex_auth_missing",
+                relogin_required=True,
+            )
 
     tokens = dict(data["tokens"])
     access_token = str(tokens.get("access_token", "") or "").strip()

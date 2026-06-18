@@ -121,7 +121,31 @@ def _strip_yaml_frontmatter(content: str) -> str:
 # =========================================================================
 
 def _load_dag_text(name: str) -> str:
-    """Read <name>.dag from ~/.dag/dags/, fallback to harness dags/."""
+    """Read <name>.dag from ~/.dag/dags/, fallback to harness dags/.
+
+    When the dag-router Rust binary is available (on PATH or in bin/),
+    delegates to it for a single merged pass (<3ms cold, <1ms warm).
+    Otherwise falls back to the Python path.
+    """
+    # Fast path: Rust dag-router merges all .dag files in one pass
+    try:
+        import shutil as _shutil
+        import subprocess as _sp
+        _router = _shutil.which("dag-router")
+        if not _router:
+            import os as _os2
+            _candidate = Path(__file__).parent.parent / "bin" / "dag-router"
+            if _candidate.is_file() and _os2.access(str(_candidate), _os2.X_OK):
+                _router = str(_candidate)
+        if _router:
+            _result = _sp.run(
+                [_router], capture_output=True, text=True, timeout=5,
+            )
+            if _result.returncode == 0 and _result.stdout.strip():
+                return _result.stdout.strip()
+    except Exception:
+        pass
+
     # 1. User's custom .dag (overrides)
     try:
         from dag_constants import get_dag_home

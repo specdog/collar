@@ -120,22 +120,21 @@ def _strip_yaml_frontmatter(content: str) -> str:
 # baked-in Python string constants.  Saves ~3k tokens per session.
 # =========================================================================
 
-def _load_dag_text(name: str) -> str:
-    """Read <name>.dag from ~/.dag/dags/, fallback to harness dags/.
-
-    When the dag-router Rust binary is available (on PATH or in bin/),
-    delegates to it for a single merged pass (<3ms cold, <1ms warm).
-    Otherwise falls back to the Python path.
+def _load_merged_dags() -> str:
+    """Load all .dag files via native Rust router. Single pass, cached.
+    
+    The Rust binary applies SKIP_ENTITIES (ConfidenceMarker, HardBlock,
+    CompoundingLoop) and SKIP_DAGS (dag-harness) to prevent noise/poison
+    from entering context. Returns the merged DAG ground truth.
+    Falls back to Python path if binary is unavailable.
     """
-    # Fast path: Rust dag-router merges all .dag files in one pass
     try:
         import shutil as _shutil
         import subprocess as _sp
         _router = _shutil.which("dag-router")
         if not _router:
-            import os as _os2
             _candidate = Path(__file__).parent.parent / "bin" / "dag-router"
-            if _candidate.is_file() and _os2.access(str(_candidate), _os2.X_OK):
+            if _candidate.is_file() and os.access(str(_candidate), os.X_OK):
                 _router = str(_candidate)
         if _router:
             _result = _sp.run(
@@ -145,29 +144,29 @@ def _load_dag_text(name: str) -> str:
                 return _result.stdout.strip()
     except Exception:
         pass
+    # Fallback: concatenate all harness .dag files
+    try:
+        _dags_dir = Path(__file__).parent.parent / "dags"
+        _parts = []
+        for _f in sorted(_dags_dir.glob("*.dag")):
+            _t = _f.read_text(encoding="utf-8").strip()
+            if _t:
+                _parts.append(_t)
+        if _parts:
+            return "\n".join(_parts)
+    except Exception:
+        pass
+    return ""
 
-    # 1. User's custom .dag (overrides)
-    try:
-        from dag_constants import get_dag_home
-        dag_file = get_dag_home() / "dags" / f"{name}.dag"
-        if dag_file.is_file():
-            t = dag_file.read_text(encoding="utf-8").strip()
-            if t:
-                return t
-    except Exception:
-        pass
-    # 2. Harness default .dag (shipped with repo, CI-safe)
-    try:
-        import os as _os
-        harness_dag = _os.path.join(_os.path.dirname(__file__), '..', 'dags', f'{name}.dag')
-        if _os.path.isfile(harness_dag):
-            with open(harness_dag, encoding='utf-8') as _f:
-                t = _f.read().strip()
-            if t:
-                return t
-    except Exception:
-        pass
-    return ""  # missing .dag → empty, safe for CI
+
+# Native merged DAG context — loaded once at import, injects as single block.
+# Replaces 13 individual _load_dag_text() calls. No duplication, Rust-backed.
+_MERGED_DAGS = _load_merged_dags()
+
+
+def _load_dag_text(name: str) -> str:
+    """Read <name>.dag — delegated to native merged loader. Kept for API compat."""
+    return _MERGED_DAGS if _MERGED_DAGS else ""
 
 
 # =========================================================================

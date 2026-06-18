@@ -1677,19 +1677,27 @@ class PluginManager:
         """
         kwargs.setdefault("telemetry_schema_version", OBSERVER_SCHEMA_VERSION)
         callbacks = self._hooks.get(hook_name, [])
+        if not callbacks:
+            return []
+        # Run callbacks in parallel — each spawns its own subprocess (I/O-bound)
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         results: List[Any] = []
-        for cb in callbacks:
-            try:
-                ret = cb(**kwargs)
-                if ret is not None:
-                    results.append(ret)
-            except Exception as exc:
-                logger.warning(
-                    "Hook '%s' callback %s raised: %s",
-                    hook_name,
-                    getattr(cb, "__name__", repr(cb)),
-                    exc,
-                )
+        max_workers = min(len(callbacks), 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(cb, **kwargs): cb for cb in callbacks}
+            for future in as_completed(futures):
+                cb = futures[future]
+                try:
+                    ret = future.result()
+                    if ret is not None:
+                        results.append(ret)
+                except Exception as exc:
+                    logger.warning(
+                        "Hook '%s' callback %s raised: %s",
+                        hook_name,
+                        getattr(cb, "__name__", repr(cb)),
+                        exc,
+                    )
         return results
 
     def has_hook(self, hook_name: str) -> bool:

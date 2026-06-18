@@ -192,7 +192,7 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "welcome": "Welcome to collar! Type your message or /help for commands.",
             "goodbye": "Goodbye! 🦴",
             "response_label": " 🦴 collar ",
-            "prompt_symbol": "🦴",
+            "prompt_symbol": "❯",
             "help_header": "(🦴) Available Commands",
         },
         "tool_prefix": "┊",

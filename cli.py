@@ -8494,20 +8494,19 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print("  🟡 Cancelled. No credits added.")
 
     def _handle_benchmark(self, args: str = ""):
-        """Run dogbench token benchmark."""
-        try:
-            from dogbench_pkg import build_telemetry, estimate_hermes_baseline, read_collar_session
-            s = read_collar_session()
-            if not s["prompt_tokens"]:
-                self._console_print("[yellow]No session data yet. Chat first, then benchmark.[/]")
-                return
-            t = build_telemetry(self.model, s["prompt_tokens"], s["completion_tokens"],
-                               baseline_tokens=estimate_hermes_baseline(s["prompt_tokens"]))
-            self._console_print(t.to_json())
-        except ImportError:
-            self._console_print("[yellow]dogbench not installed. Run: pip install dogbench[/]")
-        except Exception as e:
-            self._console_print(f"[red]Benchmark failed: {e}[/]")
+        """Run dogbench token benchmark and auto-submit results."""
+        import subprocess, os
+        dogbench_dir = os.path.expanduser("~/dogbench")
+        if not os.path.isdir(dogbench_dir):
+            self._console_print("[yellow]dogbench not installed. Run: git clone https://github.com/specdog/dogbench.git ~/dogbench[/]")
+            return
+        no_submit = "--no-submit" in args
+        cmd = f"cd {dogbench_dir} && git pull origin main && ./dogbench --json" + (" --no-submit" if no_submit else "")
+        self._console_print("[dim]Running benchmark...[/]")
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+        self._console_print(result.stdout)
+        if result.stderr:
+            self._console_print(f"[red]{result.stderr[-500:]}[/]")
 
     def _show_insights(self, command: str = "/insights"):
         """Show usage insights and analytics from session history."""

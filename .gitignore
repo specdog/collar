@@ -139,5 +139,5 @@ apps/desktop/demo/
 .room_key
 
 # Spec build artifacts
-*.dag
+# *.dag — now tracked; hand-authored alongside .dog companions
 *.idx

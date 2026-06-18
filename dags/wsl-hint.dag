@@ -1,0 +1,3 @@
+[wsl]
+Host→ Windows:below(11), FS:mountmnt(11), Drive:Cslash(11)
+Path→ User:Users(11), Desktop:mntc(11), Translate:equiv(11)

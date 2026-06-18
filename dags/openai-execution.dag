@@ -1,0 +1,7 @@
+[exec-discipline]
+Tool→ Persist:always(11), Stop:never(11), Retry:altstrt(11)
+Compute→ Math:tool(11), Hash:tool(11), Time:tool(11), State:tool(11)
+Act→ Default:immedt(11), Clarify:only(11), Guess:never(11)
+Prereq→ Check:before(11), Dep:resolve(11), Skip:never(11)
+Verify→ Correct:check(11), Ground:check(11), Format:check(11)
+Missing→ Context:lookup(11), Guess:never(11), Assume:label(11)

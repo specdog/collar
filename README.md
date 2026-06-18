@@ -21,12 +21,11 @@ pip install -e .
 
 Requires Python >= 3.11.
 
-> After install, `collar` works inside the venv. To make it available everywhere, add to your shell rc:
+> `collar` is at `.venv/bin/collar`. To use it from anywhere:
 > ```bash
-> echo 'alias collar="source ~/collar/.venv/bin/activate && collar"' >> ~/.zshrc
-> source ~/.zshrc
+> ln -s "$(pwd)/.venv/bin/collar" ~/.local/bin/collar
 > ```
-> Or use `~/collar/.venv/bin/collar` directly.
+> Or activate the venv first: `source .venv/bin/activate`.
 
 ## I don't have an API key
 

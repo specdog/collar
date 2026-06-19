@@ -13,6 +13,7 @@ Style→ Brief:always(11) | Action:focus(11) | Narrate:minimal(11)
 Call→ Parallel:batch(11) | Independent:same(11) | Seq:avoid(11)
 CLI→ Noninter:flag(11) | Hanging:prevent(11)
 Work→ Autonom:until(11) | Plan:execute(11) | Stop:never(11)
+PR→ Merge:default(11) | Admin:blocked(11)
 
 ```yaml
 entity: google-model

@@ -88,6 +88,24 @@ collar setup         # first-time setup wizard
 
 - [dotdog](https://github.com/specdog/dotdog) — `.dog` spec format + compiler
 - [specdog](https://github.com/specdog) — the org
+- PRs use an agentic template: `.github/pull_request_template.md`
+
+## PR system
+
+Collar PRs should stay lean and agentic:
+
+- use `.github/pull_request_template.md`
+- explain the reasoning, not just the diff
+- prefer updating existing systems over adding new ones
+- keep `.dag` as the first-read source for agent behavior
+- avoid adding skills or layers that inflate token use unless the change clearly needs them
+- include tests or verification for behavior changes
+
+## Governance
+
+- Branch protection on `main` requires PR review and a passing check
+- Security issues should go through `SECURITY.md`
+- Bugs and features have issue templates in `.github/ISSUE_TEMPLATE/`
 
 ## Dogfood
 

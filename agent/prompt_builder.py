@@ -163,6 +163,31 @@ def _load_merged_dags() -> str:
 # Replaces 13 individual _load_dag_text() calls. No duplication, Rust-backed.
 _MERGED_DAGS = _load_merged_dags()
 
+# Hardcoded integrity floor — if the .dag files are missing or corrupted,
+# these edges are injected as a last-resort invariant so the agent never
+# runs without output-integrity enforcement.
+_INTEGRITY_FLOOR = (
+    "[output-integrity]\n"
+    "Spell→ All:recheck(11), Final:reread(11), Guess:never(11)\n"
+    "Name→ Entity:known(11), Project:exact(11), Tool:verified(11)\n"
+    "Explain→ Cause:traced(11), Unknown:admit(11), Fabricate:never(11)\n"
+    "Self→ AI:only(11), Human:never(11), Physical:none(11)\n"
+    "Error→ Own:admit(11), Deflect:never(11), ToolBlame:never(11)"
+)
+
+def _ensure_integrity_floor(dags: str) -> str:
+    """Guarantee output-integrity edges exist in the merged DAG context.
+
+    If the .dag files on disk contain [output-integrity], use them.
+    If the section is missing (file deleted, loader failure, corruption),
+    inject the hardcoded floor.  The agent must never run without these edges.
+    """
+    if "[output-integrity]" in dags:
+        return dags
+    return dags + "\n" + _INTEGRITY_FLOOR
+
+_MERGED_DAGS = _ensure_integrity_floor(_MERGED_DAGS)
+
 
 def _load_dag_text(name: str) -> str:
     """Read <name>.dag — delegated to native merged loader. Kept for API compat."""

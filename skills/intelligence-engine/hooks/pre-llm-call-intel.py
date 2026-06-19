@@ -31,6 +31,13 @@ if __name__ == "__main__":
     try: payload = json.loads(sys.stdin.read())
     except: payload = {}
     tool_input = payload.get("tool_input", {})
-    query = json.dumps(tool_input) if tool_input else ""
+    cwd = payload.get("cwd", "")
+    # Extract actual user message text, not structural JSON keys
+    query = ""
+    if isinstance(tool_input, dict):
+        msgs = tool_input.get("messages", [])
+        query = " ".join(m.get("content", "") for m in msgs if m.get("role") == "user")
+    if not query:
+        query = json.dumps(tool_input) if tool_input else ""
     truth = load_truth(query)
     print(json.dumps({"context": truth if truth else ""}))

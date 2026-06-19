@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# collar-gw — Collar v2 gateway CLI
+# Usage: collar-gw "your prompt here"
+set -e
+GATEWAY="http://127.0.0.1:${COLLAR_PORT:-9999}"
+COLLAR_DIR="$(cd "$(dirname "$0")" && pwd)"
+set -a; source ~/.dag/.env 2>/dev/null; set +a
+
+ROOM_KEY="${COLLAR_ROOM_KEY:-$(cat "$COLLAR_DIR/.room_key" 2>/dev/null || head -c32 /dev/urandom | xxd -p)}"
+
+if ! curl -s "$GATEWAY" >/dev/null 2>&1; then
+    COLLAR_ROOM_KEY="$ROOM_KEY" DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" python3 "$COLLAR_DIR/dag_cli/gateway.py" &
+    sleep 1
+fi
+
+PAYLOAD=$(python3 -c "
+import json, hmac, hashlib, os
+key = os.environ.get('COLLAR_ROOM_KEY', '$ROOM_KEY')
+p = {'next': 'llm', 'result': '''${*}''', 'tools': []}
+p['signature'] = hmac.new(key.encode(), json.dumps(p, sort_keys=True).encode(), hashlib.sha256).hexdigest()
+print(json.dumps(p))
+")
+
+for i in $(seq 1 5); do
+    RESP=$(curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$GATEWAY")
+    NEXT=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('next','done'))")
+
+    if [ "$NEXT" = "done" ]; then
+        echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result',''))"
+        break
+    fi
+
+    PAYLOAD="$RESP"
+done
+
+trap "kill %1 2>/dev/null" EXIT

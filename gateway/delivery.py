@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
 from dag_cli.config import get_dag_home
+from dag_constants import collar_env
 
 logger = logging.getLogger(__name__)
 
@@ -292,11 +293,11 @@ class DeliveryRouter:
     def _filter_silence_narration_enabled(self) -> bool:
         """Whether the outbound silence-narration filter is active.
 
-        ``HERMES_FILTER_SILENCE_NARRATION`` env var overrides config when set;
+        ``COLLAR_FILTER_SILENCE_NARRATION`` env var overrides config when set;
         otherwise the ``gateway.filter_silence_narration`` config flag wins
         (default True).
         """
-        env = os.getenv("HERMES_FILTER_SILENCE_NARRATION")
+        env = collar_env("FILTER_SILENCE_NARRATION")
         if env is not None:
             return env.strip().lower() in ("1", "true", "yes", "on")
         return bool(getattr(self.config, "filter_silence_narration", True))

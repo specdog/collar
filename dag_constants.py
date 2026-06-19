@@ -564,5 +564,10 @@ PARTIAL_STREAM_STUB_ID = "partial-stream-stub"
 FINISH_REASON_LENGTH = "length"
 
 
+def collar_env(name: str, default: str = "") -> str:
+    """Read COLLAR_* env var with HERMES_* fallback for backward compat."""
+    return os.environ.get(f"COLLAR_{name}", os.environ.get(f"HERMES_{name}", default))
+
+
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_MODELS_URL = f"{OPENROUTER_BASE_URL}/models"

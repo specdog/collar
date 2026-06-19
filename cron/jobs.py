@@ -30,7 +30,7 @@ except ImportError:  # pragma: no cover - non-Windows
     msvcrt = None
 from datetime import datetime, timedelta
 from pathlib import Path
-from dag_constants import get_dag_home
+from dag_constants import collar_env, get_dag_home
 from typing import Optional, Dict, List, Any, Union
 
 logger = logging.getLogger(__name__)
@@ -48,8 +48,8 @@ except ImportError:
 # Configuration
 # =============================================================================
 
-HERMES_DIR = get_dag_home().resolve()
-CRON_DIR = HERMES_DIR / "cron"
+COLLAR_DIR = get_dag_home().resolve()
+CRON_DIR = COLLAR_DIR / "cron"
 JOBS_FILE = CRON_DIR / "jobs.json"
 
 # In-process lock protecting load_jobs→modify→save_jobs cycles.

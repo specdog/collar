@@ -91,7 +91,7 @@ def load_compact(roots=None):
     for dp in dags:
         try:
             with open(dp) as f:
-                raw = f.read(4096)
+                raw = f.read(262144)  # 256KB — enough for any .dag
             # Try JSON first (dotdog-compiled .dag with compact field)
             if raw.strip().startswith('{'):
                 dag = json.loads(raw)

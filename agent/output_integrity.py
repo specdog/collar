@@ -87,16 +87,15 @@ if _FORBIDDEN_STRINGS:
 
 
 def sanitize(text: str) -> str:
-    """Run integrity checks on the text. Returns sanitized text.
+    """Run integrity + polish on the text. Returns cleaned text.
 
-    Pattern-driven — reads forbidden strings and entity spellings from
-    the .dag config file.  Users define their own patterns.
-    The engine only enforces.
+    Post-generation, zero token cost. Runs after API returns, before user sees.
+    Three passes: entity spelling, forbidden strings, noise stripping.
     """
     if not text or not isinstance(text, str):
         return text
 
-    # 1. Entity spelling corrections (exact match, case-insensitive)
+    # 1. Entity spelling corrections
     if _ENTITY_SPELLING:
         for wrong, right in _ENTITY_SPELLING.items():
             pattern = re.compile(re.escape(wrong), re.IGNORECASE)
@@ -112,6 +111,21 @@ def sanitize(text: str) -> str:
                 match.group(0),
             )
             text = _FORBIDDEN_RE.sub("[blocked]", text)
+
+    # 3. Noise stripping — remove model self-narration that leaks into output
+    #    These are phrases the model uses to narrate its own actions.
+    #    They waste the user's attention. Strip them.
+    _NOISE_PATTERNS = [
+        r"(?i)^(Let me|I'll now|First, I need to|I will|Let's|Allow me to)\s.*?\.\s*",
+        r"(?i)^(I('ll| will) (use|check|look|try|run|call|search|read|write|open))\s.*?\.\s*",
+        r"(?i)^(Let me|I('ll| will)) (just |go ahead and |quickly )?.*?\.\s*",
+    ]
+    for pat in _NOISE_PATTERNS:
+        text = re.sub(pat, "", text, count=1)
+
+    # 4. Normalize whitespace
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.strip()
 
     return text
 

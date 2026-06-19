@@ -12,10 +12,48 @@ Provides subcommands for:
 """
 
 import os
+import re
 import sys
+from pathlib import Path
 
-__version__ = "1.0.1"
-__release_date__ = "2026.6.5"
+
+def _read_pyproject_version() -> str:
+    """Read version from pyproject.toml — single source of truth."""
+    try:
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        if pyproject.exists():
+            text = pyproject.read_text()
+            m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+            if m:
+                return m.group(1)
+    except Exception:
+        pass
+    # Fallback: installed package metadata
+    try:
+        from importlib.metadata import version
+        return version("collar")
+    except Exception:
+        return "0.0.0"
+
+
+def _read_release_date() -> str:
+    """Derive release date from git — always current."""
+    import subprocess
+    try:
+        repo = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cs", "HEAD"],
+            capture_output=True, text=True, cwd=repo, timeout=2,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return "unknown"
+
+
+__version__ = _read_pyproject_version()
+__release_date__ = _read_release_date()
 
 
 def _ensure_utf8():

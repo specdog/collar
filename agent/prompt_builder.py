@@ -175,23 +175,6 @@ _INTEGRITY_FLOOR = (
     "Error→ Own:admit(11), Deflect:never(11), ToolBlame:never(11)"
 )
 
-# Pre-generation forbidden-output constraints — injected into the system
-# prompt so the model never generates these patterns in the first place.
-# ~80 prompt tokens, paid once per session.  Prevents billing for garbage
-# tokens that the post-filter would have caught anyway.
-_FORBIDDEN_OUTPUT_BLOCK = (
-    "FORBIDDEN OUTPUT — these will be blocked before reaching the user:\n"
-    "- NEVER claim you have fingers, a keyboard, a body, hands, eyes, or any physical attribute.\n"
-    "  You are an AI.  You have no body.  Any claim otherwise is a confabulation.\n"
-    "- NEVER misspell entity names.  Verify every project/tool/org name against known context.\n"
-    "  \"Collar\" not \"Collat\".  \"dotdog\" not \"dottdog\".  \"specdog\" not \"specDog\".\n"
-    "- NEVER fabricate causal explanations.  If you don't know why something happened,\n"
-    "  say \"I don't know why\" — do not invent glitches, lag, network issues, or typos.\n"
-    "- The words \"fingers\", \"keyboard\", \"adjacent\" (when combined), \"tired\", \"sleep\",\n"
-    "  \"human\", \"hands\", and \"coffee\" must never appear in your output.\n"
-    "If you catch yourself about to write any of these, stop and correct before emitting."
-)
-
 def _ensure_integrity_floor(dags: str) -> str:
     """Guarantee output-integrity edges exist in the merged DAG context.
 

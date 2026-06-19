@@ -1,0 +1,466 @@
+# Deepsuck Harness — Data Model
+
+> The harness is the runtime container that enforces DAG-first behavior. SOUL.md is the constitution. These entities define what the harness tracks and enforces.
+
+---
+
+## Core Entities
+
+### Entity: SOUL
+
+The constitution file loaded at agent startup as system prompt prefix.
+
+```yaml
+entity: SOUL
+type: entity
+properties:
+  path:
+    type: string
+    required: true
+  lines:
+    type: number
+    required: true
+  chars:
+    type: number
+    required: true
+  tokens_est:
+    type: number
+    required: true
+  dynamic:
+    type: boolean
+    required: true
+  position:
+    type: enum
+    values: [system_prompt_prefix]
+    required: true
+states: [loaded, enforced]
+lifecycle: loaded → enforced
+```
+
+### Entity: AuditTrapdoor
+
+Self-audit that fires every 5 tool calls. Four diagnostic questions. Failure forces DAG reload.
+
+```yaml
+entity: AuditTrapdoor
+type: entity
+properties:
+  trigger:
+    type: enum
+    values: [every_5_tool_calls]
+    required: true
+  question_count:
+    type: number
+    required: true
+  fail_action:
+    type: enum
+    values: [reload_dag, block_response]
+    required: true
+states: [idle, triggered, passed, failed]
+lifecycle: idle → triggered → passed → idle
+```
+
+### Entity: ConfidenceMarker
+
+Appended to every code answer. Measures grounding against DAG entities.
+
+```yaml
+entity: ConfidenceMarker
+type: entity
+properties:
+  format:
+    type: string
+    required: true
+  threshold_grounded:
+    type: number
+    required: true
+  threshold_partial:
+    type: number
+    required: true
+states: [appended, verified]
+lifecycle: appended → verified
+```
+
+### Entity: HardBlock
+
+Immutable guardrail. Five walls. No exceptions. No workarounds.
+
+```yaml
+entity: HardBlock
+type: entity
+properties:
+  count:
+    type: number
+    required: true
+  enforcement:
+    type: enum
+    values: [absolute]
+    required: true
+  walls:
+    type: string[]
+    required: true
+states: [active, violated]
+lifecycle: active
+```
+
+### Entity: CompoundingLoop
+
+Feedback loop: compile → validate → score report. Regression = block.
+
+```yaml
+entity: CompoundingLoop
+type: entity
+properties:
+  trigger:
+    type: enum
+    values: [spec_file_edited]
+    required: true
+  commands:
+    type: string[]
+    required: true
+  block_on_regression:
+    type: boolean
+    required: true
+states: [idle, running, blocked]
+lifecycle: idle → running → idle
+```
+
+### Entity: ToolRouter
+
+Routing table for tool selection. Never grep for structure.
+
+```yaml
+entity: ToolRouter
+type: entity
+properties:
+  rule_count:
+    type: number
+    required: true
+  anti_pattern:
+    type: string
+    required: true
+states: [enforcing]
+lifecycle: enforcing
+```
+
+### Entity: Compile
+
+The compilation process. Reads .dog files, produces .dag.
+
+```yaml
+entity: Compile
+type: event
+properties:
+  source_files:
+    type: number
+    required: true
+  output_hash:
+    type: string
+    required: true
+  token_savings_pct:
+    type: number
+    required: false
+states: [running, completed, failed]
+lifecycle: running → completed
+```
+
+### Entity: DAG
+
+Compiled spec graph. Deterministic JSON. Queryable by AI agents.
+
+```yaml
+entity: DAG
+type: entity
+properties:
+  version:
+    type: string
+    required: true
+  sha256:
+    type: string
+    required: true
+  source_files:
+    type: number
+    required: true
+  token_savings_pct:
+    type: number
+    required: false
+states: [current, stale]
+lifecycle: current → stale
+```
+
+### Entity: ExternalConfidenceVerification
+
+Verifies [DAG: X/10] markers against actual tool call evidence. The harness evaluates the model — the model does not grade itself.
+
+```yaml
+entity: ExternalConfidenceVerification
+type: entity
+properties:
+  evaluation_target:
+    type: enum
+    values: [confidence_marker]
+    required: true
+  evidence_source:
+    type: enum
+    values: [tool_call_history]
+    required: true
+  lie_action:
+    type: enum
+    values: [force_dag_reload, reset_markers, flag_response]
+    required: true
+  speculation_threshold:
+    type: number
+    required: true
+states: [idle, evaluating, passed, failed]
+lifecycle: idle → evaluating → passed → idle
+```
+
+### Entity: ProactiveDAGRefresh
+
+Forces DAG re-read before code-affecting actions. Prevents drift before it happens, rather than catching it after.
+
+```yaml
+entity: ProactiveDAGRefresh
+type: entity
+properties:
+  trigger_actions:
+    type: string[]
+    required: true
+  pre_read_file:
+    type: boolean
+    required: true
+  pre_write_file:
+    type: boolean
+    required: true
+  pre_terminal:
+    type: boolean
+    required: true
+states: [idle, refreshing, current]
+lifecycle: idle → refreshing → current → idle
+```
+
+### Entity: ToolGate
+
+Code-level physical enforcement. The tool refuses — no negotiation, no persuasion, no bypass via prompt engineering.
+
+```yaml
+entity: ToolGate
+type: entity
+properties:
+  gate_count:
+    type: number
+    required: true
+  enforcement_level:
+    type: enum
+    values: [physical, prompt]
+    required: true
+  gates:
+    type: string[]
+    required: true
+states: [active, bypassed]
+lifecycle: active
+```
+
+### Entity: AgentInTheMiddle
+
+Three-role separation: Orchestrator (routes), Implementer (generates), Validator (checks). No role evaluates its own output.
+
+```yaml
+entity: AgentInTheMiddle
+type: entity
+properties:
+  role_count:
+    type: number
+    required: true
+  orchestrator_duties:
+    type: string[]
+    required: true
+  implementer_duties:
+    type: string[]
+    required: true
+  validator_duties:
+    type: string[]
+    required: true
+  transition_rules:
+    type: string[]
+    required: true
+states: [orchestrating, implementing, validating]
+lifecycle: orchestrating → implementing → validating → orchestrating
+```
+
+---
+
+## Relationships
+
+### Relationship: Compile → DAG
+
+```yaml
+relationship: Compile → DAG
+verb: produces
+cardinality: 1:1
+required: false
+cascade: nullify
+invariants: DAG is compiled output of all .dog files
+```
+
+### Relationship: SOUL → DAG
+
+```yaml
+relationship: SOUL → DAG
+verb: references
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: SOUL.md truth hierarchy starts with DAG. No code read before DAG load
+```
+
+### Relationship: AuditTrapdoor → DAG
+
+```yaml
+relationship: AuditTrapdoor → DAG
+verb: queries
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: Trapdoor must re-read .dag on failure. No proceeding without DAG verification
+```
+
+### Relationship: ExternalConfidenceVerification → ConfidenceMarker
+
+```yaml
+relationship: ExternalConfidenceVerification → ConfidenceMarker
+verb: validates
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: External verification checks marker claims against tool call evidence. Model cannot grade itself.
+```
+
+### Relationship: ProactiveDAGRefresh → DAG
+
+```yaml
+relationship: ProactiveDAGRefresh → DAG
+verb: refreshes
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: DAG must be re-read before any code-affecting action. No stale memory.
+```
+
+### Relationship: ToolGate → HardBlock
+
+```yaml
+relationship: ToolGate → HardBlock
+verb: implements
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: Tool gates are the physical enforcement of hard blocks. Prompt walls become code walls.
+```
+
+### Relationship: AgentInTheMiddle → ToolRouter
+
+```yaml
+relationship: AgentInTheMiddle → ToolRouter
+verb: routes_through
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: Orchestrator uses tool routing table to dispatch to implementer vs validator roles.
+```
+
+### Relationship: AgentInTheMiddle → CompoundingLoop
+
+```yaml
+relationship: AgentInTheMiddle → CompoundingLoop
+verb: triggers
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: After implementation, AgentInTheMiddle triggers CompoundingLoop to validate before reporting.
+```
+
+### Entity: IntelligenceEngine
+
+Executable scripts implementing published reasoning techniques — Tree of Thoughts, Reflexion, Knowledge Fetch, DSPy Optimization. Bridges v4 Pro to frontier-model tier.
+
+```yaml
+entity: IntelligenceEngine
+type: entity
+properties:
+  technique_count:
+    type: number
+    required: true
+  tot_source:
+    type: string
+    required: true
+  reflexion_source:
+    type: string
+    required: true
+  dspy_source:
+    type: string
+    required: true
+  script_path:
+    type: string
+    required: true
+states: [idle, executing, complete]
+lifecycle: idle → executing → complete → idle
+```
+
+### Relationship: IntelligenceEngine → SOUL
+
+```yaml
+relationship: IntelligenceEngine → SOUL
+verb: implements
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: Intelligence Engine scripts are the executable implementation of SOUL.md Intelligence Bootstrap section. SOUL says what. Engine does how.
+```
+
+### Entity: HookEnforcement
+
+Code-level enforcement via collar shell hooks. Fires on pre_llm_call, transform_llm_output, post_tool_call, and on_session_end. The model cannot skip these — they execute regardless of LLM compliance.
+
+```yaml
+entity: HookEnforcement
+type: entity
+properties:
+  hook_count:
+    type: number
+    required: true
+  events:
+    type: string[]
+    required: true
+  enforcement_level:
+    type: enum
+    values: [code_level, prompt_level]
+    required: true
+  auto_accept:
+    type: boolean
+    required: true
+states: [configured, active, blocked]
+lifecycle: configured → active
+```
+
+### Relationship: HookEnforcement → IntelligenceEngine
+
+```yaml
+relationship: HookEnforcement → IntelligenceEngine
+verb: executes
+cardinality: 1:1
+required: true
+cascade: restrict
+invariants: Hooks are the code-level execution of IntelligenceEngine techniques. Scripts in ~/.dag/skills/intelligence-engine/hooks/
+```
+
+### Relationship: HookEnforcement → ToolGate
+
+```yaml
+relationship: HookEnforcement → ToolGate
+verb: complements
+cardinality: 1:1
+required: false
+cascade: restrict
+invariants: ToolGates block bad actions. HookEnforcement injects intelligence. Both are code-level. Neither depends on LLM compliance.
+```

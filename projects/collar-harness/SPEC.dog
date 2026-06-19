@@ -1,0 +1,29 @@
+# SPEC — Deepsuck Harness
+
+> The runtime container for Deepsuck Agent. Enforces DAG-first behavior via SOUL.md constitution. Bridge between spec graph and agent behavior.
+
+---
+
+## Product
+
+The Deepsuck Harness loads the DAG-first constitution (SOUL.md), enforces truth hierarchy (DAG > SOUL > code > context), runs the compounding loop (compile → validate → score), and applies guardrails: self-audit trapdoor every 5 tool calls, confidence markers on every code answer, and 5 hard blocks that cannot be bypassed.
+
+## What the User Sees
+
+The user writes code and specs. The harness silently enforces:
+- No code read before .dag load
+- No spec edit without recompile + validate + score report
+- No commit without validation pass
+- No speculation about spec structure
+- No silent code fixes that contradict spec
+
+The agent self-audits every 5 tool calls. Answers carry [DAG: X/10] grounding scores. Score regressions are blocked.
+
+## Flow: Agent Startup
+
+```
+[1] Load SOUL.md as system prompt prefix
+[2] Load project .dag into context
+[3] Print: "Loaded <project>.dag: N entities, M relationships, score X%"
+[4] Agent is now grounded. May read code files.
+```

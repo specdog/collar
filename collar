@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# collar — agent CLI launcher  
+REAL="$(python3 -c "import os; print(os.path.realpath('$0'))" 2>/dev/null || echo "$0")"
+DIR="$(cd "$(dirname "$REAL")" && pwd)"
+exec "$DIR/.venv/bin/collar" "$@"

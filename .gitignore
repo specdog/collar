@@ -141,3 +141,5 @@ apps/desktop/demo/
 # Spec build artifacts
 # *.dag — now tracked; hand-authored alongside .dog companions
 *.idx
+collar.egg-info/
+.dag/

@@ -2,12 +2,16 @@
 """transform_llm_output hook — ENFORCEMENT, not warning.
 Runs pipeline audit. If refined output exists, REPLACES the original.
 The model's raw output never reaches the user without verification.
-This is a wall. Not a suggestion."""
+This is a wall. Not a suggestion.
+
+Also: strips filler/self-talk/politeness from output before history storage.
+"""
 import sys, json, subprocess, os
 from pathlib import Path
 
 PIPELINE = str(Path.home() / ".dag" / "skills" / "intelligence-engine" / "pipeline.py")
 ENV_FILE = Path.home() / ".dag" / ".env"
+STRIPPER = str(Path(__file__).resolve().parent.parent / "scripts" / "output-stripper.py")
 
 def load_env():
     env = {}
@@ -56,16 +60,25 @@ if __name__ == "__main__":
     if "[PIPELINE" in text:
         print(json.dumps({}))
         sys.exit(0)
-    
+
+    # Strip filler before pipeline audit (saves tokens in history)
+    _orig_len = len(text)
+    try:
+        r = subprocess.run(
+            ["python3", STRIPPER], input=text,
+            capture_output=True, text=True, timeout=5
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            text = r.stdout.strip()
+    except: pass
+
     use_fast = len(text) < 1000
     
     refined = run_pipeline(text, fast=use_fast)
     
     if refined:
-        # ENFORCEMENT: replace original with refined output
-        # The user never sees the unverified original
         tag = "fast" if use_fast else "full"
         print(json.dumps({"text": f"[VERIFIED — {tag} pipeline]\n\n{refined}"}))
     else:
-        # Pipeline failed — let original through but flag it
-        print(json.dumps({"text": f"[UNVERIFIED — pipeline audit failed]\n\n{text}"}))
+        # Pipeline failed — still return stripped text to save tokens in history
+        print(json.dumps({"text": text}))

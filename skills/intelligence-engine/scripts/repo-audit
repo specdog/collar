@@ -59,12 +59,16 @@ def audit():
     return findings
 
 if __name__ == "__main__":
+    full = "--full" in sys.argv
+    args = [a for a in sys.argv[1:] if a != "--full"]
+    REPO = Path(args[0]) if args else Path.cwd()
     f = audit()
+    cap = None if full else 12
     if f:
-        for line in f[:12]:
+        for line in f[:cap] if cap else f:
             print(f"  ! {line}")
-        if len(f) > 12:
-            print(f"  … +{len(f)-12} more")
+        if cap and len(f) > cap:
+            print(f"  … +{len(f)-cap} more (use --full for all)")
         sys.exit(1)
     else:
         p = REPO / "pyproject.toml"

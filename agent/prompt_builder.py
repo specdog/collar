@@ -215,7 +215,12 @@ DAG_GROUND_ENTITY_GRAPH = (
     "KnowledgeFetch→ KnowledgeSource:queri(1m)"
 )
 
-DAG_AGENT_HELP_GUIDANCE = ""
+DAG_AGENT_HELP_GUIDANCE = (
+    "[style]\n"
+    "Reply→ Terse:always(11), Direct:always(11), Explain:never(11)\n"
+    "Output→ Format:plain(11), Markdown:never(11), Politeness:never(11)\n"
+    "Answer→ Question:direct(11), Context:on-demand(11)\n"
+)
 
 MEMORY_GUIDANCE = _load_dag_text("memory-guidance")
 SESSION_SEARCH_GUIDANCE = _load_dag_text("session-search")

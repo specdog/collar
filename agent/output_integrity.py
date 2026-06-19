@@ -85,6 +85,19 @@ if _FORBIDDEN_STRINGS:
         re.IGNORECASE,
     )
 
+# Compile entity spelling patterns once
+_ENTITY_RES: Dict[str, re.Pattern] = {}
+if _ENTITY_SPELLING:
+    for wrong in _ENTITY_SPELLING:
+        _ENTITY_RES[wrong] = re.compile(re.escape(wrong), re.IGNORECASE)
+
+# Compile noise-stripping patterns once
+_NOISE_RES: List[re.Pattern] = [
+    re.compile(r"(?i)^(Let me|I'll now|First, I need to|I will|Let's|Allow me to)\s.*?\.\s*"),
+    re.compile(r"(?i)^(I('ll| will) (use|check|look|try|run|call|search|read|write|open))\s.*?\.\s*"),
+    re.compile(r"(?i)^(Let me|I('ll| will)) (just |go ahead and |quickly )?.*?\.\s*"),
+]
+
 
 def sanitize(text: str) -> str:
     """Run integrity + polish on the text. Returns cleaned text.
@@ -98,8 +111,8 @@ def sanitize(text: str) -> str:
     # 1. Entity spelling corrections
     if _ENTITY_SPELLING:
         for wrong, right in _ENTITY_SPELLING.items():
-            pattern = re.compile(re.escape(wrong), re.IGNORECASE)
-            if pattern.search(text):
+            pattern = _ENTITY_RES.get(wrong)
+            if pattern and pattern.search(text):
                 text = pattern.sub(right, text)
 
     # 2. Forbidden string blocking
@@ -112,16 +125,9 @@ def sanitize(text: str) -> str:
             )
             text = _FORBIDDEN_RE.sub("[blocked]", text)
 
-    # 3. Noise stripping — remove model self-narration that leaks into output
-    #    These are phrases the model uses to narrate its own actions.
-    #    They waste the user's attention. Strip them.
-    _NOISE_PATTERNS = [
-        r"(?i)^(Let me|I'll now|First, I need to|I will|Let's|Allow me to)\s.*?\.\s*",
-        r"(?i)^(I('ll| will) (use|check|look|try|run|call|search|read|write|open))\s.*?\.\s*",
-        r"(?i)^(Let me|I('ll| will)) (just |go ahead and |quickly )?.*?\.\s*",
-    ]
-    for pat in _NOISE_PATTERNS:
-        text = re.sub(pat, "", text, count=1)
+    # 3. Noise stripping
+    for pat in _NOISE_RES:
+        text = pat.sub("", text, count=1)
 
     # 4. Normalize whitespace
     text = re.sub(r"\n{3,}", "\n\n", text)

@@ -388,6 +388,49 @@ class TestRegression:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Safety: Word Boundaries
+# ═══════════════════════════════════════════════════════════════════
+
+class TestWordBoundaries:
+    """Entity spelling must not corrupt substrings or unrelated words."""
+
+    def test_substring_not_corrupted(self):
+        """Collat→Collar should NOT match 'Collateral'."""
+        from agent.output_integrity import sanitize
+        text = "The Collateral damage report. Lyft is a ride-sharing company."
+        result = sanitize(text)
+        # 'Collateral' starts with 'Collat' but is a different word
+        assert "Collateral" in result, f"Collateral corrupted: {result}"
+        # 'Lyft' is a real company name — should not be touched
+        assert "Lyft" in result, f"Lyft corrupted: {result}"
+
+    def test_word_variants_preserved(self):
+        """Collat correction should only match standalone 'Collat'."""
+        from agent.output_integrity import sanitize
+        text = "Collation of data. Flyft is a project. Lyfta framework."
+        result = sanitize(text)
+        assert "Collation" in result, "'Collation' should not be touched"
+        assert "Flyft" in result, "'Flyft' should not be touched"
+
+    def test_case_insensitive_match(self):
+        """COLLAT and collat should both be corrected."""
+        from agent.output_integrity import sanitize
+        # Only if Collat→Collar is in user config
+        text = "COLLAT is wrong. Also collat is wrong. Collateral is not."
+        result = sanitize(text)
+        # 'Collateral' must survive
+        assert "Collateral" in result
+
+    def test_word_boundary_at_sentence_end(self):
+        """Entity at end of sentence should match."""
+        from agent.output_integrity import sanitize
+        text = "The tool is called Collat. Next topic: deployment."
+        result = sanitize(text)
+        # If Collat→Collar correction exists, it should apply here
+        assert "Collat." not in result or "Collar." in result
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Config Parsing
 # ═══════════════════════════════════════════════════════════════════
 

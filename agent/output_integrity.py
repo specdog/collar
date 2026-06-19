@@ -81,10 +81,14 @@ if _FORBIDDEN_STRINGS:
     )
 
 # Compile entity spelling patterns once
+# Uses word-boundary matching (\b) to avoid corrupting substrings.
+# e.g. Collat→Collar matches "Collat" but not "Collateral" or "Collation"
 _ENTITY_RES: Dict[str, re.Pattern] = {}
 if _ENTITY_SPELLING:
     for wrong in _ENTITY_SPELLING:
-        _ENTITY_RES[wrong] = re.compile(re.escape(wrong), re.IGNORECASE)
+        _ENTITY_RES[wrong] = re.compile(
+            r"\b" + re.escape(wrong) + r"\b", re.IGNORECASE
+        )
 
 # Compile noise-stripping patterns once
 _NOISE_RES: List[re.Pattern] = [

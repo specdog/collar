@@ -21,50 +21,45 @@ log = logging.getLogger(__name__)
 def _parse_dag_patterns() -> Tuple[List[str], Dict[str, str]]:
     """Parse output-integrity.dag for forbidden strings and entity spellings.
 
-    Checks ~/.dag/output-integrity.dag first (user override), then falls
-    back to the system default in dags/output-integrity.dag.
-    Users add project-specific patterns in their own config file.
-    The system default contains only universal patterns.
-
-    Returns (forbidden_strings, entity_corrections).
+    Loads BOTH system default and user override, merging results.
+    User config adds to system defaults — never replaces.
     """
     forbidden: List[str] = []
     entities: Dict[str, str] = {}
 
-    # 1. Try user override: ~/.dag/output-integrity.dag
     user_path = Path.home() / ".dag" / "output-integrity.dag"
-
-    # 2. Fall back to system default
     system_path = Path(__file__).parent.parent / "dags" / "output-integrity.dag"
 
-    dag_path = user_path if user_path.exists() else system_path
-    if not dag_path.exists():
-        return forbidden, entities
+    # Parse both files, user overrides/adds to system
+    for dag_path in (system_path, user_path):
+        if not dag_path.exists():
+            continue
+        section = None
+        try:
+            for line in dag_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                if line == "[forbidden-strings]":
+                    section = "forbidden"
+                    continue
+                if line == "[entity-spelling]":
+                    section = "entities"
+                    continue
+                if line.startswith("[") and line.endswith("]"):
+                    section = None
+                    continue
 
-    section = None
-    try:
-        for line in dag_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            if line == "[forbidden-strings]":
-                section = "forbidden"
-                continue
-            if line == "[entity-spelling]":
-                section = "entities"
-                continue
-            if line.startswith("[") and line.endswith("]"):
-                section = None
-                continue
-
-            if section == "forbidden":
-                forbidden.append(re.escape(line))
-            elif section == "entities":
-                if "→" in line:
-                    wrong, right = line.split("→", 1)
-                    entities[wrong.strip()] = right.strip()
-    except Exception:
-        pass
+                if section == "forbidden":
+                    escaped = re.escape(line)
+                    if escaped not in forbidden:
+                        forbidden.append(escaped)
+                elif section == "entities":
+                    if "→" in line:
+                        wrong, right = line.split("→", 1)
+                        entities[wrong.strip()] = right.strip()
+        except Exception:
+            pass
 
     return forbidden, entities
 

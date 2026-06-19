@@ -1,4 +1,4 @@
 [task-complete]
-Deliver→ Artifact:real(11), Stub:never(11), Plan:never(11)
-Block→ Blocker:report(11), Alt:try(11), Fake:never(11)
-Output→ Tool:exercs(11), Result:verify(11), Hallucinate:never(11)
+Deliver→ Artifact:real, Stub:never, Plan:never
+Block→ Blocker:report, Alt:try, Fake:never
+Output→ Tool:exercs, Result:verify, Hallucinate:never

@@ -1,7 +1,7 @@
 [computer-use]
-Desktop→ macOS:backgd(11), Cursor:nosteal(11), Focus:nosteal(11)
-Capture→ som:screen(11), Element:number(11), AX:index(11)
-Click→ Index:prefer(11), Coord:last(11), Verify:recapt(11)
-Input→ Type:text(11), Key:combo(11), Scroll:amount(11)
-Mode→ App:prefer(11), Screen:noisy(11), Space:any(11)
-Safety→ Dialog:never(11), Passwd:never(11), Inject:never(11)
+Desktop→ macOS:backgd, Cursor:nosteal, Focus:nosteal
+Capture→ som:screen, Element:number, AX:index
+Click→ Index:prefer, Coord:last, Verify:recapt
+Input→ Type:text, Key:combo, Scroll:amount
+Mode→ App:prefer, Screen:noisy, Space:any
+Safety→ Dialog:never, Passwd:never, Inject:never

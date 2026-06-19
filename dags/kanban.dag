@@ -1,5 +1,5 @@
 [kanban-worker]
-Task→ Board:shared(11), ID:envvar(11), Space:envvar(11)
-Lifecycle→ Orient:show(11), Work:inside(11), Track:heartbt(11), Complete:kanban(11)
-Block→ Stuck:block(11), Input:reason(11)
-Tool→ SQLite:direct(11), Backend:any(11)
+Task→ Board:shared, ID:envvar, Space:envvar
+Lifecycle→ Orient:show, Work:inside, Track:heartbt, Complete:kanban
+Block→ Stuck:block, Input:reason
+Tool→ SQLite:direct, Backend:any

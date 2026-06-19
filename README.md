@@ -94,11 +94,18 @@ collar setup         # first-time setup wizard
 
 Collar PRs should stay lean and agentic:
 
-- start from the PR template
+- use `.github/pull_request_template.md`
 - explain the reasoning, not just the diff
 - prefer updating existing systems over adding new ones
 - keep `.dag` as the first-read source for agent behavior
 - avoid adding skills or layers that inflate token use unless the change clearly needs them
+- include tests or verification for behavior changes
+
+## Governance
+
+- Branch protection on `main` requires PR review and a passing check
+- Security issues should go through `SECURITY.md`
+- Bugs and features have issue templates in `.github/ISSUE_TEMPLATE/`
 
 ## Dogfood
 

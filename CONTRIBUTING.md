@@ -4,10 +4,12 @@ DAG-first. `Entity→Target:verb(card)`.
 
 ## Rules
 
-1. **NEVER read `.dog`** — agents query `.dag` via the router
-2. **DAG-path notation** — all behavioral guidance in compact format
-3. **Compile before commit** — run `dag-regen.sh --all` after any `.md`/`.dog` change
-4. **Test harness fallback** — simulate fresh install, verify constants load from `dags/`
+1. **Query `.dag` first** — agent behavior comes from `.dag` routes, not prose
+2. **Keep dotdog in the loop** — compile/spec changes through the dotdog path
+3. **Use the PR template** — every PR should use `.github/pull_request_template.md`
+4. **DAG-path notation** — all behavioral guidance in compact format
+5. **Compile before commit** — run `dag-regen.sh --all` after any `.md`/`.dog` change
+6. **Test harness fallback** — simulate fresh install, verify constants load from `dags/`
 
 ## Project Structure
 

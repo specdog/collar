@@ -31,7 +31,7 @@
       1,
       "AuditTrapdoor",
       "entity",
-      "Self-audit that fires every 5 tool calls. Four diagnostic questions. Failure forces DAG reload.",
+      "Self-audit that fires every 5 tool calls. Four diagnostic questions. Failure forces DAG reload. Security sweeps use repo-audit script (skills/intelligence-engine/scripts/repo-audit) — 5 lines max, never raw terminal grep.",
       [],
       [
         "idle",
@@ -331,5 +331,5 @@
     "cs": 73.8,
     "saved": 2090
   },
-  "compact": "[ch]\nDAG→Compile:produ(11)>SOUL:refer(11)>AuditTrapdoor:queri(11)>ProactiveDAGRefresh:refre(11)\nSOUL→DAG:refer(11)>IntelligenceEngine:imple(11)\nToolGate→HardBlock:imple(11)>HookEnforcement:compl(11)\nAgentInTheMiddle→ToolRouter:route(11)>CompoundingLoop:trig(11)\nIntelligenceEngine→SOUL:imple(11)>HookEnforcement:execu(11)\nHookEnforcement→IntelligenceEngine:execu(11)>ToolGate:compl(11)\nAuditTrapdoor→DAG:queri(11)\nConfidenceMarker→ExternalConfidenceVerification:valid(11)\nHardBlock→ToolGate:imple(11)\nCompoundingLoop→AgentInTheMiddle:trig(11)\nToolRouter→AgentInTheMiddle:route(11)\nCompile→DAG:produ(11)\nExternalConfidenceVerification→ConfidenceMarker:valid(11)\nProactiveDAGRefresh→DAG:refre(11)"
+  "compact": "[ch]\nDAG→Compile:produ(11)>SOUL:refer(11)>AuditTrapdoor:queri(11)>ProactiveDAGRefresh:refre(11)\nSOUL→DAG:refer(11)>IntelligenceEngine:imple(11)\nToolGate→HardBlock:imple(11)>HookEnforcement:compl(11)\nAgentInTheMiddle→ToolRouter:route(11)>CompoundingLoop:trig(11)\nIntelligenceEngine→SOUL:imple(11)>HookEnforcement:execu(11)\nHookEnforcement→IntelligenceEngine:execu(11)>ToolGate:compl(11)\nAuditTrapdoor→DAG:queri(11)>Audit:repoaudit(11)\nConfidenceMarker→ExternalConfidenceVerification:valid(11)\nHardBlock→ToolGate:imple(11)\nCompoundingLoop→AgentInTheMiddle:trig(11)\nToolRouter→AgentInTheMiddle:route(11)\nCompile→DAG:produ(11)\nExternalConfidenceVerification→ConfidenceMarker:valid(11)\nProactiveDAGRefresh→DAG:refre(11)"
 }

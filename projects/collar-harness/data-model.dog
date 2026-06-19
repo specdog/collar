@@ -40,11 +40,14 @@ lifecycle: loaded → enforced
 ### Entity: AuditTrapdoor
 
 Self-audit that fires every 5 tool calls. Four diagnostic questions. Failure forces DAG reload.
+Security sweeps use `repo-audit` script (5-line max), never raw terminal grep.
 
 ```yaml
 entity: AuditTrapdoor
 type: entity
 properties:
+  tool: "skills/intelligence-engine/scripts/repo-audit"
+  output: "5-line max, no raw grep"
   trigger:
     type: enum
     values: [every_5_tool_calls]

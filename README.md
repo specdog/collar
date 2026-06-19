@@ -1,6 +1,6 @@
 # collar — DAG-first agent harness
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/specdog/collar/releases)
+[![Version](https://img.shields.io/badge/version-1.1.2-blue)](https://github.com/specdog/collar/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Semver](https://img.shields.io/badge/semver-2.0.0-green)](https://semver.org)

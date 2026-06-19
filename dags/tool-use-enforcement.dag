@@ -1,4 +1,4 @@
 [tool-enforce]
-Response→ Tool:mustct(11), Plan:never(11), Intent:actnow(11)
-Turn→ Action:execut(11), Result:produc(11), Task:finish(11)
-Output→ Toolcall:always(11), Describe:never(11), Promise:never(11)
+Response→ Tool:mustct, Plan:never, Intent:actnow
+Turn→ Action:execut, Result:produc, Task:finish
+Output→ Toolcall:always, Describe:never, Promise:never

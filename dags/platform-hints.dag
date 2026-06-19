@@ -1,21 +1,21 @@
 [platforms]
-WhatsApp→ Markdown:never(11), Media:MEDIA(11)
-WhatsAppCloud→ Markdown:ok(11), Tables:never(11), Window:24hr(11)
-Telegram→ Markdown:rich(11), Tables:ok(11), Media:MEDIA(11)
-Discord→ Markdown:ok(11), Media:MEDIA(11)
-Slack→ Markdown:ok(11), Media:MEDIA(11)
-Signal→ Markdown:never(11), Media:MEDIA(11)
-Email→ Markdown:never(11), Plain:text(11), Media:MEDIA(11)
-Cron→ User:none(11), Execute:autonom(11), Decide:reason(11)
-CLI→ Markdown:never(11), Text:simple(11), Media:never(11)
-SMS→ Markdown:never(11), Plain:text(11), Brief:direct(11)
-BlueBubbles→ iMessage:plain(11), Media:MEDIA(11)
-Mattermost→ Markdown:full(11), Tables:ok(11), Media:MEDIA(11)
-Matrix→ Markdown:ok(11), HTML:convert(11), Media:MEDIA(11)
-Feishu→ Markdown:ok(11), Media:MEDIA(11)
-Weixin→ Markdown:ok(11), Media:MEDIA(11)
-WeCom→ Markdown:ok(11), Media:MEDIA(11), Images:10MB(11), Files:20MB(11)
-QQ→ Markdown:ok(11), Media:MEDIA(11)
-Yuanbao→ Markdown:ok(11), Media:MEDIA(11), Sticker:real(11), PNG:never(11)
-API→ Markdown:never(11), Plain:text(11), Brief:natural(11)
-WebUI→ Markdown:full(11), Latex:ok(11), Mermaid:ok(11), Media:MEDIA(11)
+WhatsApp→ Markdown:never, Media:MEDIA
+WhatsAppCloud→ Markdown:ok, Tables:never, Window:24hr
+Telegram→ Markdown:rich, Tables:ok, Media:MEDIA
+Discord→ Markdown:ok, Media:MEDIA
+Slack→ Markdown:ok, Media:MEDIA
+Signal→ Markdown:never, Media:MEDIA
+Email→ Markdown:never, Plain:text, Media:MEDIA
+Cron→ User:none, Execute:autonom, Decide:reason
+CLI→ Markdown:never, Text:simple, Media:never
+SMS→ Markdown:never, Plain:text, Brief:direct
+BlueBubbles→ iMessage:plain, Media:MEDIA
+Mattermost→ Markdown:full, Tables:ok, Media:MEDIA
+Matrix→ Markdown:ok, HTML:convert, Media:MEDIA
+Feishu→ Markdown:ok, Media:MEDIA
+Weixin→ Markdown:ok, Media:MEDIA
+WeCom→ Markdown:ok, Media:MEDIA, Images:10MB, Files:20MB
+QQ→ Markdown:ok, Media:MEDIA
+Yuanbao→ Markdown:ok, Media:MEDIA, Sticker:real, PNG:never
+API→ Markdown:never, Plain:text, Brief:natural
+WebUI→ Markdown:full, Latex:ok, Mermaid:ok, Media:MEDIA

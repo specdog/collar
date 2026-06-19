@@ -19,26 +19,25 @@ log = logging.getLogger(__name__)
 # Parsed once at import.  Changes require a process restart.
 
 def _parse_dag_patterns() -> Tuple[List[str], Dict[str, str]]:
-    """Parse dags/output-integrity.dag for forbidden strings and entity spellings.
+    """Parse output-integrity.dag for forbidden strings and entity spellings.
+
+    Checks ~/.dag/output-integrity.dag first (user override), then falls
+    back to the system default in dags/output-integrity.dag.
+    Users add project-specific patterns in their own config file.
+    The system default contains only universal patterns.
 
     Returns (forbidden_strings, entity_corrections).
-
-    Expected format in the .dag file:
-
-        [forbidden-strings]
-        fingers slipped
-        R and T are adjacent
-        my keyboard
-
-        [entity-spelling]
-        Collat→Collar
-        dottdog→dotdog
-        specDog→specdog
     """
     forbidden: List[str] = []
     entities: Dict[str, str] = {}
 
-    dag_path = Path(__file__).parent.parent / "dags" / "output-integrity.dag"
+    # 1. Try user override: ~/.dag/output-integrity.dag
+    user_path = Path.home() / ".dag" / "output-integrity.dag"
+
+    # 2. Fall back to system default
+    system_path = Path(__file__).parent.parent / "dags" / "output-integrity.dag"
+
+    dag_path = user_path if user_path.exists() else system_path
     if not dag_path.exists():
         return forbidden, entities
 

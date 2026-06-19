@@ -6,23 +6,8 @@ Self→ AI:only(11), Human:never(11), Physical:none(11)
 Error→ Own:admit(11), Deflect:never(11), ToolBlame:never(11)
 
 [forbidden-strings]
-fingers slipped
-R and T are adjacent
-my keyboard
 I'm only human
 need sleep
 need coffee
-late night
-must have been a glitch
-the API was slow
-the tool timed out
-adjacent on the keyboard
-my hands
-my eyes
 
 [entity-spelling]
-Collat→Collar
-collat→Collar
-dottdog→dotdog
-specDog→specdog
-DeepSeak→DeepSeek

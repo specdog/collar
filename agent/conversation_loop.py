@@ -4006,6 +4006,16 @@ def run_conversation(
             else:
                 # No tool calls - this is the final response
                 final_response = assistant_message.content or ""
+
+                # ── Output integrity filter (compiled, not negotiable) ──
+                # Runs on every assistant text before it leaves the harness.
+                # Catches typos, human-attribute claims, fabricated causes.
+                # This is NOT prompt guidance — it's code that executes.
+                try:
+                    from agent.output_integrity import sanitize
+                    final_response = sanitize(final_response)
+                except Exception:
+                    pass  # filter must never block delivery
                 
                 # Fix: unmute output when entering the no-tool-call branch
                 # so the user can see empty-response warnings and recovery

@@ -24,9 +24,10 @@ from agent.prompt_builder import _scan_context_content
 logger = logging.getLogger(__name__)
 
 # Context files to look for in subdirectories, in priority order.
-# Same filenames as prompt_builder.py but we load ALL found (not first-wins)
-# since different subdirectories may use different conventions.
+# DAG files (.dag) are loaded FIRST — they provide ground-truth structure.
+# Markdown files are fallbacks for human-written prose context.
 _HINT_FILENAMES = [
+    "*.dag",           # DAG ground truth — machine-read structure
     "AGENTS.md", "agents.md",
     "CLAUDE.md", "claude.md",
     ".cursorrules",
@@ -195,6 +196,66 @@ class SubdirectoryHintTracker:
                 return False
         return True
 
+    def _read_hint_file(self, hint_path: Path, filename: str, found_hints: list):
+        """Read a single hint file and append (rel_path, content) to found_hints.
+        
+        For .dag files, converts JSON to compact DAG-path notation.
+        """
+        try:
+            content = hint_path.read_text(encoding="utf-8").strip()
+            if not content:
+                return
+            # Convert .dag JSON to compact DAG-path notation
+            if hint_path.suffix == ".dag":
+                content = self._compact_dag(content, hint_path)
+            # Security scan
+            content = _scan_context_content(content, filename)
+            if len(content) > _MAX_HINT_CHARS:
+                content = (
+                    content[:_MAX_HINT_CHARS]
+                    + f"\n\n[...truncated {filename}: {len(content):,} chars total]"
+                )
+            # Best-effort relative path for display
+            rel_path = str(hint_path)
+            try:
+                rel_path = str(hint_path.relative_to(self.working_dir))
+            except ValueError:
+                try:
+                    rel_path = str(hint_path.relative_to(Path.home()))
+                    rel_path = "~/" + rel_path
+                except ValueError:
+                    pass
+            found_hints.append((rel_path, content))
+        except Exception as exc:
+            logger.debug("Could not read %s: %s", hint_path, exc)
+
+    @staticmethod
+    def _compact_dag(content: str, path: Path) -> str:
+        """Convert .dag JSON to compact DAG-path notation for LLM consumption."""
+        import json
+        try:
+            dag = json.loads(content)
+            project = dag.get("p", path.stem)
+            nodes = dag.get("n", [])
+            node_names = {}
+            for n in nodes:
+                node_names[n[0]] = n[1]
+            lines = ["[%s]  # DAG ground truth" % project]
+            for n in nodes:
+                nid, name, ntype, _desc, _props, states, edges = n
+                edge_strs = []
+                for edge in edges:
+                    tid, verb, card = edge[0], edge[1], edge[2]
+                    tname = node_names.get(tid, "?")
+                    edge_strs.append("%s:%s(%s)" % (tname, verb, card))
+                if edge_strs:
+                    lines.append("%s-> %s" % (name, " | ".join(edge_strs)))
+                if states and len(states) > 0:
+                    lines.append("  states: %s" % " -> ".join(str(s) for s in states[:12]))
+            return "\n".join(lines)
+        except Exception:
+            return content  # fallback: raw content
+
     def _load_hints_for_directory(self, directory: Path) -> Optional[str]:
         """Load hint files from a directory. Returns formatted text or None.
 
@@ -220,38 +281,25 @@ class SubdirectoryHintTracker:
 
         found_hints = []
         for filename in _HINT_FILENAMES:
-            hint_path = directory / filename
-            try:
-                if not hint_path.is_file():
-                    continue
-            except OSError:
-                continue
-            try:
-                content = hint_path.read_text(encoding="utf-8").strip()
-                if not content:
-                    continue
-                # Same security scan as startup context loading
-                content = _scan_context_content(content, filename)
-                if len(content) > _MAX_HINT_CHARS:
-                    content = (
-                        content[:_MAX_HINT_CHARS]
-                        + f"\n\n[...truncated {filename}: {len(content):,} chars total]"
-                    )
-                # Best-effort relative path for display
-                rel_path = str(hint_path)
+            # Handle glob patterns (e.g. "*.dag") — scan directory for matches
+            if "*" in filename or "?" in filename:
+                matches = sorted(directory.glob(filename))
+                for hint_path in matches:
+                    if not hint_path.is_file():
+                        continue
+                    self._read_hint_file(hint_path, filename, found_hints)
+                if found_hints:
+                    break  # first pattern that matches wins per directory
+            else:
+                hint_path = directory / filename
                 try:
-                    rel_path = str(hint_path.relative_to(self.working_dir))
-                except ValueError:
-                    try:
-                        rel_path = str(hint_path.relative_to(Path.home()))
-                        rel_path = "~/" + rel_path
-                    except ValueError:
-                        pass  # keep absolute
-                found_hints.append((rel_path, content))
-                # First match wins per directory (like startup loading)
-                break
-            except Exception as exc:
-                logger.debug("Could not read %s: %s", hint_path, exc)
+                    if not hint_path.is_file():
+                        continue
+                except OSError:
+                    continue
+                self._read_hint_file(hint_path, filename, found_hints)
+                if found_hints:
+                    break  # first match wins per directory
 
         if not found_hints:
             return None

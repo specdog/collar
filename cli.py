@@ -8503,12 +8503,20 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self._console_print("[yellow]dogbench not installed. Run: git clone https://github.com/specdog/dogbench.git ~/dogbench[/]")
             return
         no_submit = "--no-submit" in args
-        cmd = f"cd {dogbench_dir} && git pull origin main && ./dogbench --json" + (" --no-submit" if no_submit else "")
+        cmd = ["./dogbench", "--json"]
+        if no_submit:
+            cmd.append("--no-submit")
         self._console_print("[dim]Running benchmark...[/]")
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+        try:
+            result = subprocess.run(cmd, cwd=dogbench_dir, capture_output=True, text=True, timeout=300)
+        except FileNotFoundError:
+            self._console_print("[red]dogbench script not found in ~/dogbench[/]")
+            return
         self._console_print(result.stdout)
         if result.stderr:
             self._console_print(f"[red]{result.stderr[-500:]}[/]")
+        if result.returncode != 0:
+            self._console_print(f"[red]Benchmark exited with code {result.returncode}[/]")
 
     def _show_insights(self, command: str = "/insights"):
         """Show usage insights and analytics from session history."""

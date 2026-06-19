@@ -1,22 +1,29 @@
 ## Bug Description
 
-<!-- What was happening? -->
-
-Fixes #
+- 
 
 ## Root Cause
 
-<!-- What was causing the bug? -->
+- 
 
 ## Fix
 
-<!-- What does this PR change to fix it? -->
+- 
 
--
+## Why this fix
+
+- Why this approach?
+- Why this scope?
+- Why not a larger refactor?
+
+## DAG / spec impact
+
+- [ ] Uses existing `.dag` / dotdog systems
+- [ ] No new skill unless required
+- [ ] Keeps token overhead low
+- [ ] Updates existing behavior instead of adding layers
 
 ## How to Verify
-
-<!-- Steps a reviewer can follow to confirm the fix -->
 
 1.
 2.
@@ -24,12 +31,12 @@ Fixes #
 
 ## Test Plan
 
-- [ ] Added regression test for this bug
+- [ ] Added regression test
 - [ ] Existing tests still pass
 - [ ] Manual verification of the fix
 
 ## Risk Assessment
 
-<!-- Could this fix break anything else? What's the blast radius? -->
-
-Low / Medium / High — <!-- explanation -->
+- Impact:
+- Rollback:
+- Notes:

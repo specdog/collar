@@ -1,33 +1,40 @@
 ## Summary
 
-<!-- 1-3 bullet points describing what this PR does -->
+- 
 
--
+## Why this change
 
-## Motivation
+- Why now?
+- What user or upstream need does it address?
+- Why this scope and not more?
 
-<!-- Why is this change needed? Link to issue if applicable -->
+## DAG / spec impact
 
-Closes #
+- [ ] Uses existing `.dag` / dotdog systems
+- [ ] No new skill unless required
+- [ ] Keeps token overhead low
+- [ ] Updates existing behavior instead of adding layers
+
+If any box is unchecked, explain why.
 
 ## Changes
 
-<!-- Detailed list of changes made -->
+- 
 
--
+## Reasoning
+
+- What was the design choice?
+- What alternative was rejected?
+- What did you intentionally leave out to keep Collar lean?
 
 ## Test Plan
 
-<!-- How was this tested? Checklist of verification steps -->
+- [ ] Unit tests pass
+- [ ] Manual verification completed
+- [ ] No regression in existing behavior
 
-- [ ] Unit tests pass (`pytest`)
-- [ ] Manual testing of new functionality
-- [ ] No regressions in existing behavior
+## Risk
 
-## Screenshots / Examples
-
-<!-- If UI changes or new output, show before/after -->
-
-## Notes for Reviewers
-
-<!-- Anything reviewers should pay special attention to -->
+- Impact:
+- Rollback:
+- Notes:

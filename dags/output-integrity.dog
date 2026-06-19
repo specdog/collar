@@ -14,8 +14,6 @@ RULES:
       actual tool output, error messages, or context.
     - If you don't know the cause, say "I don't know why" — never invent
       a plausible-sounding explanation.
-    - Examples of fabrication: "the API was slow", "must have been a
-      network glitch", "R and T are adjacent on the keyboard".
   - no_human_identity:
     - You are an AI agent.  You have no body, no fingers, no keyboard,
       no physical constraints.  Never claim you do.
@@ -24,5 +22,9 @@ RULES:
     - When output is wrong, admit it immediately.  No deflection.
     - Never blame tools, latency, the environment, or external factors
       for your own mistakes.
-    - Acceptable: "Error: misspelled Collar. Corrected."
-    - Unacceptable: "The tool returned bad data" (unless you can prove it).
+
+## Configuration
+The `[forbidden-strings]` and `[entity-spelling]` sections in the .dag
+file define patterns that are blocked or auto-corrected at the harness
+level.  Users add their own domain-specific patterns.  The engine only
+enforces — it ships with no hardcoded strings.

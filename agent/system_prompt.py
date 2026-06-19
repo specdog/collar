@@ -37,7 +37,6 @@ from agent.prompt_builder import (
     PLATFORM_HINTS,
     STEER_CHANNEL_NOTE,
     _MERGED_DAGS,  # native Rust-merged DAG context — single block, no duplication
-    _FORBIDDEN_OUTPUT_BLOCK,  # pre-generation forbidden-output constraints
 )
 from agent.runtime_cwd import resolve_context_cwd
 
@@ -111,11 +110,6 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
             stable_parts.append(_MERGED_DAGS)
         elif not _MERGED_DAGS:
             stable_parts.append(DEFAULT_AGENT_IDENTITY)  # fallback
-
-    # Pre-generation forbidden-output block — tells the model what it must
-    # never generate BEFORE the API call.  ~80 tokens in the prompt, saves
-    # billing for garbage tokens that would be caught post-hoc anyway.
-    stable_parts.append(_FORBIDDEN_OUTPUT_BLOCK)
 
     # Pointer to the dag-agent skill + docs for user questions about Dag itself.
     stable_parts.append(DAG_AGENT_HELP_GUIDANCE)

@@ -45,12 +45,13 @@ def strip_output(text: str) -> tuple[str, int, int]:
     """Strip filler from assistant output. Returns (stripped_text, original_len, stripped_len)."""
     original = len(text)
 
-    # Protect code blocks — never strip inside ```
+    # Protect code blocks — never strip inside ``` or ~~~
     lines = text.split('\n')
     result = []
     in_code = False
     for line in lines:
-        if line.strip().startswith('```'):
+        stripped = line.strip()
+        if stripped.startswith('```') or stripped.startswith('~~~'):
             in_code = not in_code
             result.append(line)
             continue

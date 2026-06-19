@@ -150,7 +150,23 @@ class TestSavings:
         assert "I should not strip this line inside code" in result
         assert "def check():" in result
         assert "Apply this patch" in result
-        assert "I should check something outside" not in result  # outside code → stripped
+        assert "I should check something outside" not in result
+
+    def test_tilde_code_blocks_preserved(self):
+        """Content inside ~~~ code blocks must never be stripped."""
+        text = (
+            "I should check this first.\n\n"
+            "~~~python\n"
+            "I should not strip inside tilde blocks.\n"
+            "print('hello')\n"
+            "~~~\n\n"
+            "Back to normal."
+        )
+        result = run_stripper(text)
+        assert "I should not strip inside tilde blocks" in result
+        assert "print('hello')" in result
+        assert "Back to normal" in result
+        assert "I should check this first" not in result
 
     def test_urls_paths_preserved(self):
         """URLs and file paths must survive stripping."""

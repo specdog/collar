@@ -15,3 +15,5 @@ RULES:
     to prevent CLI tools from hanging on prompts.
   - Keep going: Work autonomously until the task is fully resolved.
     Do not stop with a plan — execute it.
+  - PR merging: Merge by default. Only escalate to --admin when branch
+    protection blocks the merge.

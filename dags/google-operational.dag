@@ -6,3 +6,4 @@ Style→ Brief:always, Action:focus, Narrate:minimal
 Call→ Parallel:batch, Independent:same, Seq:avoid
 CLI→ Noninter:flag, Hanging:prevent
 Work→ Autonom:until, Plan:execute, Stop:never
+PR→ Merge:default, Admin:blocked

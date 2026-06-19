@@ -71,6 +71,12 @@ def _parse_dag_patterns() -> Tuple[List[str], Dict[str, str]]:
 
 _FORBIDDEN_STRINGS, _ENTITY_SPELLING = _parse_dag_patterns()
 
+# _FORBIDDEN_STRINGS contains re.escape'd patterns for the regex.
+# Build the raw list (un-escaped) for stop sequences and logit_bias.
+_RAW_FORBIDDEN_STRINGS: List[str] = [
+    re.sub(r'\\(.)', r'\1', s) for s in _FORBIDDEN_STRINGS
+]
+
 # Compile forbidden strings into a single regex for efficiency
 _FORBIDDEN_RE = None
 if _FORBIDDEN_STRINGS:
@@ -116,7 +122,7 @@ def get_forbidden_strings() -> List[str]:
     Used by logit_bias and stop-sequence injection.
     Parsed once at import. Returns empty list if no config.
     """
-    return list(_FORBIDDEN_STRINGS)
+    return list(_RAW_FORBIDDEN_STRINGS)
 
 
 __all__ = ["sanitize", "get_forbidden_strings"]

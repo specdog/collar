@@ -56,8 +56,14 @@ def _parse_dag_patterns() -> Tuple[List[str], Dict[str, str]]:
                         forbidden.append(escaped)
                 elif section == "entities":
                     if "→" in line:
-                        wrong, right = line.split("→", 1)
-                        entities[wrong.strip()] = right.strip()
+                        parts = line.split("→", 1)
+                        wrong = parts[0].strip()
+                        right_and_flags = parts[1].strip()
+                        # Parse flags: :s = substring, :c = case-sensitive
+                        flags = ""
+                        if ":" in right_and_flags:
+                            right_and_flags, flags = right_and_flags.rsplit(":", 1)
+                        entities[wrong] = (right_and_flags, flags)
         except Exception:
             pass
 
@@ -81,14 +87,16 @@ if _FORBIDDEN_STRINGS:
     )
 
 # Compile entity spelling patterns once
-# Uses word-boundary matching (\b) to avoid corrupting substrings.
-# e.g. Collat→Collar matches "Collat" but not "Collateral" or "Collation"
+# Default: word-boundary + case-insensitive.
+# Flags: :s = substring (no \b), :c = case-sensitive (no IGNORECASE)
 _ENTITY_RES: Dict[str, re.Pattern] = {}
 if _ENTITY_SPELLING:
-    for wrong in _ENTITY_SPELLING:
-        _ENTITY_RES[wrong] = re.compile(
-            r"\b" + re.escape(wrong) + r"\b", re.IGNORECASE
-        )
+    for wrong, (right, flags) in _ENTITY_SPELLING.items():
+        pattern = re.escape(wrong)
+        if "s" not in flags:
+            pattern = r"\b" + pattern + r"\b"
+        case_flag = 0 if "c" in flags else re.IGNORECASE
+        _ENTITY_RES[wrong] = re.compile(pattern, case_flag)
 
 # Compile noise-stripping patterns once
 _NOISE_RES: List[re.Pattern] = [
@@ -109,7 +117,7 @@ def sanitize(text: str) -> str:
 
     # 1. Entity spelling corrections
     if _ENTITY_SPELLING:
-        for wrong, right in _ENTITY_SPELLING.items():
+        for wrong, (right, _flags) in _ENTITY_SPELLING.items():
             pattern = _ENTITY_RES.get(wrong)
             if pattern and pattern.search(text):
                 text = pattern.sub(right, text)

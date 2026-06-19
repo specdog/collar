@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""repo-audit → 5-line max. True secrets/emails only. Exits 0=clean 1=found."""
+import re, subprocess, sys
+from pathlib import Path
+
+REPO = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
+SKIP = {'.git', '.venv', 'node_modules', '__pycache__', 'egg-info', '.tox', 'dist', 'build'}
+
+def walk():
+    for f in REPO.rglob("*"):
+        parts = set(f.parts)
+        if parts & SKIP or f.is_dir():
+            continue
+        if f.suffix in ('.py','.md','.toml','.yaml','.yml','.json','.cfg','.sh'):
+            try: yield f, f.read_text()
+            except: pass
+
+def audit():
+    findings = []
+    # Secret: only hardcoded literal values (not env var usage)
+    secret = re.compile(r'(?:api_key|secret|token|password|AUTH_TOKEN)\s*[:=]\s*["\']([^"\' ]{16,})["\']', re.I)
+    email_re = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+    ok_email = {'logohere@gmail.com','noreply@github.com','users.noreply.github.com',
+                'git@github.com','noreply@nousresearch.com','noreply@openai.com'}
+    fake = {'example','test','domain','foo','bar','user@','email@','name@','john@','alice@',
+            'noreply','no-reply','donotreply','placeholder','sample','fake','dummy'}
+
+    for path, text in walk():
+        # True hardcoded secrets
+        for m in secret.finditer(text):
+            val = m.group(1)
+            if val != '${' and 'os.getenv' not in text[m.start():m.start()+80]:
+                findings.append(f"SECRET: {m.group(0)[:60]} in {path.name}")
+
+        # Suspicious emails (not known-safe, not obvious test fixtures)
+        for m in email_re.finditer(text):
+            e = m.group().lower()
+            if e in ok_email or any(f in e for f in fake):
+                continue
+            if path.suffix in ('.py','.sh','.yaml','.yml','.toml','.cfg'):
+                findings.append(f"EMAIL: {e} in {path.name}")
+
+    # Untracked
+    s = subprocess.run(["git","status","--porcelain"], capture_output=True, text=True, cwd=REPO)
+    untracked = [l for l in s.stdout.splitlines() if l.startswith("??")]
+    if untracked:
+        findings.append(f"UNTRACKED: {len(untracked)} files")
+
+    # Version drift
+    try:
+        ppt = REPO / "pyproject.toml"
+        m = re.search(r'version\s*=\s*"([^"]+)"', ppt.read_text())
+        tags = subprocess.run(["git","tag","--sort=-v:refname"], capture_output=True, text=True, cwd=REPO)
+        latest = [t for t in tags.stdout.splitlines() if t.startswith('v')]
+        if m and latest and f"v{m.group(1)}" != latest[0]:
+            findings.append(f"TAG: pyproject={m.group(1)} latest={latest[0]}")
+    except: pass
+
+    return findings
+
+if __name__ == "__main__":
+    f = audit()
+    if f:
+        for line in f[:12]:
+            print(f"  ! {line}")
+        if len(f) > 12:
+            print(f"  … +{len(f)-12} more")
+        sys.exit(1)
+    else:
+        p = REPO / "pyproject.toml"
+        v = re.search(r'version\s*=\s*"([^"]+)"', p.read_text()).group(1) if p.exists() else "?"
+        t = subprocess.run(["git","describe","--tags","--always"], capture_output=True, text=True, cwd=REPO)
+        u = subprocess.run(["git","status","--porcelain"], capture_output=True, text=True, cwd=REPO)
+        n = sum(1 for l in u.stdout.splitlines() if l.startswith("??"))
+        print(f"  clean — v{v} ({t.stdout.strip()}) — {n} untracked — no secrets")

@@ -6,12 +6,13 @@ Saves ~15-25% of output tokens from entering conversation history.
 import re
 
 # Filler sentence starters — standalone sentences that are model self-talk
+# Note: "First,", "Next,", "Finally," intentionally excluded — they're instructional
 FILLER_STARTERS = (
     r"I should|I need to|I will|I.ll|Let me|I can|I.d better|I must|"
     r"I have to|I want to|I.m going to|I notice|I observe|I see|I realize|"
     r"I understand|It seems|It appears|I think|I believe|I found|"
     r"Looking at this|From this|This tells me|This means|That means|"
-    r"Now I|First,|Next,|Finally,"
+    r"Now I"
 )
 
 # Standalone politeness — entire line of just this
@@ -44,11 +45,26 @@ def strip_output(text: str) -> tuple[str, int, int]:
     """Strip filler from assistant output. Returns (stripped_text, original_len, stripped_len)."""
     original = len(text)
 
-    # Strip standalone filler lines (entire line is just self-talk)
-    text = FILLER_LINE.sub("", text)
-
-    # Strip standalone polite lines
-    text = POLITE_LINE.sub("", text)
+    # Protect code blocks — never strip inside ```
+    lines = text.split('\n')
+    result = []
+    in_code = False
+    for line in lines:
+        if line.strip().startswith('```'):
+            in_code = not in_code
+            result.append(line)
+            continue
+        if in_code:
+            result.append(line)
+            continue
+        
+        # Strip standalone filler lines (entire line is just self-talk)
+        if FILLER_LINE.match(line) or POLITE_LINE.match(line):
+            continue
+        
+        result.append(line)
+    
+    text = '\n'.join(result)
 
     # Strip markdown syntax (keep content)
     text = MD_BOLD.sub(r"\1", text)

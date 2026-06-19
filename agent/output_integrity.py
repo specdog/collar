@@ -110,4 +110,13 @@ def sanitize(text: str) -> str:
     return text
 
 
-__all__ = ["sanitize"]
+def get_forbidden_strings() -> List[str]:
+    """Return the raw forbidden strings list from the config file.
+
+    Used by logit_bias and stop-sequence injection.
+    Parsed once at import. Returns empty list if no config.
+    """
+    return list(_FORBIDDEN_STRINGS)
+
+
+__all__ = ["sanitize", "get_forbidden_strings"]

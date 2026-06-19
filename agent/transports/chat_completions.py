@@ -458,6 +458,11 @@ class ChatCompletionsTransport(ProviderTransport):
         if logit_bias:
             api_kwargs["logit_bias"] = logit_bias
 
+        # Stop sequences — cut generation at forbidden strings
+        stop = params.get("stop")
+        if stop:
+            api_kwargs["stop"] = stop
+
         return api_kwargs
 
     def _build_kwargs_from_profile(self, profile, model, sanitized, tools, params):
@@ -604,6 +609,11 @@ class ChatCompletionsTransport(ProviderTransport):
         logit_bias = params.get("logit_bias")
         if logit_bias:
             api_kwargs["logit_bias"] = logit_bias
+
+        # Stop sequences — cut generation at forbidden strings
+        stop = params.get("stop")
+        if stop:
+            api_kwargs["stop"] = stop
 
         return api_kwargs
 

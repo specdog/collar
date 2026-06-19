@@ -36,7 +36,8 @@ from agent.message_sanitization import (
 from tools.terminal_tool import is_persistent_env
 from utils import base_url_host_matches, base_url_hostname, env_int
 
-from agent.logit_bias import build as _build_logit_bias
+from agent.logit_bias import build_logit_bias as _build_logit_bias
+from agent.logit_bias import build_stop_sequences as _build_stop_sequences
 
 logger = logging.getLogger(__name__)
 
@@ -764,6 +765,7 @@ def build_api_kwargs(agent, api_messages: list) -> dict:
             supports_reasoning=agent._supports_reasoning_extra_body(),
             qwen_session_metadata=_qwen_meta,
             logit_bias=_build_logit_bias(),
+            stop=_build_stop_sequences(),
         )
 
     # ── Legacy flag path ────────────────────────────────────────────
@@ -812,6 +814,7 @@ def build_api_kwargs(agent, api_messages: list) -> dict:
         anthropic_max_output=_ant_max,
         provider_name=agent.provider,
         logit_bias=_build_logit_bias(),
+        stop=_build_stop_sequences(),
     )
 
 

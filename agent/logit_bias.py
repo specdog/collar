@@ -1,36 +1,31 @@
-"""Logit bias — ban forbidden tokens at API level. Zero prompt tokens.
+"""Logit bias + stop sequences — ban forbidden tokens before generation.
 
-Works with OpenAI-compatible APIs only (OpenAI, OpenRouter, DeepSeek compat).
-Anthropic/Gemini/Bedrock skip this — they fall back to prompt steering.
+Reads forbidden strings from output_integrity config (single parse).
+Provides two defenses:
+  - logit_bias: token-level ban (OpenAI-compat, tiktoken required)
+  - stop_sequences: string-level cutoff (ALL providers, zero dependencies)
 """
 
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional
+
+from agent.output_integrity import get_forbidden_strings
 
 log = logging.getLogger(__name__)
 
 
-def _forbidden_strings() -> List[str]:
-    user = Path.home() / ".dag" / "output-integrity.dag"
-    system = Path(__file__).parent.parent / "dags" / "output-integrity.dag"
-    path = user if user.exists() else system
-    if not path.exists():
-        return []
-    strings, section = [], None
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if line == "[forbidden-strings]":
-            section = "forbidden"; continue
-        if line.startswith("[") and line.endswith("]"):
-            section = None; continue
-        if section == "forbidden" and line:
-            strings.append(line)
-    return strings
+def _strings() -> List[str]:
+    """Forbidden strings from the unified config parser."""
+    return get_forbidden_strings()
 
 
-def build() -> Optional[Dict[int, int]]:
-    strings = _forbidden_strings()
+def build_logit_bias() -> Optional[Dict[int, int]]:
+    """Tokenize forbidden strings and return {token_id: -100}.
+
+    Requires tiktoken. Returns None if unavailable.
+    Only used for OpenAI-compatible APIs.
+    """
+    strings = _strings()
     if not strings:
         return None
     try:
@@ -43,3 +38,17 @@ def build() -> Optional[Dict[int, int]]:
         for tid in enc.encode(s):
             banned[tid] = -100
     return banned or None
+
+
+def build_stop_sequences() -> Optional[List[str]]:
+    """Return forbidden strings as stop sequences.
+
+    Works on ALL providers. Zero dependencies.
+    When the model starts generating a forbidden string,
+    the API cuts generation at that token.
+    """
+    strings = _strings()
+    return strings if strings else None
+
+
+__all__ = ["build_logit_bias", "build_stop_sequences"]

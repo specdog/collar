@@ -52,7 +52,7 @@ Entity→Target:abbreviated_verb(card)>Target:verb(card)
 ```
 
 **Format rules:**
-- DAG names abbreviated to 2 chars: `deepsuck-harness` → `[dh]`
+- DAG names abbreviated to 2 chars: `collar-harness` → `[ch]`
 - Verbs abbreviated to 5 chars: `references` → `refer`
 - `→` between entity and its edges, `>` between edges
 - Cards compacted: `1:1`→`11`, `1:many`→`1m`, `many:many`→`mm`

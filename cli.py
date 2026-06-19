@@ -167,7 +167,7 @@ _COMMAND_SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧
 
 # Load .env from ~/.dag/.env first, then project root as dev fallback.
 # User-managed env files should override stale shell exports on restart.
-from dag_constants import get_dag_home, display_dag_home
+from dag_constants import collar_env, get_dag_home, display_dag_home
 from dag_cli.browser_connect import (
     DEFAULT_BROWSER_CDP_URL,
     is_browser_debug_ready,
@@ -322,7 +322,7 @@ def _resolve_prefill_messages_file(config: Dict[str, Any]) -> str:
     ``agent.prefill_messages_file`` remains a legacy fallback for older CLI and
     godmode-generated configs.
     """
-    env_path = os.getenv("COLLAR_PREFILL_MESSAGES_FILE", "").strip()
+    env_path = collar_env("PREFILL_MESSAGES_FILE", "").strip()
     if env_path:
         return env_path
     top_level = str(config.get("prefill_messages_file", "") or "").strip()
@@ -376,7 +376,7 @@ def load_cli_config() -> Dict[str, Any]:
 
     # --ignore-user-config: force-skip the user config.yaml (still honor project
     # config as a fallback so defaults stay sensible).
-    ignore_user_config = os.environ.get("COLLAR_IGNORE_USER_CONFIG") == "1"
+    ignore_user_config = collar_env("IGNORE_USER_CONFIG") == "1"
 
     # Use user config if it exists, otherwise project config
     if user_config_path.exists() and not ignore_user_config:
@@ -919,10 +919,10 @@ def _prepare_deferred_agent_startup() -> None:
     global _deferred_agent_startup_done
     if _deferred_agent_startup_done:
         return
-    if os.environ.get("COLLAR_DEFER_AGENT_STARTUP") != "1":
+    if collar_env("DEFER_AGENT_STARTUP") != "1":
         return
     _deferred_agent_startup_done = True
-    _accept_hooks = os.environ.get("COLLAR_ACCEPT_HOOKS", "").lower() in {
+    _accept_hooks = collar_env("ACCEPT_HOOKS", "").lower() in {
         "1",
         "true",
         "yes",
@@ -1811,7 +1811,7 @@ def _detect_light_mode() -> bool:
                 _LIGHT_MODE_CACHE = result
                 return result
         # 2. Theme hint
-        theme = (os.environ.get("COLLAR_TUI_THEME") or "").strip().lower()
+        theme = (collar_env("TUI_THEME") or "").strip().lower()
         if theme == "light":
             result = True
             _LIGHT_MODE_CACHE = result
@@ -1820,7 +1820,7 @@ def _detect_light_mode() -> bool:
             _LIGHT_MODE_CACHE = result
             return result
         # 3. Explicit bg hex
-        bg_hint = os.environ.get("COLLAR_TUI_BACKGROUND") or ""
+        bg_hint = collar_env("TUI_BACKGROUND") or ""
         bg_lum = _luminance_from_hex(bg_hint)
         if bg_lum is not None:
             result = bg_lum >= 0.5
@@ -3006,7 +3006,7 @@ def _build_compact_banner() -> str:
         line1 = f"{agent_name} - AI Agent Framework"
         tiny_line = agent_name
 
-    if os.environ.get("COLLAR_FAST_STARTUP_BANNER") == "1":
+    if collar_env("FAST_STARTUP_BANNER") == "1":
         from dag_cli import __release_date__ as _release_date
         from dag_cli import __version__ as _version
 
@@ -3322,7 +3322,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         _DEFAULT_CONFIG_MODEL = ""
         self.model = model or _config_model or _DEFAULT_CONFIG_MODEL
         # Read max_tokens from config (env var override: COLLAR_MAX_TOKENS)
-        _env_mt = os.environ.get("COLLAR_MAX_TOKENS")
+        _env_mt = collar_env("MAX_TOKENS")
         if _env_mt:
             try:
                 self.max_tokens = int(_env_mt)
@@ -3358,7 +3358,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self.requested_provider = (
             provider
             or CLI_CONFIG["model"].get("provider")
-            or os.getenv("COLLAR_INFERENCE_PROVIDER")
+            or collar_env("INFERENCE_PROVIDER")
             or "auto"
         )
         self._provider_source: Optional[str] = None
@@ -3385,9 +3385,9 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self.max_turns = CLI_CONFIG["agent"]["max_turns"]
         elif CLI_CONFIG.get("max_turns"):  # Backwards compat: root-level max_turns
             self.max_turns = CLI_CONFIG["max_turns"]
-        elif os.getenv("COLLAR_MAX_ITERATIONS"):
+        elif collar_env("MAX_ITERATIONS"):
             try:
-                self.max_turns = int(os.getenv("COLLAR_MAX_ITERATIONS", ""))
+                self.max_turns = int(collar_env("MAX_ITERATIONS", ""))
             except (TypeError, ValueError):
                 self.max_turns = 90
         else:
@@ -3419,11 +3419,11 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # by `dag chat --ignore-rules` in dag_cli/main.py. When true we
         # pass skip_context_files=True and skip_memory=True to AIAgent so
         # AGENTS.md/SOUL.md/.cursorrules and persistent memory are not loaded.
-        self.ignore_rules = ignore_rules or os.environ.get("COLLAR_IGNORE_RULES") == "1"
+        self.ignore_rules = ignore_rules or collar_env("IGNORE_RULES") == "1"
         
         # Ephemeral system prompt: env var takes precedence, then config
         self.system_prompt = (
-            os.getenv("COLLAR_EPHEMERAL_SYSTEM_PROMPT", "")
+            collar_env("EPHEMERAL_SYSTEM_PROMPT", "")
             or CLI_CONFIG["agent"].get("system_prompt", "")
         )
         self.personalities = CLI_CONFIG["agent"].get("personalities", {})
@@ -5189,7 +5189,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         
         # Tool discovery is intentionally deferred on the Termux bare prompt
         # path; availability warnings are shown once tools are initialized.
-        if os.environ.get("COLLAR_DEFER_AGENT_STARTUP") != "1":
+        if collar_env("DEFER_AGENT_STARTUP") != "1":
             self._show_tool_availability_warnings()
 
         # Warn about low context lengths (common with local servers). Keep
@@ -5488,7 +5488,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
     def _show_status(self):
         """Show compact startup status line."""
         # Avoid pulling the full tool registry into the bare Termux prompt path.
-        if os.environ.get("COLLAR_DEFER_AGENT_STARTUP") == "1":
+        if collar_env("DEFER_AGENT_STARTUP") == "1":
             tool_status = "tools deferred"
         else:
             tools = get_tool_definitions(enabled_toolsets=self.enabled_toolsets, quiet_mode=True)
@@ -6000,7 +6000,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     self.agent._session_db_created = False
                     self._session_db.create_session(
                         session_id=self.session_id,
-                        source=os.environ.get("COLLAR_SESSION_SOURCE", "cli"),
+                        source=collar_env("SESSION_SOURCE", "cli"),
                         model=self.model,
                         model_config={
                             "max_iterations": self.max_turns,
@@ -11016,7 +11016,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # won't affect the running process — we just want the operator to
         # see that they're running without the safety net.
         try:
-            _redact_raw = os.getenv("COLLAR_REDACT_SECRETS", "true")
+            _redact_raw = collar_env("REDACT_SECRETS", "true")
             if _redact_raw.lower() not in {"1", "true", "yes", "on"}:
                 self._console_print(
                     "[bold red]⚠  Secret redaction is DISABLED[/] "
@@ -11154,10 +11154,10 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self._voice_tts_done = threading.Event()  # Signals TTS playback finished
         self._voice_tts_done.set()  # Initially "done" (no TTS pending)
 
-        if os.environ.get("COLLAR_DEFER_AGENT_STARTUP") != "1":
+        if collar_env("DEFER_AGENT_STARTUP") != "1":
             self._install_tool_callbacks()
 
-        if os.environ.get("COLLAR_DEFER_AGENT_STARTUP") != "1":
+        if collar_env("DEFER_AGENT_STARTUP") != "1":
             self._ensure_tirith_security()
         
         # Key bindings for the input area
@@ -13156,7 +13156,7 @@ class DagCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 if getattr(self, "agent", None) and getattr(self, "_agent_running", False):
                     self.agent.interrupt(f"received signal {signum}")
                     try:
-                        _grace = float(os.getenv("COLLAR_SIGTERM_GRACE", "1.5"))
+                        _grace = float(collar_env("SIGTERM_GRACE", "1.5"))
                     except (TypeError, ValueError):
                         _grace = 1.5
                     if _grace > 0:
@@ -13429,7 +13429,7 @@ def _run_kanban_goal_loop_q(cli: "DagCLI", first_response: str) -> None:
     """
     import os as _os
 
-    task_id = (_os.environ.get("COLLAR_KANBAN_TASK") or "").strip()
+    task_id = (_collar_env("KANBAN_TASK") or "").strip()
     if not task_id:
         return
 
@@ -13725,7 +13725,7 @@ def main(
             if _agent is not None:
                 _agent.interrupt(f"received signal {signum}")
                 try:
-                    _grace = float(os.getenv("COLLAR_SIGTERM_GRACE", "1.5"))
+                    _grace = float(collar_env("SIGTERM_GRACE", "1.5"))
                 except (TypeError, ValueError):
                     _grace = 1.5
                 if _grace > 0:
@@ -13744,7 +13744,7 @@ def main(
         # first so the final debug trace isn't lost; SIGALRM deadman guards
         # the flush against any rare blocking-I/O case (the reporter measured
         # flush in <1ms; the alarm is a failsafe, not the common path).
-        if os.environ.get("COLLAR_KANBAN_TASK"):
+        if collar_env("KANBAN_TASK"):
             try:
                 import signal as _sig_mod
                 if hasattr(_sig_mod, "SIGALRM"):
@@ -13789,7 +13789,7 @@ def main(
             # path or URL into a kanban task body never get it routed to the
             # model's vision input.
             single_query_image_urls: list[str] = []
-            _kanban_task_id = os.environ.get("COLLAR_KANBAN_TASK", "").strip()
+            _kanban_task_id = collar_env("KANBAN_TASK", "").strip()
             if _kanban_task_id:
                 try:
                     from dag_cli import kanban_db as _kb
@@ -13933,7 +13933,7 @@ def main(
                         # out (→ sticky block). Gated on the env vars the
                         # dispatcher sets in `_default_spawn`; a no-op for every
                         # normal worker and every non-kanban `-q` run.
-                        if os.environ.get("COLLAR_KANBAN_GOAL_MODE") == "1":
+                        if collar_env("KANBAN_GOAL_MODE") == "1":
                             try:
                                 _run_kanban_goal_loop_q(cli, response)
                             except Exception as _goal_exc:
@@ -13957,7 +13957,7 @@ def main(
                         _exit_code = 0
                         if isinstance(result, dict) and result.get("failed"):
                             _exit_code = 1
-                            if os.environ.get("COLLAR_KANBAN_TASK") and result.get(
+                            if collar_env("KANBAN_TASK") and result.get(
                                 "failure_reason"
                             ) in ("rate_limit", "billing"):
                                 try:

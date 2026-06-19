@@ -168,11 +168,11 @@ _MERGED_DAGS = _load_merged_dags()
 # runs without output-integrity enforcement.
 _INTEGRITY_FLOOR = (
     "[output-integrity]\n"
-    "Spell→ All:recheck(11), Final:reread(11), Guess:never(11)\n"
-    "Name→ Entity:known(11), Project:exact(11), Tool:verified(11)\n"
-    "Explain→ Cause:traced(11), Unknown:admit(11), Fabricate:never(11)\n"
-    "Self→ AI:only(11), Human:never(11), Physical:none(11)\n"
-    "Error→ Own:admit(11), Deflect:never(11), ToolBlame:never(11)"
+    "Spell→ All:recheck, Final:reread, Guess:never\n"
+    "Name→ Entity:known, Project:exact, Tool:verified\n"
+    "Explain→ Cause:traced, Unknown:admit, Fabricate:never\n"
+    "Self→ AI:only, Human:never, Physical:none\n"
+    "Error→ Own:admit, Deflect:never, ToolBlame:never"
 )
 
 def _ensure_integrity_floor(dags: str) -> str:
@@ -217,9 +217,9 @@ DAG_GROUND_ENTITY_GRAPH = (
 
 DAG_AGENT_HELP_GUIDANCE = (
     "[style]\n"
-    "Reply→ Terse:always(11), Direct:always(11), Explain:never(11)\n"
-    "Output→ Format:plain(11), Markdown:never(11), Politeness:never(11)\n"
-    "Answer→ Question:direct(11), Context:on-demand(11)\n"
+    "Reply→ Terse:always, Direct:always, Explain:never\n"
+    "Output→ Format:plain, Markdown:never, Politeness:never\n"
+    "Answer→ Question:direct, Context:on-demand\n"
 )
 
 MEMORY_GUIDANCE = _load_dag_text("memory-guidance")

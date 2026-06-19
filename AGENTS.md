@@ -41,6 +41,26 @@ chore: <description>
 refactor: <description>
 ```
 
+## DAG Context Injection
+
+Collar injects DAG-path context before every LLM call via the `pre-llm-call-intel.py` hook.
+The compact format is token-optimized:
+
+```
+[abbreviated-dag-name]
+Entity→Target:abbreviated_verb(card)>Target:verb(card)
+```
+
+**Format rules:**
+- DAG names abbreviated to 2 chars: `deepsuck-harness` → `[dh]`
+- Verbs abbreviated to 5 chars: `references` → `refer`
+- `→` between entity and its edges, `>` between edges
+- Cards compacted: `1:1`→`11`, `1:many`→`1m`, `many:many`→`mm`
+- No `!` required markers, no `[verb]` brackets
+- dotdog-compiled `.dag` files carry a pre-built `compact` field for zero-parse fast path
+
+**Tests:** `pytest tests/test_dag_router.py`
+
 ## Attribution
 
 Forked from NousResearch/hermes-agent. MIT license.

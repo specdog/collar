@@ -453,6 +453,11 @@ class ChatCompletionsTransport(ProviderTransport):
         if overrides:
             api_kwargs.update(overrides)
 
+        # Logit bias — ban forbidden tokens at API level
+        logit_bias = params.get("logit_bias")
+        if logit_bias:
+            api_kwargs["logit_bias"] = logit_bias
+
         return api_kwargs
 
     def _build_kwargs_from_profile(self, profile, model, sanitized, tools, params):
@@ -594,6 +599,11 @@ class ChatCompletionsTransport(ProviderTransport):
                 }
             if extra_body:
                 api_kwargs["extra_body"] = extra_body
+
+        # Logit bias — ban forbidden tokens at API level
+        logit_bias = params.get("logit_bias")
+        if logit_bias:
+            api_kwargs["logit_bias"] = logit_bias
 
         return api_kwargs
 

@@ -1,4 +1,0 @@
-[console_scripts]
-dag = dag_cli.main:main
-dag-acp = acp_adapter.entry:main
-dag-agent = run_agent:main

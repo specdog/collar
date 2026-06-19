@@ -77,6 +77,65 @@ def _find_git_root(start: Path) -> Optional[Path]:
 _DAG_MD_NAMES = (".dag.md", "DAG.md")
 
 
+def _load_project_dag(cwd_path: Path) -> str:
+    """Inject project .dag files as DAG ground truth (before markdown).
+
+    Scans projects/ and specs/ subdirectories for .dag files.
+    Returns compact DAG-path notation: Entity-> Target:verb(card).
+    Max 3 project DAGs, each max 8,000 chars.
+    """
+    import json as _json
+    dag_files: List[Path] = []
+    for scan_dir in ("projects", "specs"):
+        scan_path = cwd_path / scan_dir
+        if scan_path.is_dir():
+            dag_files.extend(sorted(scan_path.rglob("*.dag")))
+    if not dag_files:
+        return ""
+
+    sections: List[str] = []
+    for dag_path in dag_files[:3]:
+        try:
+            content = dag_path.read_text(encoding="utf-8").strip()
+            if not content:
+                continue
+            dag = _json.loads(content)
+            project = dag.get("p", "?")
+            nodes = dag.get("n", [])
+            node_names: Dict[int, str] = {}
+            for n in nodes:
+                node_names[n[0]] = n[1]
+
+            lines = ["[%s]  # DAG ground truth" % project]
+            for n in nodes:
+                nid, name, ntype, _desc, _props, states, edges = n
+                # Compact edges: Target:verb(card)
+                edge_strs = []
+                for edge in edges:
+                    tid, verb, card = edge[0], edge[1], edge[2]
+                    tname = node_names.get(tid, "?")
+                    edge_strs.append("%s:%s(%s)" % (tname, verb, card))
+                if edge_strs:
+                    lines.append("%s-> %s" % (name, " | ".join(edge_strs)))
+                if states and len(states) > 0:
+                    lines.append("  states: %s" % " -> ".join(str(s) for s in states[:12]))
+
+            dag_text = "\n".join(lines)
+            try:
+                rel = str(dag_path.relative_to(cwd_path))
+            except ValueError:
+                rel = str(dag_path)
+            if len(dag_text) > 8000:
+                dag_text = dag_text[:8000] + "\n[...truncated]\n"
+            sections.append("[Subdirectory DAG context: %s]\n%s" % (rel, dag_text))
+        except Exception:
+            pass
+
+    if not sections:
+        return ""
+    return "\n\n".join(sections)
+
+
 def _find_dag_md(cwd: Path) -> Optional[Path]:
     """Discover the nearest ``.dag.md`` or ``DAG.md``.
 
@@ -1455,9 +1514,11 @@ def build_context_files_prompt(cwd: Optional[str] = None, skip_soul: bool = Fals
     cwd_path = Path(cwd).resolve()
     sections = []
 
-    # Priority-based project context: first match wins
+    # Priority-based project context: DAG files first (ground truth),
+    # then markdown context files (fallback).
     project_context = (
-        _load_dag_md(cwd_path)
+        _load_project_dag(cwd_path)
+        or _load_dag_md(cwd_path)
         or _load_agents_md(cwd_path)
         or _load_claude_md(cwd_path)
         or _load_cursorrules(cwd_path)

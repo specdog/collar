@@ -38,10 +38,11 @@ class TestSelfTalk:
         assert "I think" not in result
         assert "result" in result
 
-    def test_first_comma_stripped(self):
-        result = run_stripper("First, we need data.\n\nHere it is.")
-        assert "First," not in result
-        assert "Here it is" in result
+    def test_instructional_first_preserved(self):
+        """'First, ...' is instructional, not filler — must survive."""
+        result = run_stripper("First, install the package with pip.\n\nThen configure the API key.")
+        assert "First, install" in result
+        assert "Then configure" in result
 
     def test_content_after_filler_preserved(self):
         """Lines after filler lines must survive."""
@@ -129,7 +130,37 @@ class TestSavings:
         """Text without filler should pass through unchanged (except markdown)."""
         text = "The memory system stores facts in JSON format.\nIt uses keyword matching."
         result = run_stripper(text)
-        # Should be same except trailing whitespace
         assert "memory system" in result
         assert "keyword matching" in result
+        assert len(result) <= len(text)
+
+    def test_code_blocks_preserved(self):
+        """Content inside ``` code blocks must never be stripped."""
+        text = (
+            "Here is the fix:\n\n"
+            "I should check something outside.\n\n"
+            "```python\n"
+            "I should not strip this line inside code.\n"
+            "def check():\n"
+            "    return True\n"
+            "```\n\n"
+            "Apply this patch."
+        )
+        result = run_stripper(text)
+        assert "I should not strip this line inside code" in result
+        assert "def check():" in result
+        assert "Apply this patch" in result
+        assert "I should check something outside" not in result  # outside code → stripped
+
+    def test_urls_paths_preserved(self):
+        """URLs and file paths must survive stripping."""
+        text = (
+            "I should verify the path.\n\n"
+            "The file is at /Users/dico/collar/agent/prompt_builder.py\n"
+            "See https://github.com/specdog/collar/pull/75\n"
+        )
+        result = run_stripper(text)
+        assert "/Users/dico" in result
+        assert "github.com" in result
+        assert "I should" not in result
         assert len(result) <= len(text)

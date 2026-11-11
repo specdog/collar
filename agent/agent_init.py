@@ -1131,69 +1131,76 @@ def init_agent(
     
 
 
-    # Memory provider plugin (external — one at a time, alongside built-in)
-    # Reads memory.provider from config to select which plugin to activate.
+    # Memory providers: always-on builtin local recall plus at most one
+    # configured external plugin provider.
     agent._memory_manager = None
     if not skip_memory:
         try:
+            from agent.local_recall_provider import LocalRecallProvider
+            from agent.memory_manager import MemoryManager as _MemoryManager
+
             _mem_provider_name = mem_config.get("provider", "") if mem_config else ""
+            agent._memory_manager = _MemoryManager()
+            agent._memory_manager.add_provider(LocalRecallProvider())
 
             if _mem_provider_name and _mem_provider_name.strip():
-                from agent.memory_manager import MemoryManager as _MemoryManager
                 from plugins.memory import load_memory_provider as _load_mem
-                agent._memory_manager = _MemoryManager()
+
                 _mp = _load_mem(_mem_provider_name)
                 if _mp and _mp.is_available():
                     agent._memory_manager.add_provider(_mp)
-                if agent._memory_manager.providers:
-                    _init_kwargs = {
-                        "session_id": agent.session_id,
-                        "platform": platform or "cli",
-                        "dag_home": str(get_dag_home()),
-                        "agent_context": "primary",
-                    }
-                    # Thread session title for memory provider scoping
-                    # (e.g. honcho uses this to derive chat-scoped session keys)
-                    if agent._session_db:
-                        try:
-                            _st = agent._session_db.get_session_title(agent.session_id)
-                            if _st:
-                                _init_kwargs["session_title"] = _st
-                        except Exception:
-                            pass
-                    # Thread gateway user identity for per-user memory scoping
-                    if agent._user_id:
-                        _init_kwargs["user_id"] = agent._user_id
-                    if agent._user_id_alt:
-                        _init_kwargs["user_id_alt"] = agent._user_id_alt
-                    if agent._user_name:
-                        _init_kwargs["user_name"] = agent._user_name
-                    if agent._chat_id:
-                        _init_kwargs["chat_id"] = agent._chat_id
-                    if agent._chat_name:
-                        _init_kwargs["chat_name"] = agent._chat_name
-                    if agent._chat_type:
-                        _init_kwargs["chat_type"] = agent._chat_type
-                    if agent._thread_id:
-                        _init_kwargs["thread_id"] = agent._thread_id
-                    # Thread gateway session key for stable per-chat Honcho session isolation
-                    if agent._gateway_session_key:
-                        _init_kwargs["gateway_session_key"] = agent._gateway_session_key
-                    # Profile identity for per-profile provider scoping
+
+            if agent._memory_manager.providers:
+                _init_kwargs = {
+                    "session_id": agent.session_id,
+                    "platform": platform or "cli",
+                    "dag_home": str(get_dag_home()),
+                    "agent_context": "primary",
+                    "cwd": getattr(agent, "session_cwd", None) or os.getcwd(),
+                    "session_db": agent._session_db,
+                }
+                # Thread session title for memory provider scoping
+                # (e.g. honcho uses this to derive chat-scoped session keys)
+                if agent._session_db:
                     try:
-                        from dag_cli.profiles import get_active_profile_name
-                        _profile = get_active_profile_name()
-                        _init_kwargs["agent_identity"] = _profile
-                        _init_kwargs["agent_workspace"] = "dag"
+                        _st = agent._session_db.get_session_title(agent.session_id)
+                        if _st:
+                            _init_kwargs["session_title"] = _st
                     except Exception:
                         pass
-                    agent._memory_manager.initialize_all(**_init_kwargs)
+                # Thread gateway user identity for per-user memory scoping
+                if agent._user_id:
+                    _init_kwargs["user_id"] = agent._user_id
+                if agent._user_id_alt:
+                    _init_kwargs["user_id_alt"] = agent._user_id_alt
+                if agent._user_name:
+                    _init_kwargs["user_name"] = agent._user_name
+                if agent._chat_id:
+                    _init_kwargs["chat_id"] = agent._chat_id
+                if agent._chat_name:
+                    _init_kwargs["chat_name"] = agent._chat_name
+                if agent._chat_type:
+                    _init_kwargs["chat_type"] = agent._chat_type
+                if agent._thread_id:
+                    _init_kwargs["thread_id"] = agent._thread_id
+                # Thread gateway session key for stable per-chat Honcho session isolation
+                if agent._gateway_session_key:
+                    _init_kwargs["gateway_session_key"] = agent._gateway_session_key
+                # Profile identity for per-profile provider scoping
+                try:
+                    from dag_cli.profiles import get_active_profile_name
+                    _profile = get_active_profile_name()
+                    _init_kwargs["agent_identity"] = _profile
+                    _init_kwargs["agent_workspace"] = "dag"
+                except Exception:
+                    pass
+                agent._memory_manager.initialize_all(**_init_kwargs)
+                if _mem_provider_name and _mem_provider_name.strip():
                     _ra().logger.info("Memory provider '%s' activated", _mem_provider_name)
-                else:
-                    _ra().logger.debug("Memory provider '%s' not found or not available", _mem_provider_name)
-                    agent._memory_manager = None
+            else:
+                agent._memory_manager = None
         except Exception as _mpe:
-            _ra().logger.warning("Memory provider plugin init failed: %s", _mpe)
+            _ra().logger.warning("Memory provider init failed: %s", _mpe)
             agent._memory_manager = None
 
     from agent.memory_manager import inject_memory_provider_tools as _inject_memory_provider_tools

@@ -44,6 +44,11 @@ class DagOverlay:
 
 
 DAG_OVERLAYS: Dict[str, DagOverlay] = {
+    "cerebras": DagOverlay(
+        transport="openai_chat",
+        base_url_override="https://api.cerebras.ai/v1",
+        base_url_env_var="CEREBRAS_BASE_URL",
+    ),
     "openrouter": DagOverlay(
         transport="openai_chat",
         is_aggregator=True,
@@ -366,6 +371,7 @@ ALIASES: Dict[str, str] = {
 
 _LABEL_OVERRIDES: Dict[str, str] = {
     "nous": "Nous Portal",
+    "cerebras": "Cerebras",
     "openai-codex": "OpenAI Codex",
     "copilot-acp": "GitHub Copilot ACP",
     "stepfun": "StepFun Step Plan",

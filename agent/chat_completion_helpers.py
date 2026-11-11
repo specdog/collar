@@ -765,7 +765,7 @@ def build_api_kwargs(agent, api_messages: list) -> dict:
             supports_reasoning=agent._supports_reasoning_extra_body(),
             qwen_session_metadata=_qwen_meta,
             logit_bias=_build_logit_bias(),
-            stop=_build_stop_sequences(),
+            stop=_build_stop_sequences(agent.provider),
         )
 
     # ── Legacy flag path ────────────────────────────────────────────
@@ -814,7 +814,7 @@ def build_api_kwargs(agent, api_messages: list) -> dict:
         anthropic_max_output=_ant_max,
         provider_name=agent.provider,
         logit_bias=_build_logit_bias(),
-        stop=_build_stop_sequences(),
+        stop=_build_stop_sequences(agent.provider),
     )
 
 

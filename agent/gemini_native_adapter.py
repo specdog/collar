@@ -32,6 +32,7 @@ from agent.gemini_schema import sanitize_gemini_tool_parameters
 logger = logging.getLogger(__name__)
 
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+_GEMINI_MAX_STOP_SEQUENCES = 5
 
 # Published max output-token ceiling shared by every current Gemini text model
 # (2.5 + 3.x: flash, flash-lite, pro). Used as the default when the caller
@@ -59,6 +60,34 @@ def is_native_gemini_base_url(base_url: str) -> bool:
     if "generativelanguage.googleapis.com" not in normalized:
         return False
     return not normalized.endswith("/openai")
+
+
+def _normalize_gemini_stop_sequences(stop: Any) -> Optional[List[str]]:
+    """Return a Gemini-safe stop list capped at the provider limit."""
+    if not stop:
+        return None
+    if isinstance(stop, str):
+        values = [stop]
+    elif isinstance(stop, (list, tuple)):
+        values = [str(s) for s in stop if s]
+    else:
+        return None
+
+    deduped: List[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+
+    if len(deduped) > _GEMINI_MAX_STOP_SEQUENCES:
+        logger.warning(
+            "Gemini supports at most %d stop sequences; truncating %d extra entries",
+            _GEMINI_MAX_STOP_SEQUENCES,
+            len(deduped) - _GEMINI_MAX_STOP_SEQUENCES,
+        )
+    return deduped[:_GEMINI_MAX_STOP_SEQUENCES] or None
 
 
 def probe_gemini_tier(
@@ -445,8 +474,9 @@ def build_gemini_request(
         generation_config["maxOutputTokens"] = GEMINI_DEFAULT_MAX_OUTPUT_TOKENS
     if top_p is not None:
         generation_config["topP"] = top_p
-    if stop:
-        generation_config["stopSequences"] = stop if isinstance(stop, list) else [str(stop)]
+    stop_sequences = _normalize_gemini_stop_sequences(stop)
+    if stop_sequences:
+        generation_config["stopSequences"] = stop_sequences
     normalized_thinking = _normalize_thinking_config(thinking_config)
     if normalized_thinking:
         generation_config["thinkingConfig"] = normalized_thinking

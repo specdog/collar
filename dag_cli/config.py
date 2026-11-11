@@ -5482,6 +5482,7 @@ _FALLBACK_COMMENT = """
 # overload (529), service errors (503), or connection failures.
 #
 # Supported providers:
+#   cerebras     (CEREBRAS_API_KEY)    — Cerebras Inference API
 #   openrouter   (OPENROUTER_API_KEY)  — routes to any model
 #   openai-codex (OAuth — dag auth) — OpenAI Codex
 #   nous         (OAuth — dag auth) — Nous Portal
@@ -5514,6 +5515,7 @@ _COMMENTED_SECTIONS = """
 # overload (529), service errors (503), or connection failures.
 #
 # Supported providers:
+#   cerebras     (CEREBRAS_API_KEY)    — Cerebras Inference API
 #   openrouter   (OPENROUTER_API_KEY)  — routes to any model
 #   openai-codex (OAuth — dag auth) — OpenAI Codex
 #   nous         (OAuth — dag auth) — Nous Portal

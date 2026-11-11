@@ -387,9 +387,9 @@ def load_cli_config() -> Dict[str, Any]:
     # Default configuration
     defaults = {
         "model": {
-            "default": "",
+            "default": "gemma-4-31b",
             "base_url": "",
-            "provider": "auto",
+            "provider": "cerebras",
         },
         "terminal": {
             "env_type": "local",

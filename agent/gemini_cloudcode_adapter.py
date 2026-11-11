@@ -47,6 +47,7 @@ from agent.google_code_assist import (
 )
 
 logger = logging.getLogger(__name__)
+_GEMINI_MAX_STOP_SEQUENCES = 5
 
 
 # =============================================================================
@@ -128,6 +129,34 @@ def _translate_tool_result_to_gemini(message: Dict[str, Any]) -> Dict[str, Any]:
             "response": response,
         },
     }
+
+
+def _normalize_gemini_stop_sequences(stop: Any) -> Optional[List[str]]:
+    """Return a Gemini-safe stop list capped at the provider limit."""
+    if not stop:
+        return None
+    if isinstance(stop, str):
+        values = [stop]
+    elif isinstance(stop, (list, tuple)):
+        values = [str(s) for s in stop if s]
+    else:
+        return None
+
+    deduped: List[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+
+    if len(deduped) > _GEMINI_MAX_STOP_SEQUENCES:
+        logger.warning(
+            "Gemini supports at most %d stop sequences; truncating %d extra entries",
+            _GEMINI_MAX_STOP_SEQUENCES,
+            len(deduped) - _GEMINI_MAX_STOP_SEQUENCES,
+        )
+    return deduped[:_GEMINI_MAX_STOP_SEQUENCES] or None
 
 
 def _build_gemini_contents(
@@ -284,10 +313,9 @@ def build_gemini_request(
         generation_config["maxOutputTokens"] = max_tokens
     if isinstance(top_p, (int, float)):
         generation_config["topP"] = float(top_p)
-    if isinstance(stop, str) and stop:
-        generation_config["stopSequences"] = [stop]
-    elif isinstance(stop, list) and stop:
-        generation_config["stopSequences"] = [str(s) for s in stop if s]
+    stop_sequences = _normalize_gemini_stop_sequences(stop)
+    if stop_sequences:
+        generation_config["stopSequences"] = stop_sequences
     normalized_thinking = _normalize_thinking_config(thinking_config)
     if normalized_thinking:
         generation_config["thinkingConfig"] = normalized_thinking

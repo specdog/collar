@@ -13,6 +13,10 @@ from agent.output_integrity import get_forbidden_strings
 
 log = logging.getLogger(__name__)
 
+_STOP_SEQUENCE_LIMITS: dict[str, int] = {
+    "cerebras": 4,
+}
+
 
 def _strings() -> List[str]:
     """Forbidden strings from the unified config parser."""
@@ -40,7 +44,7 @@ def build_logit_bias() -> Optional[Dict[int, int]]:
     return banned or None
 
 
-def build_stop_sequences() -> Optional[List[str]]:
+def build_stop_sequences(provider_name: str | None = None) -> Optional[List[str]]:
     """Return forbidden strings as stop sequences.
 
     Works on ALL providers. Zero dependencies.
@@ -48,7 +52,12 @@ def build_stop_sequences() -> Optional[List[str]]:
     the API cuts generation at that token.
     """
     strings = _strings()
-    return strings if strings else None
+    if not strings:
+        return None
+    limit = _STOP_SEQUENCE_LIMITS.get((provider_name or "").strip().lower())
+    if limit is not None:
+        return strings[:limit]
+    return strings
 
 
 __all__ = ["build_logit_bias", "build_stop_sequences"]

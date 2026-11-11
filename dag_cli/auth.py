@@ -70,6 +70,7 @@ AUTH_LOCK_TIMEOUT_SECONDS = 15.0
 DEFAULT_NOUS_PORTAL_URL = "https://portal.nousresearch.com"
 DEFAULT_NOUS_INFERENCE_URL = "https://inference-api.nousresearch.com/v1"
 DEFAULT_NOUS_CLIENT_ID = "dag-cli"
+DEFAULT_CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1"
 NOUS_INFERENCE_INVOKE_SCOPE = "inference:invoke"
 DEFAULT_NOUS_SCOPE = NOUS_INFERENCE_INVOKE_SCOPE
 NOUS_DEVICE_CODE_SOURCE = "device_code"
@@ -170,6 +171,14 @@ class ProviderConfig:
 
 
 PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
+    "cerebras": ProviderConfig(
+        id="cerebras",
+        name="Cerebras",
+        auth_type="api_key",
+        inference_base_url=DEFAULT_CEREBRAS_BASE_URL,
+        api_key_env_vars=("CEREBRAS_API_KEY",),
+        base_url_env_var="CEREBRAS_BASE_URL",
+    ),
     "nous": ProviderConfig(
         id="nous",
         name="Nous Portal",
@@ -1585,6 +1594,9 @@ def resolve_provider(
                 return active
     except Exception as e:
         logger.debug("Could not detect active auth provider: %s", e)
+
+    if has_usable_secret(os.getenv("CEREBRAS_API_KEY")):
+        return "cerebras"
 
     if has_usable_secret(os.getenv("OPENAI_API_KEY")) or has_usable_secret(os.getenv("OPENROUTER_API_KEY")):
         return "openrouter"

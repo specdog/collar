@@ -87,6 +87,7 @@ collar setup         # first-time setup wizard
 ## Related
 
 - [dotdog](https://github.com/specdog/dotdog) — `.dog` spec format + compiler
+- [dogbench](https://github.com/specdog/dogbench) — token-savings benchmark harness
 - [specdog](https://github.com/specdog) — the org
 - PRs use an agentic template: `.github/pull_request_template.md`
 

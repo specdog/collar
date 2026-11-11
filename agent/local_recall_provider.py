@@ -267,4 +267,3 @@ def _turn_used_tools(messages: List[Dict[str, Any]]) -> bool:
         if msg.get("tool_calls"):
             return True
     return False
-

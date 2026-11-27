@@ -217,7 +217,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("credits", "Show Nous credit balance and top up", "Info"),
     CommandDef("insights", "Show usage insights and analytics", "Info",
                args_hint="[days]"),
-    CommandDef("benchmark", "Run token benchmark against other agents (dogbench)", "Info",
+    CommandDef("benchmark", "Run token benchmark against other agents", "Info",
                args_hint="[--all]"),
     CommandDef("platforms", "Show gateway/messaging platform status", "Info",
                cli_only=True, aliases=("gateway",)),
